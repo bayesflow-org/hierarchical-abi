@@ -95,7 +95,7 @@ class Simulator:
         return dict(observable=traj_sampled)
 
 class Prior:
-    def __init__(self, torch_device=None):
+    def __init__(self):
         self.mu_mean = 0
         self.mu_std = 3
         self.log_tau_mean = 0
@@ -107,16 +107,17 @@ class Prior:
         test_prior = self.sample_single(1000)
         self.simulator = Simulator()
         test = self.simulator(test_prior,)
-        self.x_mean = torch.tensor([np.mean(test['observable'])], dtype=torch.float32, device=torch_device)
-        self.x_std = torch.tensor([np.std(test['observable'])], dtype=torch.float32, device=torch_device)
+        self.x_mean = torch.tensor([np.mean(test['observable'])], dtype=torch.float32)
+        self.x_std = torch.tensor([np.std(test['observable'])], dtype=torch.float32)
         self.prior_global_mean = torch.tensor(np.array([np.mean(test_prior['mu']), np.mean(test_prior['log_tau'])]),
-                                              dtype=torch.float32, device=torch_device)
+                                              dtype=torch.float32)
         self.prior_global_std = torch.tensor(np.array([np.std(test_prior['mu']), np.std(test_prior['log_tau'])]),
-                                             dtype=torch.float32, device=torch_device)
+                                             dtype=torch.float32)
         self.prior_local_mean = torch.tensor(np.array([np.mean(test_prior['theta'])]),
-                                             dtype=torch.float32, device=torch_device)
+                                             dtype=torch.float32)
         self.prior_local_std = torch.tensor(np.array([np.std(test_prior['theta'])]),
-                                            dtype=torch.float32, device=torch_device)
+                                            dtype=torch.float32)
+        self.device = 'cpu'
 
     def __call__(self, batch_size):
         return self.sample_single(batch_size)
@@ -156,11 +157,25 @@ class Prior:
         return score
 
     def normalize_theta(self, theta, global_params):
+        if self.device != theta.device:
+            self.prior_global_mean = self.prior_global_mean.to(theta.device)
+            self.prior_global_std = self.prior_global_std.to(theta.device)
+            self.prior_local_mean = self.prior_local_mean.to(theta.device)
+            self.prior_local_std = self.prior_local_std.to(theta.device)
+            self.device = theta.device
+            print(f"Moving prior to device {theta.device}")
         if global_params:
             return (theta - self.prior_global_mean) / self.prior_global_std
         return (theta - self.prior_local_mean) / self.prior_local_std
 
     def denormalize_theta(self, theta, global_params):
+        if self.device != theta.device:
+            self.prior_global_mean = self.prior_global_mean.to(theta.device)
+            self.prior_global_std = self.prior_global_std.to(theta.device)
+            self.prior_local_mean = self.prior_local_mean.to(theta.device)
+            self.prior_local_std = self.prior_local_std.to(theta.device)
+            self.device = theta.device
+            print(f"Moving prior to device {theta.device}")
         if global_params:
             return theta * self.prior_global_std + self.prior_global_mean
         return theta * self.prior_local_std + self.prior_local_mean
