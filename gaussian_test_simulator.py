@@ -184,7 +184,7 @@ class Prior:
         return (x - self.x_mean) / self.x_std
 
 
-def generate_synthetic_data(prior, n_data, grid_size=8, full_grid=False, normalize=False):
+def generate_synthetic_data(prior, n_data, grid_size=8, full_grid=False, normalize=False, random_seed=None):
     """Generate synthetic data for the hierarchical model.
 
     Parameters:
@@ -193,7 +193,10 @@ def generate_synthetic_data(prior, n_data, grid_size=8, full_grid=False, normali
         grid_size (int): Size of the grid for the simulator.
         full_grid (bool): Whether to sample the full grid or a single element.
         normalize (bool): Whether to normalize the data.
+        random_seed (int): Random seed for reproducibility.
     """
+    if random_seed is not None:
+        np.random.seed(random_seed)
     if full_grid:
         batch_params = prior.sample_full(n_data)
     else:
