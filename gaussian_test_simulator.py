@@ -4,8 +4,7 @@ import torch
 
 
 class Simulator:
-    def __init__(self, n_grid=8):
-        self.n_grid = n_grid
+    def __init__(self):
         self.max_time = 100
         self.n_time_points = 10  # number of observation points to return
         self.dt = 0.1            # simulation time step
@@ -35,6 +34,7 @@ class Simulator:
         """
         # Convert parameters to numpy arrays.
         theta = np.array(params['theta'])
+        n_grid = 1 if theta.ndim in (0, 1) else theta.shape[-1]
 
         # Determine simulation mode and grid shape.
         if theta.ndim in (0,1):
@@ -49,9 +49,9 @@ class Simulator:
                 raise ValueError("For 2D 'theta', the second dimension must be 1.")
         elif theta.ndim == 3:
             # 3D array: shape (batch_size, n_grid, n_grid)
-            if theta.shape[1] != self.n_grid or theta.shape[2] != self.n_grid:
+            if theta.shape[1] != n_grid or theta.shape[2] != n_grid:
                 raise ValueError("For 3D 'theta', the second and third dimensions must equal n_grid.")
-            grid_shape = (self.n_grid, self.n_grid)
+            grid_shape = (n_grid, n_grid)
         else:
             raise ValueError("Parameter 'theta' must be provided as a scalar, 2D array, or 3D array.")
         batch_size = theta.shape[0]
@@ -106,7 +106,7 @@ class Prior:
         np.random.seed(0)
         test_prior = self.sample_single(1000)
         self.simulator = Simulator()
-        test = self.simulator(test_prior,)
+        test = self.simulator(test_prior)
         self.x_mean = torch.tensor([np.mean(test['observable'])], dtype=torch.float32)
         self.x_std = torch.tensor([np.std(test['observable'])], dtype=torch.float32)
         self.prior_global_mean = torch.tensor(np.array([np.mean(test_prior['mu']), np.mean(test_prior['log_tau'])]),
@@ -128,11 +128,11 @@ class Prior:
         theta = np.random.normal(loc=mu, scale=np.exp(log_tau), size=(batch_size, 1))
         return dict(mu=mu, log_tau=log_tau, theta=theta)
 
-    def sample_full(self, batch_size):
+    def sample_full(self, batch_size, n_grid):
         mu = np.random.normal(loc=self.mu_mean, scale=self.mu_std, size=(batch_size, 1))
         log_tau = np.random.normal(loc=self.log_tau_mean, scale=self.log_tau_std, size=(batch_size, 1))
         theta = np.random.normal(loc=mu[:, np.newaxis], scale=np.exp(log_tau)[:, np.newaxis],
-                                 size=(batch_size, self.simulator.n_grid, self.simulator.n_grid))
+                                 size=(batch_size, n_grid, n_grid))
         return dict(mu=mu, log_tau=log_tau, theta=theta)
 
     def score_global_batch(self, theta_batch_norm, condition_norm=None):
@@ -198,10 +198,10 @@ def generate_synthetic_data(prior, n_data, grid_size=8, full_grid=False, normali
     if random_seed is not None:
         np.random.seed(random_seed)
     if full_grid:
-        batch_params = prior.sample_full(n_data)
+        batch_params = prior.sample_full(n_data, n_grid=grid_size)
     else:
         batch_params = prior.sample_single(n_data)
-    simulator = Simulator(n_grid=grid_size)
+    simulator = Simulator()
     sim_batch = simulator(batch_params)
 
     param_global = torch.tensor(np.concatenate((batch_params['mu'], batch_params['log_tau']), axis=1),

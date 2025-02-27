@@ -1,7 +1,9 @@
 import numpy as np
 import torch
 from scipy.integrate import solve_ivp
+from scipy import stats
 from tqdm import tqdm
+
 from helper_functions import generate_diffusion_time
 
 
@@ -78,36 +80,124 @@ def expand_observations(x_obs_norm, n_post_samples, n_obs, n_time_steps):
     return x_expanded
 
 
-
-def pareto_smooth_sum(scores, tail_fraction, alpha, dim):
+def pareto_smooth_sum(scores, tail_fraction, dim):
     """
     Compute a Pareto smoothed sum along the specified dimension.
 
     Instead of summing the scores directly, the largest 'tail' fraction
-    of the scores is replaced by their mean value before summing.
+    of the scores is replaced by their mean value after fitting a Pareto distribution.
+    Fits separate Pareto distributions for each independent group of scores.
 
     Parameters:
         scores (torch.Tensor): Tensor of scores with shape
             (n_post_samples, n_obs, d) or similar.
         tail_fraction (float): Fraction of the tail to smooth.
-        alpha (float): Damping factor for the tail values.
         dim (int): Dimension along which to perform the smoothing.
 
     Returns:
         torch.Tensor: The Pareto smoothed sum along the specified dimension,
             with the dimension removed.
     """
+    # Create a working copy to avoid modifying the input
+    smoothed_scores = scores.clone()
+
+    # Get the shape of the tensor
+    shape = scores.shape
+
     # Compute threshold for the tail: the value below which (1 - tail_fraction) of the scores lie.
     threshold = torch.quantile(scores, 1 - tail_fraction, dim=dim, keepdim=True)
+
     # Create a mask: True for elements in the tail (>= threshold)
     tail_mask = scores >= threshold
-    # Apply damping: for tail elements, multiply by alpha; else leave unchanged.
-    damped_scores = torch.where(tail_mask, alpha * scores, scores)
-    return damped_scores.sum(dim=dim)
+
+    # Process each group separately
+    # Create indices for iterating through all dimensions except the smoothing dimension
+    iter_shape = list(shape)
+    iter_shape[dim] = 1
+
+    for idx in np.ndindex(*iter_shape):
+        # Convert idx to list for modification
+        idx_list = list(idx)
+
+        # Replace the singleton dimension with a full slice
+        idx_list[dim] = slice(None)
+
+        # Convert back to tuple for indexing
+        idx_tuple = tuple(idx_list)
+
+        # Get scores and mask for this group
+        group_scores = scores[idx_tuple]
+        group_mask = tail_mask[idx_tuple]
+
+        # Extract the tail values for this group
+        group_tail_values = group_scores[group_mask]
+
+        # Fit a Pareto distribution to the tail values if there are any
+        if group_tail_values.numel() > 0:
+            group_tail_values_np = group_tail_values.cpu().numpy()
+
+            # Fit a Pareto distribution to the tail values
+            # The Pareto distribution in scipy.stats needs values > 0
+            # We need to shift the values above 0 if they're not already
+            min_val = group_tail_values_np.min()
+            if min_val <= 0:
+                group_tail_values_np = group_tail_values_np - min_val + 1e-6
+
+            # Fit the Pareto distribution
+            try:
+                # Use scipy.stats.pareto which has parameters: b (shape), loc, scale
+                shape_param, loc, scale = stats.pareto.fit(group_tail_values_np)
+
+                # Calculate the mean of the fitted Pareto
+                pareto_mean = stats.pareto.mean(shape_param, loc=loc, scale=scale)
+
+                # If we shifted the values, shift the mean back
+                if min_val <= 0:
+                    pareto_mean = pareto_mean + min_val - 1e-6
+                if np.isinf(pareto_mean):
+                    print(f"Failed to fit Pareto distribution.")
+                else:
+                    # Replace the tail values with the Pareto mean
+                    smoothed_scores[idx_tuple] = torch.where(group_mask,
+                                                             torch.tensor(pareto_mean, device=scores.device),
+                                                             group_scores)
+            except Exception as e:
+                print(f"Failed to fit Pareto distribution: {e}")
+                # If fitting fails, leave the original values
+
+    # Return the sum along the specified dimension
+    return smoothed_scores.sum(dim=dim)
+
+
+# def pareto_smooth_sum(scores, tail_fraction, alpha, dim):
+#     """
+#     Compute a Pareto smoothed sum along the specified dimension.
+#
+#     Instead of summing the scores directly, the largest 'tail' fraction
+#     of the scores is replaced by their mean value before summing.
+#
+#     Parameters:
+#         scores (torch.Tensor): Tensor of scores with shape
+#             (n_post_samples, n_obs, d) or similar.
+#         tail_fraction (float): Fraction of the tail to smooth.
+#         alpha (float): Damping factor for the tail values.
+#         dim (int): Dimension along which to perform the smoothing.
+#
+#     Returns:
+#         torch.Tensor: The Pareto smoothed sum along the specified dimension,
+#             with the dimension removed.
+#     """
+#     # Compute threshold for the tail: the value below which (1 - tail_fraction) of the scores lie.
+#     threshold = torch.quantile(scores, 1 - tail_fraction, dim=dim, keepdim=True)
+#     # Create a mask: True for elements in the tail (>= threshold)
+#     tail_mask = scores >= threshold
+#     # Apply damping: for tail elements, multiply by alpha; else leave unchanged.
+#     damped_scores = torch.where(tail_mask, alpha * scores, scores)
+#     return damped_scores.sum(dim=dim)
 
 
 def eval_compositional_score(model, theta, diffusion_time, x_expanded, n_post_samples, n_obs, conditions_exp,
-                             pareto_smooth_sum_dict):
+                             pareto_smooth_fraction):
     """
     Compute the (global or local) compositional score.
 
@@ -137,13 +227,12 @@ def eval_compositional_score(model, theta, diffusion_time, x_expanded, n_post_sa
         )
         # Reshape to (n_post_samples, n_obs, -1) and sum over observations
         model_sum_scores_indv = model_indv_scores.reshape(n_post_samples, n_obs, -1)
-        if pareto_smooth_sum_dict is None:
+        if pareto_smooth_fraction == 0:
             model_sum_scores = model_sum_scores_indv.sum(dim=1)
         else:
             # Instead of a simple sum, perform Pareto smoothing over observations.
             model_sum_scores = pareto_smooth_sum(model_sum_scores_indv,
-                                                 tail_fraction=pareto_smooth_sum_dict['tail_fraction'],
-                                                 alpha=pareto_smooth_sum_dict['alpha'],
+                                                 tail_fraction=pareto_smooth_fraction,
                                                  dim=1)
 
         prior_score = model.prior.score_global_batch(theta)
@@ -165,7 +254,7 @@ def eval_compositional_score(model, theta, diffusion_time, x_expanded, n_post_sa
 
 def euler_maruyama_step(model, x, score, t, dt, noise=None):
     """
-    Perform one Euler-Maruyama update step for the SDE.
+    Perform one Euler-Maruyama update step for the reverse SDE.
 
     The backward SDE update is:
         x_next = x - [f(x,t) - g(t)^2 * score] * dt + g(t)*sqrt(dt)*noise
@@ -179,7 +268,7 @@ def euler_maruyama_step(model, x, score, t, dt, noise=None):
 
 
 def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
-                            diffusion_steps=1000, t_end=0, pareto_smooth_sum_dict=None, random_seed=None, device=None):
+                            diffusion_steps=1000, t_end=0, pareto_smooth_fraction=0, random_seed=None, device=None):
     """
     Generate posterior samples using Euler-Maruyama sampling. Expects un-normalized observations.
 
@@ -203,11 +292,11 @@ def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
                                   dtype=torch.float32, device=device)
             scores = eval_compositional_score(model=model, theta=theta, diffusion_time=t_tensor,
                                               x_expanded=x_expanded, n_post_samples=n_post_samples, n_obs=n_obs,
-                                              conditions_exp=conditions_exp, pareto_smooth_sum_dict=pareto_smooth_sum_dict)
+                                              conditions_exp=conditions_exp, pareto_smooth_fraction=pareto_smooth_fraction)
             theta = euler_maruyama_step(model, theta, score=scores, t=diffusion_time[t],
                                         dt=diffusion_time[t] - diffusion_time[t - 1])
             if torch.isnan(theta).any():
-                print("NaNs in theta")
+                print(f"NaNs in theta at time {diffusion_time[t]} with step size:", diffusion_time[t] - diffusion_time[t - 1])
                 break
 
         # Denormalize and reshape theta.
@@ -231,7 +320,7 @@ def adaptive_sampling(model, x_obs,
                       max_steps: int = 2000,
                       t_start: float = 1.0,
                       t_end: float = 0.,
-                      pareto_smooth_sum_dict=None,
+                      pareto_smooth_fraction=0,
                       random_seed=None,
                       device=None,):
     """
@@ -255,6 +344,8 @@ def adaptive_sampling(model, x_obs,
     e_abs_tensor = torch.full((n_post_samples, 1), e_abs, dtype=torch.float32, device=device)
     theta_prev = theta
 
+    error_scale = 1 / np.sqrt(theta[0].numel()).item()  # 1 / sqrt(n_params)
+    list_steps = []
     with torch.no_grad():
         model.to(device)
         model.eval()
@@ -265,14 +356,14 @@ def adaptive_sampling(model, x_obs,
             # Euler-Maruyama step.
             scores = eval_compositional_score(model=model, theta=theta, diffusion_time=t_tensor,
                                               x_expanded=x_expanded, n_post_samples=n_post_samples, n_obs=n_obs,
-                                              conditions_exp=conditions_exp, pareto_smooth_sum_dict=pareto_smooth_sum_dict)
+                                              conditions_exp=conditions_exp, pareto_smooth_fraction=pareto_smooth_fraction)
             theta_eul = euler_maruyama_step(model, theta, score=scores, t=t_tensor, dt=h, noise=z)
 
             # Heun-style improved step.
             t_mid = t_tensor - h
             scores_mid = eval_compositional_score(model=model, theta=theta_eul, diffusion_time=t_mid, x_expanded=x_expanded,
                                                   n_post_samples=n_post_samples, n_obs=n_obs, conditions_exp=conditions_exp,
-                                                  pareto_smooth_sum_dict=pareto_smooth_sum_dict)
+                                                  pareto_smooth_fraction=pareto_smooth_fraction)
             theta_eul_mid = euler_maruyama_step(model, theta_eul, score=scores_mid, t=t_mid, dt=h, noise=z)
 
             # Average the two steps.
@@ -281,14 +372,16 @@ def adaptive_sampling(model, x_obs,
             # Error estimation.
             delta = torch.maximum(e_abs_tensor,
                                   e_rel * torch.maximum(torch.abs(theta_eul), torch.abs(theta_prev)))
+            # inf norm is independent of the shape of the number of posterior samples
             error_norm = torch.linalg.matrix_norm((theta_eul - theta_eul_sec) / delta, ord=torch.inf)
-            E2 = (1 / np.sqrt(n_obs * n_post_samples)) * error_norm.item()
+            E2 = error_scale * error_norm.item()
 
             # Accept/reject step.
             if E2 <= 1.0:
                 theta = theta_eul_sec
                 current_t = current_t - h
                 theta_prev = theta_eul
+                list_steps.append(h)
             elif np.isnan(E2):
                 print("NaNs in E2")
                 break
@@ -304,6 +397,7 @@ def adaptive_sampling(model, x_obs,
                 break
 
         print(f"Finished after {steps+1} ({(steps+1)*2} score evals) steps at time {current_t}.")
+        print(f"Mean step size: {np.mean(list_steps)}, min: {np.min(list_steps)}, max: {np.max(list_steps)}")
         # Denormalize and reshape theta.
         if conditions is None:
             theta = model.prior.denormalize_theta(theta, global_params=True)
@@ -315,7 +409,7 @@ def adaptive_sampling(model, x_obs,
 
 
 def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
-                            t_end=0, pareto_smooth_sum_dict=None, random_seed=None, device=None):
+                            t_end=0, pareto_smooth_fraction=0, random_seed=None, device=None):
     """
     Solve the probability ODE (Song et al., 2021) to generate posterior samples. Expects un-normalized observations.
     Solving the ODE can be done either jointly for all posterior samples or separately for each sample. If jointly, then
@@ -344,7 +438,7 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
                                        dtype=torch.float32, device=device)
             scores = eval_compositional_score(model=model, theta=x_torch, diffusion_time=t_tensor, x_expanded=x_expanded,
                                               n_post_samples=n_samples, n_obs=n_obs, conditions_exp=conditions_exp,
-                                              pareto_smooth_sum_dict=pareto_smooth_sum_dict)
+                                              pareto_smooth_fraction=pareto_smooth_fraction)
             t_exp = t_tensor if conditions is None else t_tensor.unsqueeze(1).expand(-1, n_obs, -1)
             f, g = model.sde.get_f_g(x=x_torch, t=t_exp)
             drift = f - 0.5 * torch.square(g) * scores
@@ -376,8 +470,8 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
     return theta
 
 def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
-                      diffusion_steps=1000, langevin_steps=10, t_end=0,
-                      pareto_smooth_sum_dict=None,
+                      diffusion_steps=1000, langevin_steps=10, step_size_factor=0.3, t_end=0,
+                      pareto_smooth_fraction=0,
                       random_seed=None, device=None):
     """
     Annealed Langevin Dynamics sampling. Expects un-normalized observations.
@@ -389,8 +483,9 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
         conditions: Conditioning parameters (if None, global sampling is performed).
         diffusion_steps: Number of diffusion steps.
         langevin_steps: Number of inner Langevin steps per diffusion time.
+        step_size_factor: Factor to scale the step size by.
         t_end: End time for diffusion
-        pareto_smooth_sum_dict: Dictionary with keys 'tail_fraction' and 'alpha' for Pareto smoothing. Default: None.
+        pareto_smooth_fraction: Fraction to use for Pareto smoothing. Default: 0.
         random_seed: Optional random seed for reproducibility.
         device: Computation device.
 
@@ -403,16 +498,22 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
     x_obs_norm, n_obs, n_obs_time_steps = prepare_observations(x_obs, model, device)
     theta, conditions_exp = initialize_parameters(n_post_samples, n_obs, model, conditions, device, random_seed)
     x_expanded = expand_observations(x_obs_norm, n_post_samples, n_obs, n_obs_time_steps)
-    diffusion_time = generate_diffusion_time(size=diffusion_steps + 1, epsilon=t_end, device=device)
+    diffusion_time = generate_diffusion_time(size=diffusion_steps, epsilon=t_end, device=device)
 
+    # generate steps in reverse
+    alpha_t, sigma_t = model.sde.kernel(t=diffusion_time)
+    max_as = torch.max(sigma_t)
+    annealing_step_size  = step_size_factor * torch.square(sigma_t / max_as)
     with torch.no_grad():
         model.to(device)
         model.eval()
         # Annealed Langevin dynamics: iterate over time steps in reverse
-        for t in tqdm(reversed(range(1, diffusion_steps + 1)), total=diffusion_steps):
+        #for t in tqdm(reversed(range(1, diffusion_steps + 1)), total=diffusion_steps):
+        for t in tqdm(reversed(range(diffusion_steps)), total=diffusion_steps):
             t_tensor = torch.full((n_post_samples, 1), diffusion_time[t],
                                   dtype=torch.float32, device=device)
-            step_size = diffusion_time[t] - diffusion_time[t - 1]
+            #step_size = diffusion_time[t] - diffusion_time[t - 1]
+            step_size = annealing_step_size[t]
 
             for _ in range(langevin_steps):
                 eps = torch.randn_like(theta, dtype=torch.float32, device=device)
@@ -421,7 +522,7 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
                 scores = eval_compositional_score(model=model, theta=theta, diffusion_time=t_tensor,
                                                   x_expanded=x_expanded, n_post_samples=n_post_samples, n_obs=n_obs,
                                                   conditions_exp=conditions_exp,
-                                                  pareto_smooth_sum_dict=pareto_smooth_sum_dict)
+                                                  pareto_smooth_fraction=pareto_smooth_fraction)
                 # Langevin update step
                 theta = theta + (step_size / 2) * scores + torch.sqrt(step_size) * eps
 

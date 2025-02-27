@@ -370,7 +370,6 @@ class SDE:
         self.log_snr_max = 15
         self.t_min = self.get_t_from_snr(torch.tensor(self.log_snr_max))
         self.t_max = self.get_t_from_snr(torch.tensor(self.log_snr_min))
-        #print(f"t_min: {self.t_min}, t_max: {self.t_max}")
 
     def kernel(self, t):
         if self.kernel_type == 'variance_preserving':
@@ -388,7 +387,7 @@ class SDE:
 
     def get_snr(self, t):
         t_trunc = self.t_min + (self.t_max - self.t_min) * t
-        if self.noise_schedule == 'linear':  # out dated
+        if self.noise_schedule == 'linear':
             return -torch.log(torch.exp(torch.square(t_trunc)) - 1)
         if self.noise_schedule == 'cosine':  # this is usually used with variance_preserving
             return -2 * torch.log(torch.tan(torch.pi * t_trunc / 2)) + 2 * self.s_shift_cosine
