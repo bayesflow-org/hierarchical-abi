@@ -184,20 +184,20 @@ class Prior:
         return (x - self.x_mean) / self.x_std
 
 
-def generate_synthetic_data(prior, n_data, grid_size=8, full_grid=False, normalize=False, random_seed=None):
+def generate_synthetic_data(prior, n_data, grid_size=None, full='full', normalize=False, random_seed=None):
     """Generate synthetic data for the hierarchical model.
 
     Parameters:
         prior (Prior): Prior distribution for the model.
         n_data (int): Number of samples to generate.
         grid_size (int): Size of the grid for the simulator.
-        full_grid (bool): Whether to sample the full grid or a single element.
+        full (str): "full" or "batch" to generate full grid or full grid as batch data.
         normalize (bool): Whether to normalize the data.
         random_seed (int): Random seed for reproducibility.
     """
     if random_seed is not None:
         np.random.seed(random_seed)
-    if full_grid:
+    if grid_size is not None:
         batch_params = prior.sample_full(n_data, n_grid=grid_size)
     else:
         batch_params = prior.sample_single(n_data)
@@ -212,6 +212,10 @@ def generate_synthetic_data(prior, n_data, grid_size=8, full_grid=False, normali
         param_global = prior.normalize_theta(param_global, global_params=True)
         param_local = prior.normalize_theta(param_local, global_params=False)
         data = prior.normalize_data(data)
+    if grid_size is not None and full == "batch":
+        # create local params and data in shape (n_batch, n_data, n_time_points, n_features), where n_data=grid_size^2
+        param_local = param_local.unsqueeze(1).reshape(n_data, grid_size**2, -1)
+        data = data.unsqueeze(1).reshape(n_data, grid_size**2, data.shape[1], -1)
     return param_global, param_local, data
 
 

@@ -98,123 +98,7 @@ def sub_sample_observations(x_obs_norm, n_post_samples, n_obs, n_obs_time_steps,
     return sub_x_expanded
 
 
-# def pareto_smooth_sum(scores, tail_fraction, dim):
-#     """
-#     Compute a Pareto smoothed sum along the specified dimension.
-#
-#     Instead of summing the scores directly, the largest 'tail' fraction
-#     of the scores is replaced by their mean value after fitting a Pareto distribution.
-#     Fits separate Pareto distributions for each independent group of scores.
-#
-#     Parameters:
-#         scores (torch.Tensor): Tensor of scores with shape
-#             (n_post_samples, n_obs, d) or similar.
-#         tail_fraction (float): Fraction of the tail to smooth.
-#         dim (int): Dimension along which to perform the smoothing.
-#
-#     Returns:
-#         torch.Tensor: The Pareto smoothed sum along the specified dimension,
-#             with the dimension removed.
-#     """
-#     # Create a working copy to avoid modifying the input
-#     smoothed_scores = scores.clone()
-#
-#     # Get the shape of the tensor
-#     shape = scores.shape
-#
-#     # Compute threshold for the tail: the value below which (1 - tail_fraction) of the scores lie.
-#     threshold = torch.quantile(scores, 1 - tail_fraction, dim=dim, keepdim=True)
-#
-#     # Create a mask: True for elements in the tail (>= threshold)
-#     tail_mask = scores >= threshold
-#
-#     # Process each group separately
-#     # Create indices for iterating through all dimensions except the smoothing dimension
-#     iter_shape = list(shape)
-#     iter_shape[dim] = 1
-#
-#     for idx in np.ndindex(*iter_shape):
-#         # Convert idx to list for modification
-#         idx_list = list(idx)
-#
-#         # Replace the singleton dimension with a full slice
-#         idx_list[dim] = slice(None)
-#
-#         # Convert back to tuple for indexing
-#         idx_tuple = tuple(idx_list)
-#
-#         # Get scores and mask for this group
-#         group_scores = scores[idx_tuple]
-#         group_mask = tail_mask[idx_tuple]
-#
-#         # Extract the tail values for this group
-#         group_tail_values = group_scores[group_mask]
-#
-#         # Fit a Pareto distribution to the tail values if there are any
-#         if group_tail_values.numel() > 0:
-#             group_tail_values_np = group_tail_values.cpu().numpy()
-#
-#             # Fit a Pareto distribution to the tail values
-#             # The Pareto distribution in scipy.stats needs values > 0
-#             # We need to shift the values above 0 if they're not already
-#             min_val = group_tail_values_np.min()
-#             if min_val <= 0:
-#                 group_tail_values_np = group_tail_values_np - min_val + 1e-6
-#
-#             # Fit the Pareto distribution
-#             try:
-#                 # Use scipy.stats.pareto which has parameters: b (shape), loc, scale
-#                 shape_param, loc, scale = stats.pareto.fit(group_tail_values_np)
-#
-#                 # Calculate the mean of the fitted Pareto
-#                 pareto_mean = stats.pareto.mean(shape_param, loc=loc, scale=scale)
-#
-#                 # If we shifted the values, shift the mean back
-#                 if min_val <= 0:
-#                     pareto_mean = pareto_mean + min_val - 1e-6
-#                 if np.isinf(pareto_mean):
-#                     print(f"Failed to fit Pareto distribution.")
-#                 else:
-#                     # Replace the tail values with the Pareto mean
-#                     smoothed_scores[idx_tuple] = torch.where(group_mask,
-#                                                              torch.tensor(pareto_mean, device=scores.device),
-#                                                              group_scores)
-#             except Exception as e:
-#                 print(f"Failed to fit Pareto distribution: {e}")
-#                 # If fitting fails, leave the original values
-#
-#     # Return the sum along the specified dimension
-#     return smoothed_scores.sum(dim=dim)
-
-
-# def pareto_smooth_sum(scores, tail_fraction, alpha, dim):
-#     """
-#     Compute a Pareto smoothed sum along the specified dimension.
-#
-#     Instead of summing the scores directly, the largest 'tail' fraction
-#     of the scores is replaced by their mean value before summing.
-#
-#     Parameters:
-#         scores (torch.Tensor): Tensor of scores with shape
-#             (n_post_samples, n_obs, d) or similar.
-#         tail_fraction (float): Fraction of the tail to smooth.
-#         alpha (float): Damping factor for the tail values.
-#         dim (int): Dimension along which to perform the smoothing.
-#
-#     Returns:
-#         torch.Tensor: The Pareto smoothed sum along the specified dimension,
-#             with the dimension removed.
-#     """
-#     # Compute threshold for the tail: the value below which (1 - tail_fraction) of the scores lie.
-#     threshold = torch.quantile(scores, 1 - tail_fraction, dim=dim, keepdim=True)
-#     # Create a mask: True for elements in the tail (>= threshold)
-#     tail_mask = scores >= threshold
-#     # Apply damping: for tail elements, multiply by alpha; else leave unchanged.
-#     damped_scores = torch.where(tail_mask, alpha * scores, scores)
-#     return damped_scores.sum(dim=dim)
-
-
-def pareto_smooth_weights(weights, tail_fraction=0.2):
+def pareto_smooth_weights(weights, tail_fraction):
     """
     Smooth a 1D array of raw importance weights using a Pareto tail fit.
 
@@ -231,7 +115,8 @@ def pareto_smooth_weights(weights, tail_fraction=0.2):
 
     # If no weights exceed the threshold, nothing to smooth.
     if np.sum(tail_mask) == 0:
-        return weights
+        #print('pareto smoothing: no weights exceed the threshold')
+        return np.ones_like(weights)
 
     # Fit a generalized Pareto distribution (GPD) to the excesses (weight - threshold)
     tail_excess = weights[tail_mask] - threshold
@@ -252,7 +137,7 @@ def pareto_smooth_weights(weights, tail_fraction=0.2):
     return smoothed_weights
 
 
-def pareto_smooth_sum(scores, tail_fraction=0.2):
+def pareto_smooth_sum(scores, tail_fraction):
     """
     Compute a Pareto-smoothed weighted sum of scores over batches.
 
@@ -267,28 +152,28 @@ def pareto_smooth_sum(scores, tail_fraction=0.2):
     Returns:
         np.ndarray: A 1D array of weighted sums (one per batch).
     """
-    B = scores.shape[0]
-    weighted_sums = torch.zeros((scores.shape[0], scores.shape[2]), dtype=torch.float32, device=scores.device)
+    B, N, D = scores.shape
+    smoothed_sums = torch.zeros((scores.shape[0], scores.shape[2]), dtype=scores.dtype, device=scores.device)
 
     for b in range(B):
         # Extract the b-th batch
-        s = scores[b]  # shape (N,)
-        s_norm = torch.norm(s, p=2, dim=1).numpy()
+        s = scores[b]  # shape (N, D)
+        magnitudes = torch.norm(s, p=2, dim=1).cpu().numpy()
 
         # Apply Pareto smoothing to the raw weights in this batch.
-        w_smoothed = pareto_smooth_weights(s_norm, tail_fraction=tail_fraction)
+        smoothed_magnitudes = pareto_smooth_weights(magnitudes, tail_fraction=tail_fraction)
+        weights = torch.tensor(smoothed_magnitudes, dtype=scores.dtype, device=scores.device)
 
-        # Normalize the smoothed weights (so they sum to one).
-        norm = np.sum(w_smoothed)
-        if norm > 0:
-            w_norm = w_smoothed / norm
-        else:
-            w_norm = w_smoothed
+        # Compute normalized directions for all vectors
+        norms = torch.norm(s, p=2, dim=1, keepdim=True) + 1e-8
+        directions = s / norms
 
-        # Compute the weighted sum of scores.
-        weighted_sums[b] = torch.sum(torch.tensor(w_norm, dtype=torch.float32, device=scores.device).unsqueeze(1) * s, dim=0)
+        # Apply smoothed magnitudes to original directions
+        scaled_vectors = weights.unsqueeze(1) * directions
 
-    return weighted_sums
+        # Sum the smoothed vectors
+        smoothed_sums[b] = torch.sum(scaled_vectors, dim=0)
+    return smoothed_sums
 
 
 def eval_compositional_score(model, theta, diffusion_time, x_expanded, n_post_samples, n_obs, conditions_exp,
@@ -308,11 +193,19 @@ def eval_compositional_score(model, theta, diffusion_time, x_expanded, n_post_sa
     Returns:
         model_scores: Computed score tensor.
     """
+    if model.global_number_of_obs > 1 and conditions_exp is None:
+        # n_obs is factorized for the global model
+        n_obs = n_obs // model.global_number_of_obs
+
     # Expand diffusion_time to shape (n_post_samples*n_obs, 1)
     t_exp = diffusion_time.unsqueeze(1).expand(-1, n_obs, -1).reshape(-1, 1)
 
     if conditions_exp is None:
         theta_exp = theta.unsqueeze(1).expand(-1, n_obs, -1).reshape(-1, model.prior.n_params_global)
+        if model.global_number_of_obs > 1:
+            # factorize data into (n_post_samples * reduced_data, global_number_of_obs, n_time_steps, n_features)
+            x_expanded = x_expanded.reshape(n_post_samples * n_obs,
+                                            model.global_number_of_obs, *x_expanded.shape[1:])
         model_indv_scores = model.forward_global(
             theta_global=theta_exp,
             time=t_exp,
@@ -323,6 +216,13 @@ def eval_compositional_score(model, theta, diffusion_time, x_expanded, n_post_sa
         # Reshape to (n_post_samples, n_obs, -1) and sum over observations
         model_sum_scores_indv = model_indv_scores.reshape(n_post_samples, n_obs, -1)
 
+        # add prior to the individual score, this is more stable than adding it to the sum
+        prior_scores = (1 - diffusion_time) * model.prior.score_global_batch(theta)
+        # expand prior scores to match the individual scores
+        prior_scores_indv = prior_scores.unsqueeze(1)
+        # (1 - n_obs) * (1 - diffusion_time) * model.prior.score_global_batch(theta)
+        model_sum_scores_indv = model_sum_scores_indv - prior_scores_indv
+
         if pareto_smooth_fraction == 0:
             # Simple sum
             model_sum_scores = model_sum_scores_indv.sum(dim=1)
@@ -331,11 +231,8 @@ def eval_compositional_score(model, theta, diffusion_time, x_expanded, n_post_sa
             model_sum_scores = pareto_smooth_sum(model_sum_scores_indv,
                                                  tail_fraction=pareto_smooth_fraction)
 
-        prior_score = (1 - n_obs) * (1 - diffusion_time) * model.prior.score_global_batch(theta)
-        model_scores = torch.add(
-            prior_score,
-            model_sum_scores
-        )
+        # (1 - n_obs) * (1 - diffusion_time) * model.prior.score_global_batch(theta)
+        model_scores = model_sum_scores + prior_scores
     else:
         theta_exp = theta.reshape(-1, model.prior.n_params_local)
         model_scores = model.forward_local(
@@ -530,7 +427,7 @@ def adaptive_sampling(model, x_obs,
             if current_t <= t_end:
                 break
 
-        print(f"Finished after {steps+1} ({(steps+1)*2} score evals) steps at time {current_t}.")
+        print(f"Finished after {steps+1} steps ({(steps+1)*2} score evals) at time {current_t}.")
         print(f"Mean step size: {np.mean(list_steps)}, min: {np.min(list_steps)}, max: {np.max(list_steps)}")
         # Denormalize and reshape theta.
         if conditions is None:

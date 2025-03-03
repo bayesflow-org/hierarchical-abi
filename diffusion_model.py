@@ -107,6 +107,30 @@ class FiLMResidualBlock(nn.Module):
         return self.activation(x + self.skip(h))
 
 
+class TimeDistributed(nn.Module):
+    def __init__(self, module):
+        super(TimeDistributed, self).__init__()
+        self.module = module
+        # check if module is GRU or LSTM
+        if isinstance(module, nn.GRU):
+            self.rnn_type = 'gru'
+        elif isinstance(module, nn.LSTM):
+            self.rnn_type = 'lstm'
+        else:
+            raise ValueError("Module must be an instance of nn.GRU or nn.LSTM.")
+
+    def forward(self, x):
+        # Assume input x is of shape (batch_size, n_obs, n_time_steps, n_features)
+        batch_size, n_obs, n_time_steps, n_features = x.size(0), x.size(1), x.size(2), x.size(3)
+        # Merge batch and time dimensions
+        x_reshaped = x.contiguous().view(batch_size * n_obs, *x.shape[2:])
+        # Apply the module
+        _, y = self.module(x_reshaped)
+        # Reshape back to (n_rnn_layers, batch_size, n_obs, hidden_dim)
+        y = y.contiguous().view(y.shape[0], batch_size, n_obs, *y.shape[2:])
+        return None, y  # to match output of GRU
+
+
 class ScoreModel(nn.Module):
     """
         Neural network model that computes score estimates.
@@ -219,43 +243,40 @@ class ScoreModel(nn.Module):
         # Final linear layer to get back to the theta dimension
         theta_emb = self.final_linear(h)
 
-        # return the score, depends on the prediction type
-        if self.prediction_type == 'score':
-            # prediction is the score
-            return theta_emb
-
         if pred_score:
-            return self.convert_to_score(theta_emb=theta_emb, theta=theta, time=time, clip_x=clip_x)
+            return self.convert_to_score(pred=theta_emb, z=theta, time=time, clip_x=clip_x)
 
         # convert the prediction to e always
-        return self.convert_to_e(theta_emb=theta_emb, theta=theta, time=time, clip_x=clip_x)
+        return self.convert_to_e(pred=theta_emb, z=theta, time=time, clip_x=clip_x)
 
 
-    def convert_to_x(self, theta_emb, theta, alpha, sigma, clip_x):
+    def convert_to_x(self, pred, z, alpha, sigma, clip_x):
         if self.prediction_type == 'v':
             # convert prediction into error
-            x = alpha * theta - sigma * theta_emb
+            x = alpha * z - sigma * pred
         elif self.prediction_type == 'e':
             # prediction is the error
-            x = (theta - sigma * theta_emb) / alpha
+            x = (z - sigma * pred) / alpha
         elif self.prediction_type == 'x':
-            x = theta_emb
+            x = pred
+        elif self.prediction_type == 'score':
+            x = (z + sigma ** 2 * pred) / alpha
         else:
             raise ValueError("Invalid prediction type. Must be one of 'score', 'e', 'x', or 'v'.")
         if clip_x:
             x = torch.clamp(x, -5, 5)
         return x
 
-    def convert_to_e(self, theta_emb, theta, time, clip_x):
+    def convert_to_e(self, pred, z, time, clip_x):
         alpha, sigma = self.sde.kernel(time)
-        x = self.convert_to_x(theta_emb=theta_emb, theta=theta, alpha=alpha, sigma=sigma, clip_x=clip_x)
-        e = (theta - x * alpha) / sigma
-        return e
+        x_pred = self.convert_to_x(pred=pred, z=z, alpha=alpha, sigma=sigma, clip_x=clip_x)
+        e_pred = (z - x_pred * alpha) / sigma
+        return e_pred
 
-    def convert_to_score(self, theta_emb, theta, time, clip_x):
+    def convert_to_score(self, pred, z, time, clip_x):
         alpha, sigma = self.sde.kernel(time)
-        x = self.convert_to_x(theta_emb=theta_emb, theta=theta, alpha=alpha, sigma=sigma, clip_x=clip_x)
-        score = (alpha * x - theta) / torch.square(sigma)
+        x_pred = self.convert_to_x(pred=pred, z=z, alpha=alpha, sigma=sigma, clip_x=clip_x)
+        score = (alpha * x_pred - z) / torch.square(sigma)
         return score
 
 
@@ -266,12 +287,13 @@ class HierarchicalScoreModel(nn.Module):
         Args:
             input_dim_theta_global (int): Input dimension for global theta.
             input_dim_theta_local (int): Input dimension for local theta.
-            input_dim_x (int): Input dimension for x.
+            input_dim_x (int): Input dimension for x, number of features of the time series.
             hidden_dim (int): Hidden dimension for theta network.
             n_blocks (int): Number of residual blocks.
-            prediction_type (str): Type of prediction to perform. Can be 'score', 'e', 'x', or 'v'.
             sde (SDE): SDE model.
             prior (Prior): Prior model.
+            global_number_of_obs (int, optional): Number of observations grouped together in the factorization.
+            prediction_type (str, optional): Type of prediction to perform. Can be 'score', 'e', 'x', or 'v'. Default is 'v'.
             weighting_type (str, optional): Type of weighting to use. Default is None.
             time_embed_dim (int, optional): Dimension of time embedding. Default is 16.
             use_film (bool, optional): Whether to use FiLM-residual blocks. Default is False.
@@ -280,13 +302,16 @@ class HierarchicalScoreModel(nn.Module):
     """
     def __init__(self,
                  input_dim_theta_global, input_dim_theta_local, input_dim_x,
-                 hidden_dim, n_blocks, prediction_type, sde, prior, weighting_type=None,
+                 hidden_dim, n_blocks, sde, prior, global_number_of_obs=1, prediction_type='v', weighting_type=None,
                  time_embed_dim=16, use_film=False, dropout_rate=0.1, use_spectral_norm=False):
         super(HierarchicalScoreModel, self).__init__()
         self.prediction_type = prediction_type
         self.sde = sde
         self.prior = prior
         self.weighting_type = weighting_type
+        self.global_number_of_obs = global_number_of_obs
+        self.name = (f'hierarchical_score_model_{prediction_type}_{sde.kernel_type}_{sde.noise_schedule}_{weighting_type}'
+                     f'{"_factorized"+str(global_number_of_obs) if global_number_of_obs > 1 else ""}')
 
         self.summary_net = nn.GRU(
             input_size=input_dim_x,
@@ -294,10 +319,13 @@ class HierarchicalScoreModel(nn.Module):
             num_layers=1,
             batch_first=True
         )
+        if global_number_of_obs > 1:
+            self.summary_net = TimeDistributed(self.summary_net)
+
         self.n_params_global = input_dim_theta_global
         self.global_model = ScoreModel(
             input_dim_theta=input_dim_theta_global,
-            input_dim_x=hidden_dim,
+            input_dim_x=hidden_dim*global_number_of_obs,
             input_dim_condition=0,
             hidden_dim=hidden_dim,
             n_blocks=n_blocks,
@@ -323,32 +351,56 @@ class HierarchicalScoreModel(nn.Module):
             sde=sde
         )
 
-    def forward(self, theta, time, x, pred_score, clip_x=False):  # __call__ method for the model
+    def forward(self, theta_global, theta_local, time, x, pred_score, clip_x=False):  # __call__ method for the model
         """Forward pass through the global and local model. This usually only used, during training."""
-        theta_global, theta_local = torch.split(theta, [self.n_params_global, self.n_params_local], dim=-1)
+        #theta_global, theta_local = torch.split(theta, [self.n_params_global, self.n_params_local], dim=-1)
         _, x_emb = self.summary_net(x)
         x_emb = x_emb[0]  # only one layer, not bidirectional
-        global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb,
-                                               conditions=None, pred_score=pred_score, clip_x=clip_x)
-        local_out = self.local_model.forward(theta=theta_local, time=time, x=x_emb,
-                                             conditions=theta_global, pred_score=pred_score, clip_x=clip_x)
-        return torch.cat([global_out, local_out], dim=-1)
+        if self.global_number_of_obs == 1:
+            global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb,
+                                                   conditions=None, pred_score=pred_score, clip_x=clip_x)
+            local_out = self.local_model.forward(theta=theta_local, time=time, x=x_emb,
+                                                 conditions=theta_global, pred_score=pred_score, clip_x=clip_x)
+        else:
+            # for global, concat observations
+            x_emb_global = torch.cat([x_emb[:, i] for i in range(self.global_number_of_obs)], dim=-1)
+            global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb_global,
+                                                   conditions=None, pred_score=pred_score, clip_x=clip_x)
 
-    def forward_local(self, theta_local, theta_global, time, x, pred_score, clip_x=False):
-        """Forward pass through the local model. Usually we want the score, not the predicting task from training."""
-        _, x_emb = self.summary_net(x)
-        x_emb = x_emb[0]  # only one layer, not bidirectional
-        local_out = self.local_model.forward(theta=theta_local, time=time, x=x_emb,
-                                             conditions=theta_global, pred_score=pred_score, clip_x=clip_x)
-        return local_out
+            # for local, use the same x_emb, but in a loop
+            local_out = []
+            for i in range(x_emb.shape[1]):
+                local = self.local_model.forward(theta=theta_local[:, i], time=time, x=x_emb[:, i],
+                                                          conditions=theta_global, pred_score=pred_score, clip_x=clip_x)
+                local_out.append(local.unsqueeze(1))  # add the obs dimension
+            local_out = torch.concatenate(local_out, dim=1)  # concat the observations
+        return global_out, local_out
 
     def forward_global(self, theta_global, time, x, pred_score, clip_x=False):
         """Forward pass through the global model. Usually we want the score, not the predicting task from training."""
         _, x_emb = self.summary_net(x)
         x_emb = x_emb[0]  # only one layer, not bidirectional
-        global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb,
-                                               conditions=None, pred_score=pred_score, clip_x=clip_x)
+        if self.global_number_of_obs == 1:
+            global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb,
+                                                   conditions=None, pred_score=pred_score, clip_x=clip_x)
+        else:
+            # for global, concat observations
+            x_emb_global = torch.cat([x_emb[:, i] for i in range(self.global_number_of_obs)], dim=-1)
+            global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb_global,
+                                                   conditions=None, pred_score=pred_score, clip_x=clip_x)
         return global_out
+
+    def forward_local(self, theta_local, theta_global, time, x, pred_score, clip_x=False):
+        """Forward pass through the local model. Usually we want the score, not the predicting task from training."""
+        _, x_emb = self.summary_net(x)
+        x_emb = x_emb[0]  # only one layer, not bidirectional
+        if self.global_number_of_obs == 1:
+            pass
+        else:
+            x_emb = x_emb.squeeze(1)  # in training we looped over obsevations, here we expect that only one is passed
+        local_out = self.local_model.forward(theta=theta_local, time=time, x=x_emb,
+                                             conditions=theta_global, pred_score=pred_score, clip_x=clip_x)
+        return local_out
 
 
 class SDE:
