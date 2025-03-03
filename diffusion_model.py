@@ -394,10 +394,11 @@ class HierarchicalScoreModel(nn.Module):
         """Forward pass through the local model. Usually we want the score, not the predicting task from training."""
         _, x_emb = self.summary_net(x)
         x_emb = x_emb[0]  # only one layer, not bidirectional
-        if self.global_number_of_obs == 1:
-            pass
-        else:
-            x_emb = x_emb.squeeze(1)  # in training we looped over obsevations, here we expect that only one is passed
+        # in training we looped over obsevations, here we expect that only one is passed
+        if self.global_number_of_obs > 1:
+            if x_emb.shape[1] > 1:
+                raise ValueError('Expected only one observation passed to the local network.')
+            x_emb = x_emb.squeeze(1)
         local_out = self.local_model.forward(theta=theta_local, time=time, x=x_emb,
                                              conditions=theta_global, pred_score=pred_score, clip_x=clip_x)
         return local_out

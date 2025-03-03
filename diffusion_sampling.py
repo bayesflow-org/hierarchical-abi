@@ -235,6 +235,10 @@ def eval_compositional_score(model, theta, diffusion_time, x_expanded, n_post_sa
         model_scores = model_sum_scores + prior_scores
     else:
         theta_exp = theta.reshape(-1, model.prior.n_params_local)
+        if model.global_number_of_obs > 1:
+            # summary network expects factorize data
+            x_expanded = x_expanded.unsqueeze(1)
+
         model_scores = model.forward_local(
             theta_local=theta_exp,
             time=t_exp,
