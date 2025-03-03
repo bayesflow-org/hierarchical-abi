@@ -49,7 +49,7 @@ def initialize_parameters(n_post_samples, n_obs, model, conditions, device, rand
     if conditions is None:
         theta = torch.randn(n_post_samples, model.prior.n_params_global, dtype=torch.float32, device=device)
         # Adapt theta for compositional score matching
-        theta = theta * torch.tensor(1/np.sqrt(n_obs), dtype=torch.float32, device=device)
+        theta = theta * torch.tensor(1/np.sqrt(n_obs // model.global_number_of_obs), dtype=torch.float32, device=device)
         conditions_collapsed = None
     else:
         if not isinstance(conditions, torch.Tensor):
@@ -361,7 +361,8 @@ def adaptive_sampling(model, x_obs,
         n_scores_update = n_obs
     else:
         n_scores_update = min(n_scores_update, n_obs)
-    theta, conditions_exp = initialize_parameters(n_post_samples, n_scores_update, model, conditions, device, random_seed)
+    theta, conditions_exp = initialize_parameters(n_post_samples, n_scores_update,
+                                                  model, conditions, device, random_seed)
     x_expanded = expand_observations(x_obs_norm, n_post_samples, n_obs, n_obs_time_steps)
 
     current_t = torch.tensor(t_start, dtype=torch.float32, device=device)
