@@ -1,18 +1,20 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from prettytable import PrettyTable
 
 
 class GaussianFourierProjection(nn.Module):
     """Gaussian random features for encoding time steps."""
-    def __init__(self, embed_dim, scale=30.):
+    def __init__(self, embed_dim, init_scale=30.):
         super().__init__()
         # Randomly sample weights during initialization. These weights are fixed
         # during optimization and are not trainable.
-        self.W = nn.Parameter(torch.randn(embed_dim // 2) * scale, requires_grad=False)
+        self.W = nn.Parameter(torch.randn(embed_dim // 2), requires_grad=False) * 2 * np.pi
+        self.scale = nn.Parameter(torch.tensor(init_scale), requires_grad=True)
 
     def forward(self, x):
-        x_proj = x * self.W * 2 * np.pi
+        x_proj = x * self.W * self.scale
         return torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
 
 
@@ -325,7 +327,7 @@ class HierarchicalScoreModel(nn.Module):
         self.n_params_global = input_dim_theta_global
         self.global_model = ScoreModel(
             input_dim_theta=input_dim_theta_global,
-            input_dim_x=hidden_dim*global_number_of_obs,
+            input_dim_x=hidden_dim * global_number_of_obs,
             input_dim_condition=0,
             hidden_dim=hidden_dim,
             n_blocks=n_blocks,
@@ -646,3 +648,17 @@ def weighting_function(t, sde, weighting_type=None, prediction_type='error'):
         return sech(snr / 2) * torch.minimum(torch.ones_like(snr), gamma * torch.exp(-snr))
 
     raise ValueError("Invalid weighting...")
+
+
+def count_parameters(model):
+    table = PrettyTable(["Modules", "Parameters"])
+    total_params = 0
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad:
+            continue
+        params = parameter.numel()
+        table.add_row([name, params])
+        total_params += params
+    print(table)
+    print(f"Total Trainable Params: {total_params}")
+    return total_params
