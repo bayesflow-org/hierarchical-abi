@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from prettytable import PrettyTable
 
 
 class GaussianFourierProjection(nn.Module):
@@ -19,6 +18,60 @@ class GaussianFourierProjection(nn.Module):
 
 
 # Define the Residual Block
+class ResidualBlock(nn.Module):
+    def __init__(self, in_dim, out_dim, dropout_rate, use_spectral_norm):
+        """
+        Args:
+            in_dim (int): Dimensionality of the input hidden state.
+            out_dim (int): Desired dimensionality of the output.
+            dropout_rate (float): Dropout rate.
+            use_spectral_norm (bool): Whether to apply spectral normalization.
+        """
+        super(ResidualBlock, self).__init__()
+
+        # First linear layer: from [in_dim] -> out_dim
+        self.fc1 = nn.Linear(in_dim, out_dim)
+        self.norm1 = nn.LayerNorm(out_dim)
+
+        # Second linear layer: from [out_dim] -> out_dim
+        self.fc2 = nn.Linear(out_dim, out_dim)
+        self.norm2 = nn.LayerNorm(out_dim)
+
+        self.activation = nn.SiLU()  # SiLU is equivalent to swish
+        self.dropout = nn.Dropout(dropout_rate)
+
+        # If input and output dims differ, project h for the skip connection.
+        if in_dim != out_dim:
+            self.skip = nn.Linear(in_dim, out_dim)
+        else:
+            self.skip = None
+
+        # Apply spectral normalization if specified.
+        if use_spectral_norm:
+            self.fc1 = nn.utils.parametrizations.spectral_norm(self.fc1)
+            self.fc2 = nn.utils.parametrizations.spectral_norm(self.fc2)
+            if self.skip is not None:
+                self.skip = nn.utils.parametrizations.spectral_norm(self.skip)
+
+    def forward(self, x):
+        # x: [batch_size, in_dim]
+
+        # First transformation with conditioning
+        out = self.fc1(x)
+        out = self.norm1(out)
+        out = self.activation(out)
+        out = self.dropout(out)
+
+        # Second transformation
+        out = self.fc2(out)
+        out = self.norm2(out)
+
+        # Apply skip connection: if dims differ, project h first.
+        skip = self.skip(x) if self.skip is not None else x
+
+        return self.activation(out + skip)
+
+
 class ConditionalResidualBlock(nn.Module):
     def __init__(self, in_dim, out_dim, cond_dim, dropout_rate, use_spectral_norm):
         """
@@ -109,15 +162,13 @@ class FiLMResidualBlock(nn.Module):
         return self.activation(x + self.skip(h))
 
 
-class TimeDistributed(nn.Module):
+class TimeDistributedRNN(nn.Module):
     def __init__(self, module):
-        super(TimeDistributed, self).__init__()
+        super(TimeDistributedRNN, self).__init__()
         self.module = module
         # check if module is GRU or LSTM
-        if isinstance(module, nn.GRU):
-            self.rnn_type = 'gru'
-        elif isinstance(module, nn.LSTM):
-            self.rnn_type = 'lstm'
+        if isinstance(module, nn.GRU) or isinstance(module, nn.LSTM):
+            pass
         else:
             raise ValueError("Module must be an instance of nn.GRU or nn.LSTM.")
 
@@ -131,6 +182,22 @@ class TimeDistributed(nn.Module):
         # Reshape back to (n_rnn_layers, batch_size, n_obs, hidden_dim)
         y = y.contiguous().view(y.shape[0], batch_size, n_obs, *y.shape[2:])
         return None, y  # to match output of GRU
+
+class TimeDistributedDense(nn.Module):
+    def __init__(self, module):
+        super(TimeDistributedDense, self).__init__()
+        self.module = module
+
+    def forward(self, x):
+        # Assume input x is of shape (batch_size, n_obs, n_features)
+        batch_size, n_obs, n_features = x.size(0), x.size(1), x.size(2)
+        # Merge batch and time dimensions
+        x_reshaped = x.contiguous().view(batch_size * n_obs, x.shape[2])
+        # Apply the module
+        y = self.module(x_reshaped)
+        # Reshape back to (batch_size, n_obs, hidden_dim)
+        y = y.contiguous().view(batch_size, n_obs, y.shape[1])
+        return y
 
 
 class ScoreModel(nn.Module):
@@ -294,7 +361,7 @@ class HierarchicalScoreModel(nn.Module):
             n_blocks (int): Number of residual blocks.
             sde (SDE): SDE model.
             prior (Prior): Prior model.
-            global_number_of_obs (int, optional): Number of observations grouped together in the factorization.
+            max_number_of_obs (int, optional): Maximal number of observations grouped together.
             prediction_type (str, optional): Type of prediction to perform. Can be 'score', 'e', 'x', or 'v'. Default is 'v'.
             weighting_type (str, optional): Type of weighting to use. Default is None.
             time_embed_dim (int, optional): Dimension of time embedding. Default is 16.
@@ -304,16 +371,17 @@ class HierarchicalScoreModel(nn.Module):
     """
     def __init__(self,
                  input_dim_theta_global, input_dim_theta_local, input_dim_x,
-                 hidden_dim, n_blocks, sde, prior, global_number_of_obs=1, prediction_type='v', weighting_type=None,
+                 hidden_dim, n_blocks, sde, prior, max_number_of_obs=1, prediction_type='v', weighting_type=None,
                  time_embed_dim=16, use_film=False, dropout_rate=0.1, use_spectral_norm=False):
         super(HierarchicalScoreModel, self).__init__()
         self.prediction_type = prediction_type
         self.sde = sde
         self.prior = prior
         self.weighting_type = weighting_type
-        self.global_number_of_obs = global_number_of_obs
+        self.max_number_of_obs = max_number_of_obs
+        self.current_number_of_obs = max_number_of_obs  # this is just needed for sampling
         self.name = (f'hierarchical_score_model_{prediction_type}_{sde.kernel_type}_{sde.noise_schedule}_{weighting_type}'
-                     f'{"_factorized"+str(global_number_of_obs) if global_number_of_obs > 1 else ""}')
+                     f'{"_factorized"+str(max_number_of_obs) if max_number_of_obs > 1 else ""}')
 
         self.summary_net = nn.GRU(
             input_size=input_dim_x,
@@ -321,13 +389,16 @@ class HierarchicalScoreModel(nn.Module):
             num_layers=1,
             batch_first=True
         )
-        if global_number_of_obs > 1:
-            self.summary_net = TimeDistributed(self.summary_net)
+        if max_number_of_obs > 1:
+            self.summary_net = TimeDistributedRNN(self.summary_net)
+            input_dim_x_after_summary = hidden_dim * 2 + 1 # mean, std, n_obs
+        else:
+            input_dim_x_after_summary = hidden_dim
 
         self.n_params_global = input_dim_theta_global
         self.global_model = ScoreModel(
             input_dim_theta=input_dim_theta_global,
-            input_dim_x=hidden_dim * global_number_of_obs,
+            input_dim_x=input_dim_x_after_summary,
             input_dim_condition=0,
             hidden_dim=hidden_dim,
             n_blocks=n_blocks,
@@ -355,17 +426,23 @@ class HierarchicalScoreModel(nn.Module):
 
     def forward(self, theta_global, theta_local, time, x, pred_score, clip_x=False):  # __call__ method for the model
         """Forward pass through the global and local model. This usually only used, during training."""
-        #theta_global, theta_local = torch.split(theta, [self.n_params_global, self.n_params_local], dim=-1)
         _, x_emb = self.summary_net(x)
         x_emb = x_emb[0]  # only one layer, not bidirectional
-        if self.global_number_of_obs == 1:
+        if self.max_number_of_obs == 1:
             global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb,
                                                    conditions=None, pred_score=pred_score, clip_x=clip_x)
             local_out = self.local_model.forward(theta=theta_local, time=time, x=x_emb,
                                                  conditions=theta_global, pred_score=pred_score, clip_x=clip_x)
         else:
             # for global, concat observations
-            x_emb_global = torch.cat([x_emb[:, i] for i in range(self.global_number_of_obs)], dim=-1)
+            if x_emb.shape[1] > 1:
+                x_mean = torch.mean(x_emb, dim=1)
+                x_std = torch.std(x_emb, dim=1)
+            else:
+                x_mean = x_emb.squeeze(1)
+                x_std = torch.zeros_like(x_mean)
+            n_obs = torch.ones((x_emb.shape[0], 1), dtype=x_emb.dtype, device=x_emb.device) * x_emb.shape[1] / self.max_number_of_obs
+            x_emb_global = torch.cat([x_mean, x_std, n_obs], dim=-1)
             global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb_global,
                                                    conditions=None, pred_score=pred_score, clip_x=clip_x)
 
@@ -373,7 +450,7 @@ class HierarchicalScoreModel(nn.Module):
             local_out = []
             for i in range(x_emb.shape[1]):
                 local = self.local_model.forward(theta=theta_local[:, i], time=time, x=x_emb[:, i],
-                                                          conditions=theta_global, pred_score=pred_score, clip_x=clip_x)
+                                                 conditions=theta_global, pred_score=pred_score, clip_x=clip_x)
                 local_out.append(local.unsqueeze(1))  # add the obs dimension
             local_out = torch.concatenate(local_out, dim=1)  # concat the observations
         return global_out, local_out
@@ -382,12 +459,19 @@ class HierarchicalScoreModel(nn.Module):
         """Forward pass through the global model. Usually we want the score, not the predicting task from training."""
         _, x_emb = self.summary_net(x)
         x_emb = x_emb[0]  # only one layer, not bidirectional
-        if self.global_number_of_obs == 1:
+        if self.max_number_of_obs == 1:
             global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb,
                                                    conditions=None, pred_score=pred_score, clip_x=clip_x)
         else:
             # for global, concat observations
-            x_emb_global = torch.cat([x_emb[:, i] for i in range(self.global_number_of_obs)], dim=-1)
+            if x_emb.shape[1] > 1:
+                x_mean = torch.mean(x_emb, dim=1)
+                x_std = torch.std(x_emb, dim=1)
+            else:
+                x_mean = x_emb.squeeze(1)
+                x_std = torch.zeros_like(x_mean)
+            n_obs = torch.ones((x_emb.shape[0], 1), dtype=x_emb.dtype, device=x_emb.device) * x_emb.shape[1] / self.max_number_of_obs
+            x_emb_global = torch.cat([x_mean, x_std, n_obs], dim=-1)
             global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb_global,
                                                    conditions=None, pred_score=pred_score, clip_x=clip_x)
         return global_out
@@ -397,13 +481,115 @@ class HierarchicalScoreModel(nn.Module):
         _, x_emb = self.summary_net(x)
         x_emb = x_emb[0]  # only one layer, not bidirectional
         # in training we looped over obsevations, here we expect that only one is passed
-        if self.global_number_of_obs > 1:
+        if self.max_number_of_obs > 1:
             if x_emb.shape[1] > 1:
                 raise ValueError('Expected only one observation passed to the local network.')
             x_emb = x_emb.squeeze(1)
         local_out = self.local_model.forward(theta=theta_local, time=time, x=x_emb,
                                              conditions=theta_global, pred_score=pred_score, clip_x=clip_x)
         return local_out
+
+
+class CompositionalScoreModel(nn.Module):
+    """
+        Neural network model that computes score estimates for a compositional model.
+
+        Args:
+            input_dim_theta_global (int): Input dimension for global theta.
+            input_dim_x (int): Input dimension for x, number of features of the time series.
+            hidden_dim (int): Hidden dimension for theta network.
+            n_blocks (int): Number of residual blocks.
+            sde (SDE): SDE model.
+            prior (Prior): Prior model.
+            max_number_of_obs (int, optional): Maximal number of observations grouped together.
+            prediction_type (str, optional): Type of prediction to perform. Can be 'score', 'e', 'x', or 'v'. Default is 'v'.
+            weighting_type (str, optional): Type of weighting to use. Default is None.
+            time_embed_dim (int, optional): Dimension of time embedding. Default is 16.
+            use_film (bool, optional): Whether to use FiLM-residual blocks. Default is False.
+            dropout_rate (float, optional): Dropout rate. Default is 0.1.
+            use_spectral_norm (bool, optional): Whether to use spectral normalization. Default is False.
+    """
+    def __init__(self,
+                 input_dim_theta_global, input_dim_x,
+                 hidden_dim, n_blocks, sde, prior, max_number_of_obs=1, prediction_type='v', weighting_type=None,
+                 time_embed_dim=16, use_film=False, dropout_rate=0.1, use_spectral_norm=False):
+        super(CompositionalScoreModel, self).__init__()
+        self.prediction_type = prediction_type
+        self.sde = sde
+        self.prior = prior
+        self.weighting_type = weighting_type
+        self.max_number_of_obs = max_number_of_obs
+        self.current_number_of_obs = max_number_of_obs  # this is just needed for sampling
+        self.name = (f'compositional_score_model_{prediction_type}_{sde.kernel_type}_{sde.noise_schedule}_{weighting_type}'
+                     f'{"_factorized"+str(max_number_of_obs) if max_number_of_obs > 1 else ""}')
+
+        #self.summary_net = nn.Sequential(
+        #    nn.Linear(input_dim_x, hidden_dim),
+        #    nn.SiLU()
+        #)
+        self.summary_net = nn.ModuleList([
+            ResidualBlock(in_dim=input_dim_x, out_dim=hidden_dim,
+                          dropout_rate=dropout_rate, use_spectral_norm=use_spectral_norm)
+            for _ in range(3)
+        ])
+
+        if max_number_of_obs > 1:
+            self.summary_net = TimeDistributedDense(self.summary_net)
+            input_dim_x_after_summary = hidden_dim * 2 + 1  # mean, std, n_obs
+        else:
+            input_dim_x_after_summary = hidden_dim
+
+        self.n_params_global = input_dim_theta_global
+        self.global_model = ScoreModel(
+            input_dim_theta=input_dim_theta_global,
+            input_dim_x=input_dim_x_after_summary,
+            input_dim_condition=0,
+            hidden_dim=hidden_dim,
+            n_blocks=n_blocks,
+            prediction_type=prediction_type,
+            time_embed_dim=time_embed_dim,
+            use_film=use_film,
+            dropout_rate=dropout_rate,
+            use_spectral_norm=use_spectral_norm,
+            sde=sde
+        )
+
+    def forward(self, theta_global, time, x, pred_score, clip_x=False):  # __call__ method for the model
+        """Forward pass through the global and local model. This usually only used, during training."""
+        x_emb = self.summary_net(x)
+        if self.max_number_of_obs == 1:
+            global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb,
+                                                   conditions=None, pred_score=pred_score, clip_x=clip_x)
+        else:
+            # for global, concat observations
+            if x_emb.shape[1] > 1:
+                x_mean = torch.mean(x_emb, dim=1)
+                x_std = torch.std(x_emb, dim=1)
+            else:
+                x_mean = x_emb.squeeze(1)
+                x_std = torch.zeros_like(x_mean)
+            n_obs = torch.ones((x_emb.shape[0], 1), dtype=x_emb.dtype, device=x_emb.device) * x_emb.shape[
+                1] / self.max_number_of_obs
+            x_emb_global = torch.cat([x_mean, x_std, n_obs], dim=-1)
+            global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb_global,
+                                                   conditions=None, pred_score=pred_score, clip_x=clip_x)
+
+        return global_out
+
+    def forward_global(self, theta_global, time, x, pred_score, clip_x=False):
+        """Forward pass through the global model. Usually we want the score, not the predicting task from training."""
+        if self.max_number_of_obs > 1:
+            if x.ndim == 4:
+                # there is time dimension, which we do not need
+                x = x.squeeze(2)
+        elif x.ndim == 3:
+            # there is time dimension, which we do not need
+            x = x.squeeze(1)
+        return self.forward(theta_global, time, x, pred_score, clip_x)
+
+    def forward_local(self, theta_local, theta_global, time, x, pred_score, clip_x=False):
+        """Forward pass through the local model. Usually we want the score, not the predicting task from training."""
+        raise NotImplemented("This is not a hierarchical model.")
 
 
 class SDE:
@@ -648,17 +834,3 @@ def weighting_function(t, sde, weighting_type=None, prediction_type='error'):
         return sech(snr / 2) * torch.minimum(torch.ones_like(snr), gamma * torch.exp(-snr))
 
     raise ValueError("Invalid weighting...")
-
-
-def count_parameters(model):
-    table = PrettyTable(["Modules", "Parameters"])
-    total_params = 0
-    for name, parameter in model.named_parameters():
-        if not parameter.requires_grad:
-            continue
-        params = parameter.numel()
-        table.add_row([name, params])
-        total_params += params
-    print(table)
-    print(f"Total Trainable Params: {total_params}")
-    return total_params

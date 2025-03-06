@@ -12,8 +12,7 @@ def prepare_observations(x_obs, model, device):
     Prepare and normalize observations.
 
     Converts x_obs to a tensor if necessary, normalizes via model.prior,
-    reshapes to (n_time_steps, n_obs) then transposes to
-    (n_obs, n_time_steps, d) where d is the feature dimension.
+    reshapes to (n_obs, n_time_steps, d) where d is the feature dimension. n_time_steps might be 1.
 
     Returns:
         x_obs_norm: Tensor of shape (n_obs, n_time_steps, d)
@@ -23,12 +22,22 @@ def prepare_observations(x_obs, model, device):
     if not isinstance(x_obs, torch.Tensor):
         x_obs = torch.tensor(x_obs, dtype=torch.float32, device=device)
     x_obs_norm = model.prior.normalize_data(x_obs)
-    # Reshape to (n_time_steps, n_obs)
-    x_obs_norm = x_obs_norm.reshape(x_obs_norm.shape[0], -1)
-    n_time_steps = x_obs_norm.shape[0]
-    n_obs = x_obs_norm.shape[-1]
-    # Transpose to (n_obs, n_time_steps) and add feature dimension: (n_obs, n_time_steps, 1)
-    x_obs_norm = x_obs_norm.T[:, :, None]
+
+    if x_obs_norm.ndim == 3:
+        # input is (n_time_steps, grid, grid)
+        # Reshape to (n_time_steps, n_obs)
+        x_obs_norm = x_obs_norm.reshape(x_obs_norm.shape[0], -1, 1)
+        # Transpose to (n_obs, n_time_steps, 1)
+        x_obs_norm = x_obs_norm.permute(1, 0, 2)
+        n_obs = x_obs_norm.shape[0]
+        n_time_steps = x_obs_norm.shape[1]
+    elif x_obs_norm.ndim == 2:  # data is not time series
+        # input is (n_obs, n_dim)
+        n_obs = x_obs_norm.shape[0]
+        n_time_steps = 1
+        x_obs_norm = x_obs_norm[:, None, :]
+    else:
+        raise ValueError('x_obs_norm must be 2 or 3 dimensional')
     return x_obs_norm, n_obs, n_time_steps
 
 
@@ -69,23 +78,79 @@ def initialize_parameters(n_post_samples, n_obs, model, conditions, device, rand
     return theta, conditions_collapsed
 
 
-def expand_observations(x_obs_norm, n_post_samples, n_obs, n_time_steps, global_number_of_obs):
+def prepare_n_scores_update(n_scores_update, model, n_obs, conditions):
+    """
+    Prepares the number of scores to update and determines the expansion factor and subsampling flag.
+
+    This function calculates the number of scores that should be used for an update based on
+    the provided parameters. It handles two cases:
+      1. When `n_scores_update` is None, all scores are used.
+         - If `conditions` is also None, the number of scores is computed as
+           n_obs // model.current_number_of_obs and the expansion factor is set to model.current_number_of_obs.
+         - If `conditions` is provided, then n_scores_update is set to n_obs and the expansion factor is 1.
+      2. When `n_scores_update` is provided, it is set to the minimum of the provided value
+         and (n_obs // model.current_number_of_obs). In this case, the expansion factor is always set to
+         model.current_number_of_obs and subsampling is enabled.
+         - If `conditions` is provided with subsampling, a NotImplemented error is raised.
+
+    Parameters:
+        n_scores_update (int or None): Desired number of scores to update. If None, all scores are used.
+        model: An object with an attribute `current_number_of_obs` that specifies the maximum number
+               of observations per score.
+        n_obs (int): Total number of observations. Must be a multiple of `model.current_number_of_obs`.
+        conditions (optional): Additional conditions for updating. If provided together with subsampling,
+                               a NotImplemented error is raised.
+
+    Returns:
+        tuple: A tuple containing:
+            - n_scores_update (int): The computed number of scores to update.
+            - x_expand_factorial (int): The expansion factor for scores.
+            - subsample (bool): Flag indicating whether subsampling is used.
+
+    Raises:
+        ValueError: If `n_obs` is not a multiple of `model.current_number_of_obs`.
+        NotImplementedError: If `conditions` is provided while subsampling is enabled.
+    """
+    if n_scores_update is None:
+        # use all scores for the update
+        # usually model.current_number_of_obs = 1
+        if conditions is None:
+            n_scores_update = n_obs // model.current_number_of_obs
+            x_expand_factorial = model.current_number_of_obs
+        else:
+            n_scores_update = n_obs
+            x_expand_factorial = 1
+        subsample = False
+    else:
+        n_scores_update = min(n_scores_update, n_obs // model.current_number_of_obs)
+        x_expand_factorial = model.current_number_of_obs
+        subsample = True
+        if conditions is not None:
+            raise NotImplemented("Local sampling with subsampling of observations is not implemented.")
+
+    if n_obs % model.current_number_of_obs != 0:
+        raise ValueError("'n_obs' must be a multiple of 'model.current_number_of_obs'")
+
+    return n_scores_update, x_expand_factorial, subsample
+
+
+def expand_observations(x_obs_norm, n_post_samples, n_obs, n_time_steps, max_number_of_obs, current_number_of_obs):
     """
     Expand normalized observations to shape (n_post_samples*n_obs, n_time_steps, d) or
-     (n_post_samples*(n_obs//global_number_of_obs), global_number_of_obs, n_time_steps, d)
+     (n_post_samples*(n_obs//current_number_of_obs), current_number_of_obs, n_time_steps, d)
 
     x_obs_norm is expected to have shape (n_obs, n_time_steps, d).
     """
-    if global_number_of_obs == 1:
+    if max_number_of_obs == 1:
         x_exp = x_obs_norm.unsqueeze(0).expand(n_post_samples, n_obs, n_time_steps, -1)
         x_expanded = x_exp.reshape(n_post_samples * n_obs, n_time_steps, -1)
     else:
-        # factorize data into (n_post_samples * reduced_data, global_number_of_obs, n_time_steps, n_features)
-        n_obs_reduced = n_obs // global_number_of_obs
-        x_exp = x_obs_norm.reshape(n_obs_reduced, global_number_of_obs, n_time_steps, -1)
-        x_expanded = x_exp.unsqueeze(0).expand(n_post_samples, n_obs_reduced, global_number_of_obs,
+        # factorize data into (n_post_samples * reduced_data, current_number_of_obs, n_time_steps, n_features)
+        n_obs_reduced = n_obs // current_number_of_obs
+        x_exp = x_obs_norm.reshape(n_obs_reduced, current_number_of_obs, n_time_steps, -1)
+        x_expanded = x_exp.unsqueeze(0).expand(n_post_samples, n_obs_reduced, current_number_of_obs,
                                                n_time_steps, -1)
-        x_expanded = x_expanded.reshape(n_post_samples*n_obs_reduced, global_number_of_obs, n_time_steps, -1)
+        x_expanded = x_expanded.reshape(n_post_samples*n_obs_reduced, current_number_of_obs, n_time_steps, -1)
     return x_expanded
 
 
@@ -95,22 +160,20 @@ def sub_sample_observations(x, n_post_samples, n_obs, n_scores_update):
     avoiding additional reshaping after expansion.
 
       - x shape: (n_obs, n_obs_time_steps, d) or
-        (n_obs, model.global_number_of_obs, n_obs_time_steps, d)
+        (n_obs, model.current_number_of_obs, n_obs_time_steps, d)
       - expand_observations returns shape: (n_post_samples * n_obs, ?, n_obs_time_steps, d)
       - For each posterior sample, randomly subsample n_scores_update observations.
       - Final output shape: (n_post_samples * n_scores_update, ?, n_obs_time_steps, d)
 
     Parameters:
         x (Tensor): Normalized and expanded observations with shape (n_obs*posterior_samples, n_obs_time_steps, d) or
-            (n_obs*posterior_samples, global_number_of_obs, n_obs_time_steps, d)
+            (n_obs*posterior_samples, current_number_of_obs, n_obs_time_steps, d)
         n_post_samples (int): Number of posterior samples.
         n_obs (int): Total number of observations.
         n_scores_update (int): Number of observations (or groups, if factorized) to randomly select per posterior sample.
 
     Returns:
-        Tensor: Subsampled observations.
-            - If global_number_of_obs == 1: shape (n_post_samples * n_scores_update, n_obs_time_steps, d)
-            - If global_number_of_obs > 1: shape (n_post_samples * n_scores_update, global_number_of_obs, n_obs_time_steps, d)
+        Tensor: Subsampled observations (n_post_samples * n_scores_update, n_obs_time_steps, d)
     """
     # x has shape: (n_post_samples * n_obs, ...)
     # For each posterior sample i, the observations occupy a contiguous block of size n_obs.
@@ -263,8 +326,8 @@ def eval_compositional_score(model, theta, diffusion_time, x_expanded, n_post_sa
         model_scores = model_sum_scores + prior_scores
     else:
         theta_exp = theta.reshape(-1, model.prior.n_params_local)
-        if model.global_number_of_obs > 1:
-            # summary network expects factorize data
+        if model.max_number_of_obs > 1:  # not current number, since that might be 1
+            # summary network expects factorized data
             x_expanded = x_expanded.unsqueeze(1)
 
         model_scores = model.forward_local(
@@ -309,30 +372,11 @@ def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
 
     # Prepare observations and initialize parameters.
     x_obs_norm, n_obs, n_obs_time_steps = prepare_observations(x_obs, model, device)
-
-    if n_scores_update is None:
-        # use all scores for the update
-        # usually model.global_number_of_obs = 1
-        if conditions is None:
-            n_scores_update = n_obs // model.global_number_of_obs
-            x_expand_factorial = model.global_number_of_obs
-        else:
-            n_scores_update = n_obs
-            x_expand_factorial = 1
-        subsample = False
-    else:
-        n_scores_update = min(n_scores_update, n_obs // model.global_number_of_obs)
-        x_expand_factorial = model.global_number_of_obs
-        subsample = True
-        if conditions is not None:
-            raise NotImplemented("Local sampling with subsampling of observations is not implemented.")
-
-    if n_obs % model.global_number_of_obs != 0:
-        raise ValueError("'n_obs' must be a multiple of 'model.global_number_of_obs'")
-
+    n_scores_update, x_expand_factorial, subsample = prepare_n_scores_update(n_scores_update, model, n_obs, conditions)
     theta, conditions_exp = initialize_parameters(n_post_samples, n_scores_update, model, conditions, device, random_seed)
     diffusion_time = generate_diffusion_time(size=diffusion_steps + 1, epsilon=t_end, device=device)
-    x_expanded = expand_observations(x_obs_norm, n_post_samples, n_obs, n_obs_time_steps, x_expand_factorial)
+    x_expanded = expand_observations(x_obs_norm, n_post_samples, n_obs, n_obs_time_steps,
+                                     model.max_number_of_obs,  x_expand_factorial)
 
     with torch.no_grad():
         model.to(device)
@@ -344,7 +388,7 @@ def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
 
             if subsample:
                 # subsample observations for the score update
-                sub_x_expanded = sub_sample_observations(x_expanded, n_post_samples, n_obs // model.global_number_of_obs,
+                sub_x_expanded = sub_sample_observations(x_expanded, n_post_samples, n_obs // model.current_number_of_obs,
                                                          n_scores_update)
             else:
                 sub_x_expanded = x_expanded
@@ -397,30 +441,11 @@ def adaptive_sampling(model, x_obs,
 
     # Prepare observations and initialize parameters.
     x_obs_norm, n_obs, n_obs_time_steps = prepare_observations(x_obs, model, device)
-
-    if n_scores_update is None:
-        # use all scores for the update
-        # usually model.global_number_of_obs = 1
-        if conditions is None:
-            n_scores_update = n_obs // model.global_number_of_obs
-            x_expand_factorial = model.global_number_of_obs
-        else:
-            n_scores_update = n_obs
-            x_expand_factorial = 1
-        subsample = False
-    else:
-        n_scores_update = min(n_scores_update, n_obs // model.global_number_of_obs)
-        x_expand_factorial = model.global_number_of_obs
-        subsample = True
-        if conditions is not None:
-            raise NotImplemented("Local sampling with subsampling of observations is not implemented.")
-
-    if n_obs % model.global_number_of_obs != 0:
-        raise ValueError("'n_obs' must be a multiple of 'model.global_number_of_obs'")
-
+    n_scores_update, x_expand_factorial, subsample = prepare_n_scores_update(n_scores_update, model, n_obs, conditions)
     theta, conditions_exp = initialize_parameters(n_post_samples, n_scores_update,
                                                   model, conditions, device, random_seed)
-    x_expanded = expand_observations(x_obs_norm, n_post_samples, n_obs, n_obs_time_steps, x_expand_factorial)
+    x_expanded = expand_observations(x_obs_norm, n_post_samples, n_obs, n_obs_time_steps,
+                                     model.max_number_of_obs, x_expand_factorial)
 
     current_t = torch.tensor(t_start, dtype=torch.float32, device=device)
     if isinstance(t_end, float):
@@ -441,7 +466,7 @@ def adaptive_sampling(model, x_obs,
             if subsample:
                 # subsample observations for the score update
                 sub_x_expanded = sub_sample_observations(x_expanded, n_post_samples,
-                                                         n_obs // model.global_number_of_obs,
+                                                         n_obs // model.current_number_of_obs,
                                                          n_scores_update)
             else:
                 sub_x_expanded = x_expanded
@@ -517,29 +542,10 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
     """
     # Prepare observations and initialize parameters.
     x_obs_norm, n_obs, n_obs_time_steps = prepare_observations(x_obs, model, device)
-
-    if n_scores_update is None:
-        # use all scores for the update
-        # usually model.global_number_of_obs = 1
-        if conditions is None:
-            n_scores_update = n_obs // model.global_number_of_obs
-            x_expand_factorial = model.global_number_of_obs
-        else:
-            n_scores_update = n_obs
-            x_expand_factorial = 1
-        subsample = False
-    else:
-        n_scores_update = min(n_scores_update, n_obs // model.global_number_of_obs)
-        x_expand_factorial = model.global_number_of_obs
-        subsample = True
-        if conditions is not None:
-            raise NotImplemented("Local sampling with subsampling of observations is not implemented.")
-
-    if n_obs % model.global_number_of_obs != 0:
-        raise ValueError("'n_obs' must be a multiple of 'model.global_number_of_obs'")
-
+    n_scores_update, x_expand_factorial, subsample = prepare_n_scores_update(n_scores_update, model, n_obs, conditions)
     theta, conditions_exp = initialize_parameters(n_post_samples, n_scores_update, model, conditions, device, random_seed)
-    x_expanded = expand_observations(x_obs_norm, n_post_samples, n_obs, n_obs_time_steps, x_expand_factorial)
+    x_expanded = expand_observations(x_obs_norm, n_post_samples, n_obs, n_obs_time_steps,
+                                     model.max_number_of_obs,  x_expand_factorial)
 
     with torch.no_grad():
         model.to(device)
@@ -549,7 +555,7 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
             if subsample:
                 # subsample observations for the score update
                 sub_x_expanded = sub_sample_observations(x_expanded, n_post_samples,
-                                                         n_obs // model.global_number_of_obs,
+                                                         n_obs // model.current_number_of_obs,
                                                          n_scores_update)
             else:
                 sub_x_expanded = x_expanded
@@ -622,29 +628,10 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
     """
     # Prepare observations and initialize parameters.
     x_obs_norm, n_obs, n_obs_time_steps = prepare_observations(x_obs, model, device)
-
-    if n_scores_update is None:
-        # use all scores for the update
-        # usually model.global_number_of_obs = 1
-        if conditions is None:
-            n_scores_update = n_obs // model.global_number_of_obs
-            x_expand_factorial = model.global_number_of_obs
-        else:
-            n_scores_update = n_obs
-            x_expand_factorial = 1
-        subsample = False
-    else:
-        n_scores_update = min(n_scores_update, n_obs // model.global_number_of_obs)
-        x_expand_factorial = model.global_number_of_obs
-        subsample = True
-        if conditions is not None:
-            raise NotImplemented("Local sampling with subsampling of observations is not implemented.")
-
-    if n_obs % model.global_number_of_obs != 0:
-        raise ValueError("'n_obs' must be a multiple of 'model.global_number_of_obs'")
-
+    n_scores_update, x_expand_factorial, subsample = prepare_n_scores_update(n_scores_update, model, n_obs, conditions)
     theta, conditions_exp = initialize_parameters(n_post_samples, n_scores_update, model, conditions, device, random_seed)
-    x_expanded = expand_observations(x_obs_norm, n_post_samples, n_obs, n_obs_time_steps, x_expand_factorial)
+    x_expanded = expand_observations(x_obs_norm, n_post_samples, n_obs, n_obs_time_steps,
+                                     model.max_number_of_obs,  x_expand_factorial)
     diffusion_time = generate_diffusion_time(size=diffusion_steps, epsilon=t_end, device=device)
 
     # generate steps in reverse
@@ -666,7 +653,7 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
                 if subsample:
                     # subsample observations for the score update
                     sub_x_expanded = sub_sample_observations(x_expanded, n_post_samples,
-                                                             n_obs // model.global_number_of_obs,
+                                                             n_obs // model.current_number_of_obs,
                                                              n_scores_update)
                 else:
                     sub_x_expanded = x_expanded
@@ -680,7 +667,7 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
                 theta = theta + (step_size / 2) * scores + torch.sqrt(step_size) * eps
 
             if torch.isnan(theta).any():
-                print("NaNs in theta")
+                print("NaNs in theta, stopping here.")
                 break
 
         # Denormalize theta using the prior's statistics.

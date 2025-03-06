@@ -1,4 +1,5 @@
 import torch
+from prettytable import PrettyTable
 
 
 def generate_diffusion_time(size, epsilon=0, return_batch=False, weighted_time=False, device=None):
@@ -27,3 +28,17 @@ def generate_diffusion_time(size, epsilon=0, return_batch=False, weighted_time=F
 
     # Add a new dimension so that each tensor has shape (size, 1)
     return time.unsqueeze(1)
+
+
+def count_parameters(model):
+    table = PrettyTable(["Modules", "Parameters"])
+    total_params = 0
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad:
+            continue
+        params = parameter.numel()
+        table.add_row([name, params])
+        total_params += params
+    print(table)
+    print(f"Total Trainable Params: {total_params}")
+    return total_params
