@@ -527,11 +527,14 @@ class CompositionalScoreModel(nn.Module):
         #    nn.Linear(input_dim_x, hidden_dim),
         #    nn.SiLU()
         #)
-        self.summary_net = nn.ModuleList([
+        self.summary_net = nn.Sequential(
             ResidualBlock(in_dim=input_dim_x, out_dim=hidden_dim,
+                          dropout_rate=dropout_rate, use_spectral_norm=use_spectral_norm),
+            ResidualBlock(in_dim=hidden_dim, out_dim=hidden_dim,
+                          dropout_rate=dropout_rate, use_spectral_norm=use_spectral_norm),
+            ResidualBlock(in_dim=hidden_dim, out_dim=hidden_dim,
                           dropout_rate=dropout_rate, use_spectral_norm=use_spectral_norm)
-            for _ in range(3)
-        ])
+        )
 
         if max_number_of_obs > 1:
             self.summary_net = TimeDistributedDense(self.summary_net)

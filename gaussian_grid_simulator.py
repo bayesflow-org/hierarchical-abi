@@ -143,7 +143,7 @@ class Prior:
         grad_logp_tau = -(log_tau - self.log_tau_mean) / (self.log_tau_std**2)
         # correct the score for the normalization
         score = torch.stack([grad_logp_mu, grad_logp_tau], dim=-1)
-        return score / self.prior_global_std
+        return score * self.prior_global_std
 
     def score_local_batch(self, theta_batch_norm, condition_norm):
         """ Computes the local score for a batch of samples. """
@@ -153,7 +153,7 @@ class Prior:
         # Gradient w.r.t theta conditioned on mu and log_tau
         grad_logp_theta = -(theta - mu) / torch.exp(log_tau*2)
         # correct the score for the normalization
-        score = grad_logp_theta / self.prior_local_std
+        score = grad_logp_theta * self.prior_local_std
         return score
 
     def normalize_theta(self, theta, global_params):
