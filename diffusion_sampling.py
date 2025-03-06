@@ -312,7 +312,7 @@ def eval_compositional_score(model, theta, diffusion_time, x_expanded, n_post_sa
         # expand prior scores to match the individual scores
         prior_scores_indv = prior_scores.unsqueeze(1)
         # (1 - n_obs) * (1 - diffusion_time) * model.prior.score_global_batch(theta)
-        model_sum_scores_indv = model_sum_scores_indv #- prior_scores_indv
+        model_sum_scores_indv = model_sum_scores_indv - prior_scores_indv
 
         if pareto_smooth_fraction == 0:
             # Simple sum
@@ -323,7 +323,7 @@ def eval_compositional_score(model, theta, diffusion_time, x_expanded, n_post_sa
                                                  tail_fraction=pareto_smooth_fraction)
 
         # (1 - n_obs) * (1 - diffusion_time) * model.prior.score_global_batch(theta)
-        model_scores = model_sum_scores #+ prior_scores
+        model_scores = model_sum_scores + prior_scores
     else:
         theta_exp = theta.reshape(-1, model.prior.n_params_local)
 
