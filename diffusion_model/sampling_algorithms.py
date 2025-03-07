@@ -414,7 +414,7 @@ def adaptive_sampling(model, x_obs,
                       n_post_samples=1,
                       conditions=None,
                       e_abs: float = None,  # abs error tolerance should grow with the dimension
-                      e_rel: float = 1.5,
+                      e_rel: float = 1.,
                       h_init: float = 0.01,
                       r: float = 0.9,
                       adapt_safety: float = 0.9,
