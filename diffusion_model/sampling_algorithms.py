@@ -429,6 +429,7 @@ def adaptive_sampling(model, x_obs,
                       ):
     """
     Generate posterior samples using an adaptive, Heun-style sampling scheme. Expects un-normalized observations.
+    Based on "Gotta Go Fast When Generating Data with Score-Based Models" by Jolicoeur-Martineau et. al. (2021).
 
     Returns:
         theta: Posterior samples as a NumPy array.
@@ -604,7 +605,7 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
                       pareto_smooth_fraction=0, n_scores_update=None,
                       random_seed=None, device=None):
     """
-    Annealed Langevin Dynamics sampling. Expects un-normalized observations.
+    Annealed Langevin Dynamics sampling. Expects un-normalized observations. Based on Song et al., 2020.
 
     Parameters:
         model: Score-based model.
