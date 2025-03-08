@@ -357,7 +357,7 @@ def euler_maruyama_step(model, x, score, t, dt, noise=None):
 
 def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
                             diffusion_steps=1000, t_end=0, pareto_smooth_fraction=0, n_scores_update=None,
-                            random_seed=None, device=None):
+                            random_seed=None, device=None, verbose=False):
     """
     Generate posterior samples using Euler-Maruyama sampling. Expects un-normalized observations.
 
@@ -379,7 +379,7 @@ def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
         model.to(device)
         model.eval()
         # Reverse iterate over diffusion steps.
-        for t in tqdm(reversed(range(1, diffusion_steps + 1)), total=diffusion_steps):
+        for t in tqdm(reversed(range(1, diffusion_steps + 1)), total=diffusion_steps, disable=not verbose):
             t_tensor = torch.full((n_post_samples, 1), diffusion_time[t],
                                   dtype=torch.float32, device=device)
 
@@ -425,7 +425,8 @@ def adaptive_sampling(model, x_obs,
                       n_scores_update=None,
                       random_seed=None,
                       device=None,
-                      return_steps=False
+                      return_steps=False,
+                      verbose=False
                       ):
     """
     Generate posterior samples using an adaptive, Heun-style sampling scheme. Expects un-normalized observations.
@@ -456,11 +457,13 @@ def adaptive_sampling(model, x_obs,
     theta_prev = theta
 
     error_scale = 1 / np.sqrt(theta[0].numel()).item()  # 1 / sqrt(n_params)
-    list_steps = []
+    list_accepted_steps = []
     with torch.no_grad():
         model.to(device)
         model.eval()
-        for steps in tqdm(range(max_steps)):
+        total_steps = 0
+        for _ in tqdm(range(max_steps), disable=not verbose):
+            total_steps += 1
             z = torch.randn_like(theta, dtype=torch.float32, device=device)  # same noise for both steps
             t_tensor = torch.full((n_post_samples, 1), current_t, dtype=torch.float32, device=device)
 
@@ -500,7 +503,7 @@ def adaptive_sampling(model, x_obs,
                 theta = theta_eul_sec
                 current_t = current_t - h
                 theta_prev = theta_eul
-                list_steps.append(h)
+                list_accepted_steps.append(h)
             elif np.isnan(E2):
                 print("NaNs in E2")
                 break
@@ -508,6 +511,8 @@ def adaptive_sampling(model, x_obs,
                 print("NaNs in theta")
                 theta = theta_prev
                 break
+            else:
+                list_accepted_steps.append(np.nan)
 
             if E2 == 0:
                 E2 = 1e-10
@@ -515,8 +520,11 @@ def adaptive_sampling(model, x_obs,
             if current_t <= t_end:
                 break
 
-        print(f"Finished after {steps+1} steps ({(steps+1)*2} score evals) at time {current_t}.")
-        print(f"Mean step size: {np.mean(list_steps)}, min: {np.min(list_steps)}, max: {np.max(list_steps)}")
+        if verbose or (current_t != t_end):
+            print(f"Finished after {total_steps} steps ({total_steps*2} score evals) at time {current_t}.")
+            print(f"Mean step size: {np.nanmean(list_accepted_steps)}, "
+                  f"min: {np.nanmin(list_accepted_steps)}, "
+                  f"max: {np.nanmax(list_accepted_steps)}")
         # Denormalize and reshape theta.
         if conditions is None:
             theta = model.prior.denormalize_theta(theta, global_params=True)
@@ -525,12 +533,13 @@ def adaptive_sampling(model, x_obs,
             theta = model.prior.denormalize_theta(theta, global_params=False)
             theta = theta.detach().numpy().reshape(n_post_samples, n_obs, model.prior.n_params_local)
     if return_steps:
-        return theta, list_steps
+        return theta, list_accepted_steps
     return theta
 
 
 def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
-                            t_end=0, n_scores_update=None, pareto_smooth_fraction=0, random_seed=None, device=None):
+                            t_end=0, n_scores_update=None, pareto_smooth_fraction=0, random_seed=None,
+                            device=None, verbose=False):
     """
     Solve the probability ODE (Song et al., 2021) to generate posterior samples. Expects un-normalized observations.
     Solving the ODE can be done either jointly for all posterior samples or separately for each sample. If jointly, then
@@ -584,7 +593,8 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
             x0 = theta.cpu().numpy().reshape(n_post_samples * n_obs * model.prior.n_params_local)
         sol = solve_ivp(probability_ode, t_span=[1, t_end], y0=x0, args=(n_post_samples,),
                             method='RK45', t_eval=[t_end])
-        print(f'ODE solved: {sol.success} with #score evals: {sol.nfev}')
+        if verbose:
+            print(f'ODE solved: {sol.success} with #score evals: {sol.nfev}')
 
         if conditions is None:
             theta = torch.tensor(sol.y[:, -1].reshape(n_post_samples, model.prior.n_params_global),
@@ -603,7 +613,7 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
 def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
                       diffusion_steps=1000, langevin_steps=10, step_size_factor=0.3, t_end=0,
                       pareto_smooth_fraction=0, n_scores_update=None,
-                      random_seed=None, device=None):
+                      random_seed=None, device=None, verbose=False):
     """
     Annealed Langevin Dynamics sampling. Expects un-normalized observations. Based on Song et al., 2020.
 
@@ -621,6 +631,7 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
             If None, all observations are used. Default: None.
         random_seed: Optional random seed for reproducibility.
         device: Computation device.
+        verbose: If True, display progress bar.
 
     Returns:
         theta: Posterior samples as a NumPy array.
@@ -643,7 +654,7 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
         model.to(device)
         model.eval()
         # Annealed Langevin dynamics: iterate over time steps in reverse
-        for t in tqdm(reversed(range(diffusion_steps)), total=diffusion_steps):
+        for t in tqdm(reversed(range(diffusion_steps)), total=diffusion_steps, disable=not verbose):
             t_tensor = torch.full((n_post_samples, 1), diffusion_time[t],
                                   dtype=torch.float32, device=device)
             step_size = annealing_step_size[t]
