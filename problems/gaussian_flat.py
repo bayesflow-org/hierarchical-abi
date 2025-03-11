@@ -92,6 +92,8 @@ class Prior:
             self.prior_global_mean = self.prior_global_mean.to(theta.device)
             self.prior_global_std = self.prior_global_std.to(theta.device)
             self.scale_tensor = self.scale_tensor.to(theta.device)
+            self.x_mean = self.x_mean.to(theta.device)
+            self.x_std = self.x_std.to(theta.device)
             self.device = theta.device
             #print(f"Moving prior to device {theta.device}")
         if global_params:
@@ -103,6 +105,8 @@ class Prior:
             self.prior_global_mean = self.prior_global_mean.to(theta.device)
             self.prior_global_std = self.prior_global_std.to(theta.device)
             self.scale_tensor = self.scale_tensor.to(theta.device)
+            self.x_mean = self.x_mean.to(theta.device)
+            self.x_std = self.x_std.to(theta.device)
             self.device = theta.device
             #print(f"Moving prior to device {theta.device}")
         if global_params:
@@ -110,6 +114,14 @@ class Prior:
         raise ValueError('This is not a hierarchical model.')
 
     def normalize_data(self, x):
+        if self.device != x.device:
+            self.prior_global_mean = self.prior_global_mean.to(x.device)
+            self.prior_global_std = self.prior_global_std.to(x.device)
+            self.scale_tensor = self.scale_tensor.to(x.device)
+            self.x_mean = self.x_mean.to(x.device)
+            self.x_std = self.x_std.to(x.device)
+            self.device = x.device
+            # print(f"Moving prior to device {theta.device}")
         return (x - self.x_mean) / self.x_std
 
 

@@ -175,6 +175,8 @@ class Prior:
             self.prior_global_std = self.prior_global_std.to(theta.device)
             self.prior_local_mean = self.prior_local_mean.to(theta.device)
             self.prior_local_std = self.prior_local_std.to(theta.device)
+            self.x_mean = self.x_mean.to(theta.device)
+            self.x_std = self.x_std.to(theta.device)
             self.device = theta.device
             #print(f"Moving prior to device {theta.device}")
         if global_params:
@@ -182,6 +184,13 @@ class Prior:
         return theta * self.prior_local_std + self.prior_local_mean
 
     def normalize_data(self, x):
+        if self.device != x.device:
+            self.prior_global_mean = self.prior_global_mean.to(x.device)
+            self.prior_global_std = self.prior_global_std.to(x.device)
+            self.prior_local_mean = self.prior_local_mean.to(x.device)
+            self.prior_local_std = self.prior_local_std.to(x.device)
+            self.x_mean = self.x_mean.to(x.device)
+            self.x_std = self.x_std.to(x.device)
         return (x - self.x_mean) / self.x_std
 
 

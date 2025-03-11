@@ -11,7 +11,7 @@ class GaussianFourierProjection(nn.Module):
         super().__init__()
         # Randomly sample weights during initialization. These weights are fixed
         # during optimization and are not trainable.
-        self.W = nn.Parameter(torch.randn(embed_dim // 2), requires_grad=False) * 2 * np.pi
+        self.register_buffer('W', torch.randn(embed_dim // 2) * 2 * np.pi)
         self.scale = nn.Parameter(torch.tensor(init_scale), requires_grad=True)
 
     def forward(self, x):
@@ -164,25 +164,25 @@ class FiLMResidualBlock(nn.Module):
         return self.activation(x + self.skip(h))
 
 
-class TimeDistributedRNN(nn.Module):
+class TimeDistributedGRU(nn.Module):
     def __init__(self, module):
-        super(TimeDistributedRNN, self).__init__()
+        super(TimeDistributedGRU, self).__init__()
         self.module = module
-        # check if module is GRU or LSTM
-        if isinstance(module, nn.GRU) or isinstance(module, nn.LSTM):
+        # check if module is GRU
+        if isinstance(module, nn.GRU):
             pass
         else:
-            raise ValueError("Module must be an instance of nn.GRU or nn.LSTM.")
+            raise ValueError("Module must be an instance of nn.GRU")
 
     def forward(self, x):
         # Assume input x is of shape (batch_size, n_obs, n_time_steps, n_features)
         batch_size, n_obs, n_time_steps, n_features = x.size(0), x.size(1), x.size(2), x.size(3)
         # Merge batch and time dimensions
-        x_reshaped = x.contiguous().view(batch_size * n_obs, *x.shape[2:])
+        x_reshaped = x.contiguous().view(batch_size * n_obs, n_time_steps, n_features)
         # Apply the module
         _, y = self.module(x_reshaped)
         # Reshape back to (n_rnn_layers, batch_size, n_obs, hidden_dim)
-        y = y.contiguous().view(y.shape[0], batch_size, n_obs, *y.shape[2:])
+        y = y.contiguous().view(y.shape[0], batch_size, n_obs, y.shape[2])
         return None, y  # to match output of GRU
 
 class TimeDistributedDense(nn.Module):
@@ -194,7 +194,7 @@ class TimeDistributedDense(nn.Module):
         # Assume input x is of shape (batch_size, n_obs, n_features)
         batch_size, n_obs, n_features = x.size(0), x.size(1), x.size(2)
         # Merge batch and time dimensions
-        x_reshaped = x.contiguous().view(batch_size * n_obs, x.shape[2])
+        x_reshaped = x.contiguous().view(batch_size * n_obs, n_features)
         # Apply the module
         y = self.module(x_reshaped)
         # Reshape back to (batch_size, n_obs, hidden_dim)
@@ -393,7 +393,7 @@ class HierarchicalScoreModel(nn.Module):
             batch_first=True
         )
         if max_number_of_obs > 1:
-            self.summary_net = TimeDistributedRNN(self.summary_net)
+            self.summary_net = TimeDistributedGRU(self.summary_net)
             input_dim_x_after_summary = hidden_dim * 2 + 1 # mean, std, n_obs
         else:
             input_dim_x_after_summary = hidden_dim
@@ -444,18 +444,36 @@ class HierarchicalScoreModel(nn.Module):
             else:
                 x_mean = x_emb.squeeze(1)
                 x_std = torch.zeros_like(x_mean)
-            n_obs = torch.ones((x_emb.shape[0], 1), dtype=x_emb.dtype, device=x_emb.device) * x_emb.shape[1] / self.max_number_of_obs
-            x_emb_global = torch.cat([x_mean, x_std, n_obs], dim=-1)
+            n_obs_cond = torch.ones((x_emb.shape[0], 1), dtype=x_emb.dtype, device=x_emb.device) * x_emb.shape[1] / self.max_number_of_obs
+            x_emb_global = torch.cat([x_mean, x_std, n_obs_cond], dim=-1)
             global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb_global,
                                                    conditions=None, pred_score=pred_score, clip_x=clip_x)
 
-            # for local, use the same x_emb, but in a loop
-            local_out = []
-            for i in range(x_emb.shape[1]):
-                local = self.local_model.forward(theta=theta_local[:, i], time=time, x=x_emb[:, i],
-                                                 conditions=theta_global, pred_score=pred_score, clip_x=clip_x)
-                local_out.append(local.unsqueeze(1))  # add the obs dimension
-            local_out = torch.concatenate(local_out, dim=1)  # concat the observations
+
+            # Flatten the observation dimension for theta_local and x_emb.
+            batch_size, n_obs = x_emb.shape[:2]
+            theta_local_flat = theta_local.contiguous().view(batch_size * n_obs, -1)
+            x_emb_flat = x_emb.contiguous().view(batch_size * n_obs, -1)
+
+            # Expand time and theta_global so they match the flattened observations.
+            # time: from [batch_size, time_dim] -> [batch_size, n_obs, time_dim] -> [batch_size * n_obs, time_dim]
+            time_expanded = time.unsqueeze(1).expand(batch_size, n_obs, time.shape[-1]).contiguous().view(batch_size * n_obs, -1)
+            # theta_global: from [batch_size, global_theta_dim] -> [batch_size, n_obs, global_theta_dim] -> [batch_size * n_obs, global_theta_dim]
+            theta_global_expanded = theta_global.unsqueeze(1).expand(batch_size, n_obs, theta_global.shape[-1]).contiguous().view(
+                batch_size * n_obs, -1)
+
+            # Pass all observations at once through the local model.
+            local_out_flat = self.local_model.forward(
+                theta=theta_local_flat,
+                time=time_expanded,
+                x=x_emb_flat,
+                conditions=theta_global_expanded,
+                pred_score=pred_score,
+                clip_x=clip_x
+            )
+
+            # Reshape back to [batch_size, n_obs, ...]
+            local_out = local_out_flat.contiguous().view(batch_size, n_obs, -1)
         return global_out, local_out
 
     def forward_global(self, theta_global, time, x, pred_score, clip_x=False):
