@@ -7,12 +7,12 @@ from tqdm import tqdm
 from diffusion_model.helper_functions import generate_diffusion_time
 
 sampling_defaults = {
-    'damping_factor': 1.,
+    'damping_factor': lambda t: 1.,
     'sample_same_obs': None,
     'type': 'mean',  # mean, median, pareto, huber_mean, small_mean
     'tail_fraction': 0.2,
     'huber_delta': 1.,
-    'size': np.inf,
+    'size': np.inf,  # for mini-batch
     'small_size': 10
 }
 
@@ -178,7 +178,8 @@ def sub_sample_observations(x, batch_size_full, n_scores_update, mini_batch_dict
     # x has shape: (batch_size * n_post_samples * n_scores_update, ...)
     # For each posterior sample i, the observations occupy a contiguous block of size n_scores_update.
     # Generate random indices in [0, n_scores_update) for each sample.
-    rand_idx = torch.argsort(torch.rand(batch_size_full, n_scores_update), dim=1)[:, :mini_batch_dict['size']]
+    rand_idx = torch.argsort(torch.rand(batch_size_full, n_scores_update, dtype=x.dtype, device=x.device),
+                             dim=1)[:, :mini_batch_dict['size']]
 
     # Compute the offset for each posterior sample.
     sample_offset = torch.arange(batch_size_full, device=x.device) * n_scores_update  # shape: (batch_size * n_post_samples,)
@@ -338,7 +339,8 @@ def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp
             scores_mean = huber_mean(model_sum_scores_indv, delta=mini_batch_dict['huber_delta'], dim=1)
         else:
             raise NotImplementedError(f"Unknown mini-batch type {mini_batch_dict['type']}")
-        model_sum_scores = n_scores_update_full * mini_batch_dict['damping_factor'] * scores_mean
+        damping_factor = mini_batch_dict['damping_factor'](diffusion_time)
+        model_sum_scores = n_scores_update_full * damping_factor * scores_mean
         #model_sum_scores = model_sum_scores_indv.sum(dim=1)
 
         # (1 - n_scores_update) * (1 - diffusion_time) * model.prior.score_global_batch(theta)
@@ -695,7 +697,7 @@ def adaptive_sampling(model, x_obs,
                 theta = theta_eul_sec
                 current_t = current_t - h
                 theta_prev = theta_eul
-                list_accepted_steps.append(h)
+                list_accepted_steps.append(h.cpu().numpy())
             elif np.isnan(E2):
                 print('delta', delta, 'error_scale', error_scale, 'sample_error', sample_error)
                 print("NaNs in E2")
@@ -910,9 +912,9 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
                 theta = theta + (step_size / 2) * scores + torch.sqrt(step_size) * eps
 
                 progress_bar.update(1)
-                if torch.isnan(theta).any():
-                    print("NaNs in theta, stopping here.")
-                    break
+            if torch.isnan(theta).any():
+                print("NaNs in theta, stopping here.")
+                break
 
         # Denormalize theta using the prior's statistics.
         if conditions is None:
