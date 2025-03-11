@@ -26,7 +26,8 @@ def compute_hierarchical_score_loss(
                                                device=theta_local_batch.device)
 
     # perturb the theta batch
-    alpha, sigma = model.sde.kernel(t=diffusion_time)
+    snr = model.sde.get_snr(t=diffusion_time)
+    alpha, sigma = model.sde.kernel(log_snr=snr)
     z_global = alpha * theta_global_batch + sigma * epsilon_global_batch
     if model.max_number_of_obs > 1:
         # global params are not factorized to the same level as local params
@@ -47,10 +48,10 @@ def compute_hierarchical_score_loss(
 
 # Training loop for Score Model
 def train_hierarchical_score_model(model, dataloader, dataloader_valid=None,
-                                   epochs=100, lr=1e-4, cosine_annealing=False,
+                                   epochs=100, lr=1e-3, cosine_annealing=True,
                                    rectified_flow=False, device=None):
-    print(f"Training {model.prediction_type}-model for {epochs} epochs with learning rate {lr}"
-          f" and {model.sde.kernel_type}, {model.sde.noise_schedule} schedule and {model.weighting_type} weighting.")
+    print(f"Training {model.prediction_type}-model for {epochs} epochs with learning rate {lr} "
+          f"and {model.weighting_type} weighting.")
     if model.sde.noise_schedule == 'flow_matching':
         rectified_flow = True
     if rectified_flow:
@@ -146,7 +147,8 @@ def compute_score_loss(theta_global_batch, x_batch, model, epsilon_global_batch=
                                                 device=theta_global_batch.device)
 
     # perturb the theta batch
-    alpha, sigma = model.sde.kernel(t=diffusion_time)
+    snr = model.sde.get_snr(t=diffusion_time)
+    alpha, sigma = model.sde.kernel(log_snr=snr)
     z_global = alpha * theta_global_batch + sigma * epsilon_global_batch
     # predict from perturbed theta
     pred_global = model(theta_global=z_global, time=diffusion_time, x=x_batch, pred_score=False)
@@ -163,11 +165,10 @@ def compute_score_loss(theta_global_batch, x_batch, model, epsilon_global_batch=
 
 # Training loop for Score Model
 def train_score_model(model, dataloader, dataloader_valid=None,
-                      epochs=100, lr=1e-4, cosine_annealing=False,
-                      rectified_flow=False,
-                      device=None):
+                      epochs=100, lr=1e-3, cosine_annealing=True,
+                      rectified_flow=False, device=None):
     print(f"Training {model.prediction_type}-model for {epochs} epochs with learning rate {lr} "
-          f"and {model.sde.kernel_type}, {model.sde.noise_schedule} schedule and {model.weighting_type} weighting.")
+          f"and {model.weighting_type} weighting.")
     if model.sde.noise_schedule == 'flow_matching':
         rectified_flow = True
     if rectified_flow:
@@ -201,8 +202,7 @@ def train_score_model(model, dataloader, dataloader_valid=None,
                                           x_batch=x_batch, model=model)
             else:
                 # calculate the loss
-                loss = compute_score_loss(theta_global_batch=theta_global_batch,
-                                          x_batch=x_batch, model=model)
+                loss = compute_score_loss(theta_global_batch=theta_global_batch, x_batch=x_batch, model=model)
             loss.backward()
             # gradient clipping
             nn.utils.clip_grad_norm_(model.parameters(), 3.0)
@@ -231,8 +231,7 @@ def train_score_model(model, dataloader, dataloader_valid=None,
                                                   x_batch=x_batch, model=model)
                     else:
                         # calculate the loss
-                        loss = compute_score_loss(theta_global_batch=theta_global_batch,
-                                                  x_batch=x_batch, model=model)
+                        loss = compute_score_loss(theta_global_batch=theta_global_batch, x_batch=x_batch, model=model)
                     valid_loss.append(loss.item())
 
         loss_history[epoch] = [np.mean(total_loss), np.mean(valid_loss)]

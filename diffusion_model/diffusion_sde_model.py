@@ -290,7 +290,8 @@ class ScoreModel(nn.Module):
             torch.Tensor: Output of the network (dependent on prediction_type) or the score of shape (batch_size, input_dim_theta).
         """
         # Compute a time embedding (shape: [batch, time_embed_dim])
-        t_emb = self.embed(time)
+        log_snr = self.sde.get_snr(t=time)
+        t_emb = self.embed(log_snr)
 
         # Form the conditioning vector. If conditions is None, only x and time are used.
         if conditions is not None:
@@ -315,10 +316,10 @@ class ScoreModel(nn.Module):
         theta_emb = self.final_linear(h)
 
         if pred_score:
-            return self.convert_to_score(pred=theta_emb, z=theta, time=time, clip_x=clip_x)
+            return self.convert_to_score(pred=theta_emb, z=theta, log_snr=log_snr, clip_x=clip_x)
 
         # convert the prediction to e always
-        return self.convert_to_e(pred=theta_emb, z=theta, time=time, clip_x=clip_x)
+        return self.convert_to_e(pred=theta_emb, z=theta, log_snr=log_snr, clip_x=clip_x)
 
 
     def convert_to_x(self, pred, z, alpha, sigma, clip_x):
@@ -338,14 +339,14 @@ class ScoreModel(nn.Module):
             x = torch.clamp(x, -5, 5)
         return x
 
-    def convert_to_e(self, pred, z, time, clip_x):
-        alpha, sigma = self.sde.kernel(time)
+    def convert_to_e(self, pred, z, log_snr, clip_x):
+        alpha, sigma = self.sde.kernel(log_snr=log_snr)
         x_pred = self.convert_to_x(pred=pred, z=z, alpha=alpha, sigma=sigma, clip_x=clip_x)
         e_pred = (z - x_pred * alpha) / sigma
         return e_pred
 
-    def convert_to_score(self, pred, z, time, clip_x):
-        alpha, sigma = self.sde.kernel(time)
+    def convert_to_score(self, pred, z, log_snr, clip_x):
+        alpha, sigma = self.sde.kernel(log_snr=log_snr)
         x_pred = self.convert_to_x(pred=pred, z=z, alpha=alpha, sigma=sigma, clip_x=clip_x)
         score = (alpha * x_pred - z) / torch.square(sigma)
         return score
@@ -582,7 +583,7 @@ class CompositionalScoreModel(nn.Module):
         elif x.ndim == 3:
             # there is time dimension, which we do not need
             x = x.squeeze(1)
-        return self.forward(theta_global, time, x, pred_score, clip_x)
+        return self.forward(theta_global=theta_global, time=time, x=x, pred_score=pred_score, clip_x=clip_x)
 
     def forward_local(self, theta_local, theta_global, time, x, pred_score, clip_x=False):
         """Forward pass through the local model. Usually we want the score, not the predicting task from training."""
@@ -590,7 +591,8 @@ class CompositionalScoreModel(nn.Module):
 
 
 class SDE:
-    def __init__(self, kernel_type='variance_preserving', noise_schedule='cosine', s_shift_cosine=0.):
+    def __init__(self, kernel_type='variance_preserving', noise_schedule='cosine',
+                 log_snr_min=-10, log_snr_max=15, s_shift_cosine=0.):
         if kernel_type not in ['variance_preserving', 'sub_variance_preserving']:
             raise ValueError("Invalid kernel type.")
         if noise_schedule not in ['linear', 'cosine', 'flow_matching']:
@@ -604,16 +606,42 @@ class SDE:
         self.s_shift_cosine = s_shift_cosine
 
         # needed for schedule
-        self.log_snr_min = -15
-        self.log_snr_max = 15
-        self.t_min = self.get_t_from_snr(torch.tensor(self.log_snr_max))
-        self.t_max = self.get_t_from_snr(torch.tensor(self.log_snr_min))
+        self._log_snr_min = log_snr_min
+        self._log_snr_max = log_snr_max
+        self.t_min = self.get_t_from_snr(torch.tensor(self._log_snr_max))
+        self.t_max = self.get_t_from_snr(torch.tensor(self._log_snr_min))
 
-    def kernel(self, t):
+        print(f"Kernel type: {self.kernel_type}, noise schedule: {self.noise_schedule}")
+        print(f"t_min: {self.t_min}, t_max: {self.t_max}")
+        print(f'alpha, sigma:',
+              self.kernel(log_snr=self.get_snr(t=self.t_min)),
+              self.kernel(log_snr=self.get_snr(t=self.t_max)))
+
+    @property
+    def log_snr_min(self):
+        return self._log_snr_min
+
+    @log_snr_min.setter
+    def log_snr_min(self, value):
+        self._log_snr_min = value
+        # Update t_max because it depends on log_snr_min.
+        self.t_max = self.get_t_from_snr(torch.tensor(self._log_snr_min))
+
+    @property
+    def log_snr_max(self):
+        return self._log_snr_max
+
+    @log_snr_max.setter
+    def log_snr_max(self, value):
+        self._log_snr_max = value
+        # Update t_min because it depends on log_snr_max.
+        self.t_min = self.get_t_from_snr(torch.tensor(self._log_snr_max))
+
+    def kernel(self, log_snr):
         if self.kernel_type == 'variance_preserving':
-            return self._variance_preserving_kernel(t)
+            return self._variance_preserving_kernel(log_snr=log_snr)
         if self.kernel_type == 'sub_variance_preserving':
-            return self._sub_variance_preserving_kernel(t)
+            return self._sub_variance_preserving_kernel(log_snr=log_snr)
         raise ValueError("Invalid kernel type.")
 
     def grad_log_kernel(self, x, x0, t):
@@ -683,18 +711,19 @@ class SDE:
         """Song et al. (2021) defined this as integral over the beta, here we express is equivalently via the snr"""
         return torch.log(1 + torch.exp(-self.get_snr(t)))
 
-    def _variance_preserving_kernel(self, t):
+    @staticmethod
+    def _variance_preserving_kernel(log_snr):
         """
         Computes the variance-preserving kernel p(x_t | x_0) for the diffusion process.
 
         Args:
-            t (torch.Tensor): The time at which to evaluate the kernel in [0,1]. Should be not too close to 0.
+            log_snr (torch.Tensor): The log of the signal-to-noise ratio.
 
         Returns:
             Tuple[torch.Tensor, torch.Tensor]: The mean and standard deviation of the kernel at time t.
         """
-        alpha_t = torch.sqrt(torch.sigmoid(self.get_snr(t)))
-        sigma_t = torch.sqrt(torch.sigmoid(-self.get_snr(t)))
+        alpha_t = torch.sqrt(torch.sigmoid(log_snr))
+        sigma_t = torch.sqrt(torch.sigmoid(-log_snr))
         return alpha_t, sigma_t
 
     def _grad_log_variance_preserving_kernel(self, x, x0, t):
@@ -722,7 +751,7 @@ class SDE:
         grad = -(x - mean_factor * x0) / variance
         return grad
 
-    def _sub_variance_preserving_kernel(self, t):
+    def _sub_variance_preserving_kernel(self, log_snr):
         """
         Computes the sub-variance-preserving kernel p(x_t | x_0) for the diffusion process.
         Args:
@@ -732,11 +761,12 @@ class SDE:
             Tuple[torch.Tensor, torch.Tensor]: The mean and standard deviation of the kernel at time t.
         """
         if self.noise_schedule == 'flow_matching':
+            t = self.get_t_from_snr(snr=log_snr)
             x = self.t_min + (self.t_max - self.t_min) * t
             alpha_t = 1 - x
             sigma_t = x
         else:
-            alpha_t = 1 / (1 + torch.exp(-self.get_snr(t)))
+            alpha_t = 1 / (1 + torch.exp(-log_snr))
             sigma_t = 1  - torch.square(alpha_t)
         return alpha_t, sigma_t
 
@@ -759,8 +789,6 @@ class SDE:
         Returns:
             torch.Tensor: The gradient ∇ₓ log p(x_t|x0).
         """
-        #if self.noise_schedule == 'flow_matching':  # todo: nur sure if this is correct
-        #   raise NotImplementedError("The gradient of the kernel is not implemented for 'flow_matching' noise schedule.")
         integral = self._beta_integral(t)
         mean_factor = torch.exp(-0.5 * integral)
         variance = (1 - torch.exp(-integral))**2  # variance for the sub-VP kernel
@@ -788,7 +816,6 @@ class SDE:
 
             # Compute diffusion coefficient g(t) = sqrt(beta(t) * (1 - exp(-2 \int_0^t beta(s) ds)))
             g = torch.sqrt(beta_t * (1 - torch.exp(-2 * self._beta_integral(t))))
-            #g = torch.sqrt(beta_t * (1 - 1 / torch.square(1 + torch.exp(-self.get_snr(t)))))
         else:
             raise ValueError("Invalid kernel type.")
         if x is None:
@@ -807,24 +834,25 @@ def weighting_function(t, sde, weighting_type=None, prediction_type='error'):
 
     if weighting_type == 'likelihood_weighting':
         g_t = sde.get_f_g(t=t)
-        sigma_t = sde.kernel(t)[1]  # divide by sigma^2, since the loss is on the score
+        log_snr = sde.get_snr(t=t)
+        sigma_t = sde.kernel(log_snr=log_snr)[1]  # divide by sigma^2, since the loss is on the score
         return torch.square(g_t / sigma_t)
 
-    snr = sde.get_snr(t)
+    log_snr = sde.get_snr(t=t)
     if weighting_type == 'flow_matching':
-        alpha = sde.kernel(t)[0]
+        alpha = sde.kernel(log_snr=log_snr)[0]
         if sde.noise_schedule == 'flow_matching':
-            return torch.exp(-snr / 2)
+            return torch.exp(-log_snr / 2)
         elif sde.noise_schedule == 'cosine':
-            return torch.square(alpha * (torch.exp(-snr) +1)) / (2 * torch.pi * torch.cosh(-snr/2))  # flow matching equivalent
+            return torch.square(alpha * (torch.exp(-log_snr) +1)) / (2 * torch.pi * torch.cosh(-log_snr/2))  # flow matching equivalent
         else:
             raise NotImplementedError("Flow matching not implemented for this noise schedule.")
 
     if weighting_type == 'sigmoid':
-        return torch.sigmoid(-snr / 2)
+        return torch.sigmoid(-log_snr / 2)
 
     if weighting_type == 'min-snr':
         gamma = 5
-        return sech(snr / 2) * torch.minimum(torch.ones_like(snr), gamma * torch.exp(-snr))
+        return sech(log_snr / 2) * torch.minimum(torch.ones_like(log_snr), gamma * torch.exp(-log_snr))
 
     raise ValueError("Invalid weighting...")
