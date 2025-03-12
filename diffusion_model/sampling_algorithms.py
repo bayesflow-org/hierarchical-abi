@@ -604,19 +604,21 @@ def adaptive_sampling(model, x_obs,
             - Local: (batch_size, n_post_samples, n_obs, model.prior.n_params_local)
     """
     if not run_sampling_in_parallel:
-        if return_steps:
-            raise NotImplementedError("return_steps not implemented for non-parallel sampling.")
         post_samples = []
+        list_accepted_steps = []
         for _ in range(n_post_samples):
-            post_samples.append(
-                adaptive_sampling(model=model, x_obs=x_obs, n_post_samples=1, conditions=conditions,
+            ps, ls = adaptive_sampling(model=model, x_obs=x_obs, n_post_samples=1, conditions=conditions,
                                   e_abs=e_abs, e_rel=e_rel, h_init=h_init, r=r, adapt_safety=adapt_safety,
                                   max_evals=max_evals, t_start=t_start, t_end=t_end, mini_batch_arg=mini_batch_arg,
                                   run_sampling_in_parallel=True,
-                                  random_seed=random_seed, device=device, return_steps=return_steps,
+                                  random_seed=random_seed, device=device, return_steps=True,
                                   verbose=verbose)
-            )
-        return np.concatenate(post_samples, axis=1)
+            post_samples.append(ps)
+            list_accepted_steps.append(ls)
+        post_samples = np.concatenate(post_samples, axis=1)
+        if return_steps:
+            return post_samples, list_accepted_steps
+        return post_samples
 
     # Initialize sampling
     batch_size, n_obs, n_scores_update, theta, conditions_exp, x_exp = initialize_sampling(
