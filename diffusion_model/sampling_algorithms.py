@@ -146,9 +146,13 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, random_seed, d
         n_scores_update = n_obs
 
     # sample from latent prior for diffusion model
-    theta_init = torch.randn((batch_size*n_post_samples, model.prior.n_params_global), dtype=torch.float32, device=device)
     if global_sampling:
+        theta_init = torch.randn((batch_size * n_post_samples, model.prior.n_params_global), dtype=torch.float32,
+                                 device=device)
         theta_init = theta_init / np.sqrt(n_obs)
+    else:
+        theta_init = torch.randn((batch_size * n_post_samples, n_obs, model.prior.n_params_local), dtype=torch.float32,
+                                 device=device)
 
     return batch_size, n_obs, n_scores_update, theta_init, conditions_collapsed, x_expanded
 
@@ -606,12 +610,14 @@ def adaptive_sampling(model, x_obs,
     if not run_sampling_in_parallel:
         post_samples = []
         list_accepted_steps = []
-        for _ in range(n_post_samples):
-            ps, ls = adaptive_sampling(model=model, x_obs=x_obs, n_post_samples=1, conditions=conditions,
+        for i in range(n_post_samples):
+            ps, ls = adaptive_sampling(model=model, x_obs=x_obs, n_post_samples=1,
+                                       conditions=conditions[:, i][:, None] if conditions is not None else None,
                                   e_abs=e_abs, e_rel=e_rel, h_init=h_init, r=r, adapt_safety=adapt_safety,
                                   max_evals=max_evals, t_start=t_start, t_end=t_end, mini_batch_arg=mini_batch_arg,
                                   run_sampling_in_parallel=True,
-                                  random_seed=random_seed, device=device, return_steps=True,
+                                  random_seed=random_seed+i if random_seed is not None else None,
+                                  device=device, return_steps=True,
                                   verbose=verbose)
             post_samples.append(ps)
             list_accepted_steps.append(ls)
@@ -753,12 +759,14 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
     """
     if not run_sampling_in_parallel:
         post_samples = []
-        for _ in range(n_post_samples):
+        for i in range(n_post_samples):
             post_samples.append(
-                probability_ode_solving(model=model, x_obs=x_obs, n_post_samples=1, conditions=conditions,
+                probability_ode_solving(model=model, x_obs=x_obs, n_post_samples=1,
+                                        conditions=conditions[:, i][:, None] if conditions is not None else None,
                                         t_end=t_end, mini_batch_arg=mini_batch_arg,
                                         run_sampling_in_parallel=True,
-                                        random_seed=random_seed, device=device, verbose=verbose)
+                                        random_seed=random_seed+i if random_seed is not None else None,
+                                        device=device, verbose=verbose)
             )
         return np.concatenate(post_samples, axis=1)
 
@@ -794,7 +802,7 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
             else:
                 sub_x_expanded = x_exp
 
-            if conditions is None:
+            if conditions_exp is None:
                 x_torch = torch.tensor(x.reshape(batch_size_full, model.prior.n_params_global),
                                        dtype=torch.float32, device=device)
             else:
@@ -804,15 +812,15 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
                                               x_exp=sub_x_expanded, conditions_exp=conditions_exp,
                                               batch_size_full=batch_size_full, n_scores_update_full=n_scores_update,
                                               mini_batch_dict=mini_batch_dict)
-            t_exp = t_tensor if conditions is None else t_tensor.unsqueeze(1).expand(-1, n_obs, -1)
+            t_exp = t_tensor if conditions_exp is None else t_tensor.unsqueeze(1).expand(-1, n_obs, -1)
             f, g = model.sde.get_f_g(x=x_torch, t=t_exp)
             drift = f - 0.5 * torch.square(g) * scores
-            if conditions is None:
+            if conditions_exp is None:
                 return drift.cpu().numpy().reshape(batch_size_full * model.prior.n_params_global)
             return drift.cpu().numpy().reshape(batch_size_full * n_obs * model.prior.n_params_local)
 
         # Solve the ODE for all posterior samples at once.
-        if conditions is None:
+        if conditions_exp is None:
             x0 = theta.cpu().numpy().reshape(batch_size_full * model.prior.n_params_global)
         else:
             x0 = theta.cpu().numpy().reshape(batch_size_full * n_obs * model.prior.n_params_local)

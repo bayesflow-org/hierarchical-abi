@@ -60,6 +60,7 @@ def train_hierarchical_score_model(model, dataloader, dataloader_valid=None,
           f" uses compositional conditioning with {model.max_number_of_obs} observations.")
     model.to(device)
     optimizer = optim.AdamW(model.parameters(), lr=lr)
+    torch.autograd.set_grad_enabled(True)  # bayesflow turns them off by default
 
     # Add Cosine Annealing Scheduler
     scheduler = None
@@ -117,17 +118,17 @@ def train_hierarchical_score_model(model, dataloader, dataloader_valid=None,
                         epsilon_global_batch = epsilon_global_batch.to(device)
                         epsilon_local_batch = epsilon_local_batch.to(device)
                         # calculate the loss
-                        loss = compute_hierarchical_score_loss(theta_global_batch=theta_global_batch,
+                        v_loss = compute_hierarchical_score_loss(theta_global_batch=theta_global_batch,
                                                                theta_local_batch=theta_local_batch,
                                                                epsilon_global_batch=epsilon_global_batch,
                                                                epsilon_local_batch=epsilon_local_batch,
                                                                x_batch=x_batch, model=model)
                     else:
                         # calculate the loss
-                        loss = compute_hierarchical_score_loss(theta_global_batch=theta_global_batch,
+                        v_loss = compute_hierarchical_score_loss(theta_global_batch=theta_global_batch,
                                                                theta_local_batch=theta_local_batch,
                                                                x_batch=x_batch, model=model)
-                    valid_loss.append(loss.item())
+                    valid_loss.append(v_loss.item())
 
         loss_history[epoch] = [np.mean(total_loss), np.mean(valid_loss)]
         print_str = f"Epoch {epoch+1}/{epochs}, Loss: {np.mean(total_loss):.4f}, " \
@@ -177,6 +178,7 @@ def train_score_model(model, dataloader, dataloader_valid=None,
           f"with {model.max_number_of_obs} observations.")
     model.to(device)
     optimizer = optim.AdamW(model.parameters(), lr=lr)
+    torch.autograd.set_grad_enabled(True)  # bayesflow turns them off by default
 
     # Add Cosine Annealing Scheduler
     scheduler = None
@@ -226,13 +228,13 @@ def train_score_model(model, dataloader, dataloader_valid=None,
                     if rectified_flow:
                         epsilon_global_batch = epsilon_global_batch.to(device)
                         # calculate the loss
-                        loss = compute_score_loss(theta_global_batch=theta_global_batch,
+                        v_loss = compute_score_loss(theta_global_batch=theta_global_batch,
                                                   epsilon_global_batch=epsilon_global_batch,
                                                   x_batch=x_batch, model=model)
                     else:
                         # calculate the loss
-                        loss = compute_score_loss(theta_global_batch=theta_global_batch, x_batch=x_batch, model=model)
-                    valid_loss.append(loss.item())
+                        v_loss = compute_score_loss(theta_global_batch=theta_global_batch, x_batch=x_batch, model=model)
+                    valid_loss.append(v_loss.item())
 
         loss_history[epoch] = [np.mean(total_loss), np.mean(valid_loss)]
         print_str = f"Epoch {epoch+1}/{epochs}, Loss: {np.mean(total_loss):.4f}, "\
