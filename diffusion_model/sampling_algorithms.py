@@ -619,7 +619,7 @@ def adaptive_sampling(model, x_obs,
                                   verbose=verbose)
             post_samples.append(ps)
             list_accepted_steps.append(ls)
-            if len(list_accepted_steps) == max_evals / 2:
+            if len(ls) == max_evals / 2:
                 print('maximum steps reached, not computing any more posterior samples.')
                 break
         post_samples = np.concatenate(post_samples, axis=1)
