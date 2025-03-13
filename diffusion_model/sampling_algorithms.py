@@ -9,11 +9,11 @@ from diffusion_model.helper_functions import generate_diffusion_time
 sampling_defaults = {
     'damping_factor': lambda t: 1.,
     'sample_same_obs': None,
-    'type': 'mean',  # mean, median, pareto, huber_mean, small_mean
-    'tail_fraction': 0.2,
-    'huber_delta': 1.,
+    #'type': 'mean',  # mean, median, pareto, huber_mean, small_mean
+    #'tail_fraction': 0.2,
+    #'huber_delta': 1.,
     'size': np.inf,  # for mini-batch
-    'small_size': 10
+    #'small_size': 10
 }
 
 
@@ -325,27 +325,27 @@ def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp
         # (1 - n_scores_update) * (1 - diffusion_time) * model.prior.score_global_batch(theta)
         model_sum_scores_indv = model_sum_scores_indv - prior_scores_indv
 
-        # if no mini batch is used, this is just a normal sum
-        if mini_batch_dict['type'] == 'mean':
-            scores_mean = torch.mean(model_sum_scores_indv, dim=1)
-        elif mini_batch_dict['type'] == 'median':
-            scores_mean = torch.median(model_sum_scores_indv, dim=1)[0]
-        elif mini_batch_dict['type'] == 'pareto':
-            scores_mean = 1. / mini_batch_dict['size'] * pareto_smooth_sum(model_sum_scores_indv,
-                                                                          tail_fraction=mini_batch_dict['tail_fraction'])
-        elif mini_batch_dict['type'] == 'small_mean':
-            scores_mean = small_mean(model_sum_scores_indv, size=mini_batch_dict['small_size'], dim=1)
-        elif mini_batch_dict['type'] == 'huber_mean':
-            scores_mean = huber_mean(model_sum_scores_indv, delta=mini_batch_dict['huber_delta'], dim=1)
-        else:
-            raise NotImplementedError(f"Unknown mini-batch type {mini_batch_dict['type']}")
+        scores_mean = torch.mean(model_sum_scores_indv, dim=1)
+        # if mini_batch_dict['type'] == 'median':
+        #     scores_mean = torch.median(model_sum_scores_indv, dim=1)[0]
+        # elif mini_batch_dict['type'] == 'pareto':
+        #     scores_mean = 1. / mini_batch_dict['size'] * pareto_smooth_sum(model_sum_scores_indv,
+        #                                                                   tail_fraction=mini_batch_dict['tail_fraction'])
+        # elif mini_batch_dict['type'] == 'small_mean':
+        #     scores_mean = small_mean(model_sum_scores_indv, size=mini_batch_dict['small_size'], dim=1)
+        # elif mini_batch_dict['type'] == 'huber_mean':
+        #     scores_mean = huber_mean(model_sum_scores_indv, delta=mini_batch_dict['huber_delta'], dim=1)
+        # else:
+        #     raise NotImplementedError(f"Unknown mini-batch type {mini_batch_dict['type']}")
         damping_factor = mini_batch_dict['damping_factor'](diffusion_time)
-        model_sum_scores = n_scores_update_full * damping_factor * scores_mean
+        model_sum_scores = damping_factor * n_scores_update_full * scores_mean
         #model_sum_scores = model_sum_scores_indv.sum(dim=1)
 
         # (1 - n_scores_update) * (1 - diffusion_time) * model.prior.score_global_batch(theta)
         # just the plus 1 is missing
-        model_scores = model_sum_scores + prior_scores
+        #prior_scores = (1 - n_scores_update_full) * (1 - diffusion_time) * model.prior.score_global_batch(theta)
+        #model_scores = prior_scores + model_sum_scores
+        model_scores = prior_scores + model_sum_scores
     else:
         theta_exp = theta.contiguous().view(-1, model.prior.n_params_local)
 
@@ -534,7 +534,7 @@ def sde_sampling(model, x_obs, n_post_samples=1, conditions=None,
             # create a tensor for each time step
             sub_x_expanded = [sub_sample_observations(x=x_exp, batch_size_full=batch_size_full,
                                                       n_scores_update=n_scores_update,
-                                                      mini_batch_dict=mini_batch_dict) for _ in range(diffusion_steps)]
+                                                      mini_batch_dict=mini_batch_dict).cpu() for _ in range(diffusion_steps)]
             sub_x_expanded = np.stack(sub_x_expanded, axis=0)
         else:
             sub_x_expanded = x_exp
