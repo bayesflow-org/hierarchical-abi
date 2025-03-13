@@ -211,6 +211,50 @@ def analytical_posterior_median(x, prior_std, likelihood_std):
     return post_mean
 
 
+def analytical_posterior_mean_std(x, prior_std, likelihood_std):
+    """
+    Computes the analytical mean and std of the posterior for a Gaussian prior and likelihood.
+
+    The model is:
+        theta ~ N(prior_mean, prior_std^2)
+        x | theta ~ N(theta, likelihood_std^2)
+
+    For n independent observations x, the posterior is:
+        sigma_post^2 = 1 / (1/prior_std^2 + n/likelihood_std^2)
+        mu_post = sigma_post^2 * (prior_mean/prior_std^2 + (sum x_i)/likelihood_std^2)
+
+    Since the posterior is Gaussian, its median equals its mean.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Observations. Should have shape (n,) for scalar or (n, D) for D-dimensional parameters.
+    prior_std : float or np.ndarray
+        The prior standard deviation. For a D-dimensional case, shape should be (D,).
+    likelihood_std : float or np.ndarray
+        The likelihood standard deviation. For a D-dimensional case, shape should be (D,).
+
+    Returns
+    -------
+    median : float or np.ndarray
+        The analytical median of the posterior, which is the posterior mean.
+    """
+    # Ensure x is 2D: shape (n_obs, D)
+    x = np.atleast_2d(x)
+    n_obs = x.shape[0]
+
+    # Convert parameters to variances
+    prior_var = np.square(prior_std)
+    likelihood_var = np.square(likelihood_std)
+
+    # Compute the posterior variance
+    post_var = 1.0 / (1.0 / prior_var + n_obs / likelihood_var)
+
+    # Compute the posterior mean (the median, since Gaussian)
+    post_mean = post_var * (0 / prior_var + np.sum(x, axis=0) / likelihood_var)
+    return post_mean, np.sqrt(post_var)
+
+
 def posterior_contraction(prior_std, likelihood_std, n_obs):
     """
     Computes the posterior standard deviation and contraction factor given a Gaussian prior and likelihood.
