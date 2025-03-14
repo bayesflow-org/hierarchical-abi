@@ -1,3 +1,4 @@
 .idea
 problems/FLI/IRF.npy
 problems/FLI/system_noise.npy
+problems/grid/
