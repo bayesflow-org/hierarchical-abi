@@ -1,15 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pystan
 import torch
 from torch.utils.data import Dataset
 
 
 class Simulator:
-    def __init__(self):
-        self.max_time = 100
-        self.n_time_points = 10  # number of observation points to return
-        self.dt = 0.1            # simulation time step
-        self.n_time_steps = int(self.max_time / self.dt)  # number of simulation steps
+    def __init__(self, n_time_points, max_time=1):
+        self.max_time = max_time
+        self.dt = self.max_time / n_time_points
+        self.n_time_points = n_time_points
 
     def __call__(self, params):
         """
@@ -59,7 +59,7 @@ class Simulator:
 
         # Simulate the full trajectory.
         # The noise will have shape: (batch_size, n_time_steps, *grid_shape)
-        noise_shape = (batch_size, self.n_time_steps) + grid_shape
+        noise_shape = (batch_size, self.n_time_points) + grid_shape
         noise = np.random.normal(loc=0, scale=1, size=noise_shape)
 
         # Expand mu and tau to include a time axis.
@@ -84,19 +84,20 @@ class Simulator:
         # Initial condition: zeros with shape (batch_size, 1, *grid_shape)
         x0 = np.zeros((batch_size, 1) + grid_shape)
         # Full trajectory: shape (batch_size, n_time_steps+1, *grid_shape)
-        traj_full = np.concatenate([x0, np.cumsum(increments, axis=1)], axis=1)
+        #traj_full = np.concatenate([x0, np.cumsum(increments, axis=1)], axis=1)
+        traj_full = np.cumsum(increments, axis=1)
 
         # Sample self.n_time_points evenly spaced indices from the full trajectory.
         # These indices span from n_time_points to max_time (0 would be the initial condition).
-        indices = np.linspace(self.n_time_points, self.max_time, self.n_time_points, dtype=int)
-        traj_sampled = traj_full[:, indices, ...]  # shape: (batch_size, n_time_points, *grid_shape)
+        #indices = np.linspace(self.n_time_points, self.max_time, self.n_time_points, dtype=int)
+        #traj_sampled = traj_full[:, indices, ...]  # shape: (batch_size, n_time_points, *grid_shape)
 
         if theta.ndim == 2:  # just one grid element
-            traj_sampled = traj_sampled.reshape(batch_size, self.n_time_points, 1)
-        return dict(observable=traj_sampled)
+            traj_full = traj_full.reshape(batch_size, self.n_time_points, 1)
+        return dict(observable=traj_full)
 
 class Prior:
-    def __init__(self):
+    def __init__(self, n_time_points):
         self.mu_mean = 0
         self.mu_std = 3
         self.log_tau_mean = 0
@@ -106,7 +107,7 @@ class Prior:
 
         np.random.seed(0)
         test_prior = self.sample_single(1000)
-        self.simulator = Simulator()
+        self.simulator = Simulator(n_time_points=n_time_points)
         test = self.simulator(test_prior)
         self.x_mean = torch.tensor([np.mean(test['observable'])], dtype=torch.float32)
         self.x_std = torch.tensor([np.std(test['observable'])], dtype=torch.float32)
@@ -194,12 +195,13 @@ class Prior:
         return (x - self.x_mean) / self.x_std
 
 
-def generate_synthetic_data(prior, n_samples, grid_size=None, data_size=None, normalize=False, random_seed=None):
+def generate_synthetic_data(prior, n_samples, n_time_points, grid_size=None, data_size=None, normalize=False, random_seed=None):
     """Generate synthetic data for the hierarchical model.
 
     Parameters:
         prior (Prior): Prior distribution for the model.
         n_samples (int): Number of samples to generate.
+        n_time_points (int): Number of time points for the simulator.
         grid_size (int): Size of the grid for the simulator.
         data_size (int): Size of the grid=data_size**2 for the simulator, but then only return data_size (so a batch
             and not the full grid). Grid size must be proved as well for data_size to work.
@@ -215,7 +217,7 @@ def generate_synthetic_data(prior, n_samples, grid_size=None, data_size=None, no
     if data_size is not None:
         if grid_size is None:
             raise ValueError("Grid size must be provided.")
-    simulator = Simulator()
+    simulator = Simulator(n_time_points=n_time_points)
     sim_batch = simulator(batch_params)
 
     param_global = torch.tensor(np.concatenate((batch_params['mu'], batch_params['log_tau']), axis=1),
@@ -238,19 +240,25 @@ def generate_synthetic_data(prior, n_samples, grid_size=None, data_size=None, no
 
 
 class GaussianGridProblem(Dataset):
-    def __init__(self, n_data, prior, online_learning=False, max_number_of_obs=1):
+    def __init__(self, n_data, prior, online_learning=False, amortize_time=False, max_number_of_obs=1):
         # Create model and dataset
         self.prior = prior
         self.n_data = n_data
         self.max_number_of_obs = max_number_of_obs
         self.n_obs = self.max_number_of_obs  # this can change for each batch
         self.online_learning = online_learning
+        self.amortize_time = amortize_time
+        self.max_number_of_time_points = 100
+        self.n_time_points = prior.simulator.n_time_points
+        if self.amortize_time and not self.online_learning:
+            raise NotImplementedError
         self.generate_data()
 
     def generate_data(self):
         # Create model and dataset
         self.thetas_global, self.thetas_local, self.xs = generate_synthetic_data(
             self.prior,
+            n_time_points=self.n_time_points,
             grid_size=int(np.ceil(np.sqrt(self.max_number_of_obs))) if self.max_number_of_obs > 1 else None,  # no need to simulate the full grid
             data_size=self.max_number_of_obs if self.max_number_of_obs > 1 else None,
             n_samples=self.n_data, normalize=True
@@ -285,6 +293,8 @@ class GaussianGridProblem(Dataset):
         if self.max_number_of_obs > 1:
             # sample number of observations
             self.n_obs = np.random.choice([1, 5, 10, 20, 50, 100])
+        if self.amortize_time:
+            self.n_time_points = np.random.randint(2, self.max_number_of_time_points + 1)
 
 
 def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis", same_scale=True):
@@ -341,3 +351,141 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
     plt.tight_layout()
     plt.show()
     return
+
+
+def plot_shrinkage(global_samples, local_samples, ci=95):
+    """
+    Plots the shrinkage of local estimates toward the global mean for each n_data.
+
+    Parameters:
+      global_samples: np.ndarray of shape (n_data, n_samples, 2)
+                      The last dimension holds [global_mean, log_std].
+      local_samples:  np.ndarray of shape (n_data, n_samples, n_individuals, 1)
+                      The last dimension holds the local parameter.
+      ci:             Confidence interval percentage (default 95).
+    """
+    n_data, n_samples, _ = global_samples.shape
+    n_individuals = local_samples.shape[2]
+
+    # Create a subplot for each n_data
+    nrows, ncols = int(np.ceil(n_data / 4)), 4
+    fig, axes = plt.subplots(nrows, ncols, figsize=(12, int(np.ceil(n_data / 4))*2),
+                             sharex=True, sharey=True, tight_layout=True)
+    axes = axes.flatten()
+
+    # If there is only one subplot, wrap it in a list for consistent indexing.
+    if n_data == 1:
+        axes = [axes]
+
+    for i in range(n_data):
+        ax = axes[i]
+
+        # Process global posterior for this n_data:
+        global_mean_samples = global_samples[i, :, 0]
+        global_mean_est = np.mean(global_mean_samples)
+        global_ci = [global_mean_est-1.96*np.mean(np.exp(global_samples[i, :, 1])),
+                     global_mean_est+1.96*np.mean(np.exp(global_samples[i, :, 1]))]
+
+        # Process local posterior for each individual at data index i:
+        local_means = np.zeros(n_individuals)
+        local_cis = np.zeros((n_individuals, 2))
+
+        for j in range(n_individuals):
+            samples_j = local_samples[i, :, j, 0]
+            local_means[j] = np.mean(samples_j)
+            local_cis[j, :] = np.percentile(samples_j, [50 - ci/2, 50 + ci/2])
+
+        indices = np.arange(n_individuals)
+        # Plot local estimates with error bars
+        h1 = ax.errorbar(indices, local_means,
+                    yerr=[local_means - local_cis[:, 0], local_cis[:, 1] - local_means],
+                    fmt='o', capsize=5, label='Local posterior mean')
+
+        # Plot the global estimate as a horizontal dashed line
+        h2 = ax.axhline(global_mean_est, color='red', linestyle='--', label='Global posterior mean')
+        # Shade the global CI
+        h3 = ax.fill_between(indices, global_ci[0], global_ci[1],
+                        color='red', alpha=0.2, label='Global 95% CI')
+
+        ax.set_ylabel("Parameter Value")
+        ax.set_title(f"Data {i}")
+    fig.legend(handles=[h1, h2, h3], loc='lower center', ncols=3, bbox_to_anchor=(0.5, -0.05))
+    axes[-1].set_xlabel("Individual Index")
+    for i in range(n_data, len(axes)):
+        # disable axis
+        axes[i].set_visible(False)
+    plt.show()
+
+
+def get_stan_posterior(sim_test, dt_obs, verbose=False):
+
+    time_steps, n_grid, _ = sim_test.shape
+    sim_test = sim_test.reshape(-1, time_steps)
+    n_obs = sim_test.shape[0]
+
+    # Suppose data is a numpy array of shape (N, T)
+    # Prepare data for Stan
+    stan_data = {
+        'N': n_obs,
+        'T': time_steps,
+        'x': sim_test,
+        'dt_obs': dt_obs
+    }
+
+    # Compile the Stan model (the model code string can be loaded from file if desired)
+    stan_model_code = r"""
+        data {
+          int<lower=1> N;         // number of grid points (n_grid^2)
+          int<lower=1> T;         // number of observed time points per grid point (10)
+          matrix[N, T] x;         // observed trajectories (positions)
+          real dt_obs;            // time step between observations (derived from simulator settings)
+        }
+
+        transformed data {
+          // Compute increments between observed points
+          matrix[N, T] dx;
+          for (i in 1:N) {
+            dx[i, 1] = x[i, 1];  // First increment (assuming x0 = 0)
+            for (t in 2:T)
+              dx[i, t] = x[i, t] - x[i, t-1];
+          }
+        }
+
+        parameters {
+          real mu;              // global drift mean
+          real log_tau;         // log-scale for the local drift parameters
+          vector[N] theta;      // local drift for each grid point
+        }
+
+        transformed parameters {
+          real tau;
+          tau = exp(log_tau);
+        }
+
+        model {
+          // Priors
+          mu ~ normal(0, 3);
+          log_tau ~ normal(0, 1);
+          theta ~ normal(mu, tau);
+
+          // Likelihood: Each increment is an independent observation
+          // Increments between observed points are distributed as:
+          //    Δx ~ Normal(theta * dt_obs, dt_obs)
+          for (i in 1:N)
+            for (t in 1:T)
+              dx[i, t] ~ normal(theta[i] * dt_obs, sqrt(dt_obs));
+        }
+        """
+
+    # Compile the Stan model
+    sm = pystan.StanModel(model_code=stan_model_code)
+
+    # Fit the model to the data
+    fit = sm.sampling(data=stan_data, iter=10000, chains=4, n_jobs=1)
+
+    if verbose:
+        print(fit)
+
+    global_posterior = np.stack([fit["mu"], fit["log_tau"]]).T
+    local_posterior = fit["theta"].T
+    return global_posterior, local_posterior

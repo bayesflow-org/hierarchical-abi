@@ -643,6 +643,8 @@ def adaptive_sampling(model, x_obs,
         # abs error tolerance grows with the dimension
         e_abs = 0.01 * np.sqrt(theta.shape[-1])
     e_abs_tensor = torch.full((batch_size_full, 1), e_abs, dtype=torch.float32, device=device)
+    if not conditions is None:
+        e_abs_tensor = e_abs_tensor[:, None]
     theta_prev = theta
 
     error_scale = 1 / np.sqrt(theta[0].numel()).item()  # 1 / sqrt(n_params)
@@ -671,7 +673,10 @@ def adaptive_sampling(model, x_obs,
                                               x_exp=sub_x_expanded, conditions_exp=conditions_exp,
                                               batch_size_full=batch_size_full, n_scores_update_full=n_scores_update,
                                               mini_batch_dict=mini_batch_dict)
-            theta_eul = euler_maruyama_step(model, theta, score=scores, t=t_tensor, dt=h, noise=z)
+            if conditions is None:
+                theta_eul = euler_maruyama_step(model, theta, score=scores, t=t_tensor, dt=h, noise=z)
+            else:
+                theta_eul = euler_maruyama_step(model, theta, score=scores, t=t_tensor[:, None], dt=h, noise=z)
 
             # Heun-style improved step.
             t_mid = t_tensor - h
@@ -679,7 +684,10 @@ def adaptive_sampling(model, x_obs,
                                               x_exp=sub_x_expanded, conditions_exp=conditions_exp,
                                               batch_size_full=batch_size_full, n_scores_update_full=n_scores_update,
                                               mini_batch_dict=mini_batch_dict)
-            theta_eul_mid = euler_maruyama_step(model, theta_eul, score=scores_mid, t=t_mid, dt=h, noise=z)
+            if conditions is None:
+                theta_eul_mid = euler_maruyama_step(model, theta_eul, score=scores_mid, t=t_mid, dt=h, noise=z)
+            else:
+                theta_eul_mid = euler_maruyama_step(model, theta_eul, score=scores_mid, t=t_mid[:, None], dt=h, noise=z)
 
             # Average the two steps.
             theta_eul_sec = 0.5 * (theta_eul + theta_eul_mid)

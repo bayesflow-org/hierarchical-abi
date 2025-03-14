@@ -701,7 +701,7 @@ class SDE:
         # Compute the truncated time x = t_trunc
         x = self.t_min + (self.t_max - self.t_min) * t
         # Compute snr(t) using the existing function
-        snr = self.get_snr(t)
+        snr = self.get_snr(t=t)
 
         # Compute d/dx snr(x) based on the noise schedule
         if self.noise_schedule == 'linear':
