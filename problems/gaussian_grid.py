@@ -79,7 +79,7 @@ class Simulator:
 
         # Compute increments:
         #   increment = theta * dt + sqrt(dt) * noise
-        increments = theta_expanded * self.dt + 1 * np.sqrt(self.dt) * noise
+        increments = theta_expanded * self.dt + np.sqrt(self.dt) * noise
 
         # Full trajectory: shape (batch_size, n_time_steps+1, *grid_shape)
         traj_full = np.cumsum(increments, axis=1)
