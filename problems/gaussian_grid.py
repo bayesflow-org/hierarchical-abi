@@ -1,7 +1,9 @@
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
-import pystan
 import torch
+from cmdstanpy import CmdStanModel
 from torch.utils.data import Dataset
 
 
@@ -409,8 +411,12 @@ def plot_shrinkage(global_samples, local_samples, ci=95):
     plt.show()
 
 
-def get_stan_posterior(sim_test, dt_obs, verbose=False):
 
+stan_file = os.path.join('problems', 'gaussian_grid.stan')
+stan_model = CmdStanModel(stan_file=stan_file)
+
+
+def get_stan_posterior(sim_test, dt_obs):
     time_steps, n_grid, _ = sim_test.shape
     sim_test = sim_test.reshape(-1, time_steps)
     n_obs = sim_test.shape[0]
@@ -424,60 +430,9 @@ def get_stan_posterior(sim_test, dt_obs, verbose=False):
         'dt_obs': dt_obs
     }
 
-    # Compile the Stan model (the model code string can be loaded from file if desired)
-    stan_model_code = r"""
-        data {
-          int<lower=1> N;         // number of grid points (n_grid^2)
-          int<lower=1> T;         // number of observed time points per grid point (10)
-          matrix[N, T] x;         // observed trajectories (positions)
-          real dt_obs;            // time step between observations (derived from simulator settings)
-        }
-
-        transformed data {
-          // Compute increments between observed points
-          matrix[N, T] dx;
-          for (i in 1:N) {
-            dx[i, 1] = x[i, 1];  // First increment (assuming x0 = 0)
-            for (t in 2:T)
-              dx[i, t] = x[i, t] - x[i, t-1];
-          }
-        }
-
-        parameters {
-          real mu;              // global drift mean
-          real log_tau;         // log-scale for the local drift parameters
-          vector[N] theta;      // local drift for each grid point
-        }
-
-        transformed parameters {
-          real tau;
-          tau = exp(log_tau);
-        }
-
-        model {
-          // Priors
-          mu ~ normal(0, 3);
-          log_tau ~ normal(0, 1);
-          theta ~ normal(mu, tau);
-
-          // Likelihood: Each increment is an independent observation
-          // Increments between observed points are distributed as:
-          //    Δx ~ Normal(theta * dt_obs, dt_obs)
-          for (i in 1:N)
-            for (t in 1:T)
-              dx[i, t] ~ normal(theta[i] * dt_obs, sqrt(dt_obs));
-        }
-        """
-
-    # Compile the Stan model
-    sm = pystan.StanModel(model_code=stan_model_code)
-
     # Fit the model to the data
-    fit = sm.sampling(data=stan_data, iter=10000, chains=4, n_jobs=1)
+    fit = stan_model.sample(data=stan_data, show_progress=False, chains=10)
 
-    if verbose:
-        print(fit)
-
-    global_posterior = np.stack([fit["mu"], fit["log_tau"]]).T
-    local_posterior = fit["theta"].T
+    global_posterior = np.concatenate([fit.draws_pd("mu"), fit.draws_pd("mu")], axis=-1)
+    local_posterior = fit.draws_pd("theta").T
     return global_posterior, local_posterior
