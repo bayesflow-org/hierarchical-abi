@@ -103,6 +103,10 @@ class ConditionalResidualBlock(nn.Module):
         else:
             self.skip = None
 
+        # Zero-initialize fc2 so that its output is zero at initialization.
+        nn.init.zeros_(self.fc2.weight)
+        nn.init.zeros_(self.fc2.bias)
+
         # Apply spectral normalization if specified.
         if use_spectral_norm:
             self.fc1 = nn.utils.parametrizations.spectral_norm(self.fc1)
@@ -143,6 +147,13 @@ class FiLMResidualBlock(nn.Module):
         else:
             self.skip = nn.Identity()
         self.norm = nn.LayerNorm(out_dim)
+
+        # Zero-initialize the fc and film_beta layers so that:
+        #   self.fc(h) -> 0, and self.film_beta(cond) -> 0.
+        nn.init.zeros_(self.fc.weight)
+        nn.init.zeros_(self.fc.bias)
+        nn.init.zeros_(self.film_beta.weight)
+        nn.init.zeros_(self.film_beta.bias)
 
         # Apply spectral normalization if specified.
         if use_spectral_norm:
@@ -244,6 +255,9 @@ class ScoreModel(nn.Module):
         # Project the concatenation of theta and the condition into hidden_dim
         self.input_layer = nn.Linear(input_dim_theta, hidden_dim)
 
+        if input_dim_condition > 0:
+            self.cond_layer = nn.Linear(input_dim_condition, input_dim_theta)
+
         # Create a sequence of conditional residual blocks
         if not use_film:
             self.blocks = nn.ModuleList([
@@ -265,14 +279,14 @@ class ScoreModel(nn.Module):
             # initialize weights close zero since we want to predict the noise (otherwise in conflict with the spectral norm)
             nn.init.xavier_uniform_(self.final_linear.weight, gain=1e-3)
         else:
-             # initialize weights to zero since we want to predict the noise
-            nn.init.zeros_(self.final_linear.weight)
+             # initialize weights to identify
+            #nn.init.zeros_(self.final_linear.weight)
+            nn.init.eye_(self.final_linear.weight)
         nn.init.zeros_(self.final_linear.bias)
 
         # Apply spectral normalization
         if use_spectral_norm:
             self.input_layer = nn.utils.parametrizations.spectral_norm(self.input_layer)
-            self.final_linear = nn.utils.parametrizations.spectral_norm(self.final_linear)
 
     def forward(self, theta, time, x, conditions, pred_score, clip_x):
         """
@@ -296,11 +310,10 @@ class ScoreModel(nn.Module):
         # Form the conditioning vector. If conditions is None, only x and time are used.
         if conditions is not None:
             cond = torch.cat([x, conditions, t_emb], dim=-1)
+            skip = None
         else:
             cond = torch.cat([x, t_emb], dim=-1)
-
-        # Save the skip connection (this bypasses the blocks)
-        skip = theta.clone()
+            skip = theta.clone()
 
         # initial input
         h = self.input_layer(theta)
@@ -309,8 +322,13 @@ class ScoreModel(nn.Module):
         for block in self.blocks:
             h = block(h, cond)
 
-        # Add the skip connection from theta (or from the input projection)
-        h = h + skip
+        # If conditions are provided, compute an update from them
+        if skip is None:
+            update = self.cond_layer(conditions)
+            h = h + update
+        else:
+            # Add a skip connection from the input projection
+            h = h + skip
 
         # Final linear layer to get back to the theta dimension
         theta_emb = self.final_linear(h)

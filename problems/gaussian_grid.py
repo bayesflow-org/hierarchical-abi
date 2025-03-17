@@ -81,16 +81,8 @@ class Simulator:
         #   increment = theta * dt + sqrt(dt) * noise
         increments = theta_expanded * self.dt + 1 * np.sqrt(self.dt) * noise
 
-        # Initial condition: zeros with shape (batch_size, 1, *grid_shape)
-        x0 = np.zeros((batch_size, 1) + grid_shape)
         # Full trajectory: shape (batch_size, n_time_steps+1, *grid_shape)
-        #traj_full = np.concatenate([x0, np.cumsum(increments, axis=1)], axis=1)
         traj_full = np.cumsum(increments, axis=1)
-
-        # Sample self.n_time_points evenly spaced indices from the full trajectory.
-        # These indices span from n_time_points to max_time (0 would be the initial condition).
-        #indices = np.linspace(self.n_time_points, self.max_time, self.n_time_points, dtype=int)
-        #traj_sampled = traj_full[:, indices, ...]  # shape: (batch_size, n_time_points, *grid_shape)
 
         if theta.ndim == 2:  # just one grid element
             traj_full = traj_full.reshape(batch_size, self.n_time_points, 1)
