@@ -64,9 +64,9 @@ class Simulator:
         noise_shape = (batch_size, self.n_time_points) + grid_shape
         noise = np.random.normal(loc=0, scale=1, size=noise_shape)
 
-        # Expand mu and tau to include a time axis.
+        # Expand mu and sigma to include a time axis.
         if theta.ndim in (1, 2):
-            # mu and tau have shape (batch_size, grid) in the 2D case
+            # mu and sigma have shape (batch_size, grid) in the 2D case
             # For a scalar, we already set them to shape (1,)
             # Expand to (batch_size, 1, grid)
             if batch_size == 1:
@@ -75,7 +75,7 @@ class Simulator:
             else:
                 theta_expanded = theta[:, np.newaxis, np.newaxis, :]
         else:
-            # For 3D parameters, mu and tau have shape (batch_size, n_grid, n_grid)
+            # For 3D parameters, mu and sigma have shape (batch_size, n_grid, n_grid)
             # Expand to (batch_size, 1, n_grid, n_grid)
             theta_expanded = theta[:, np.newaxis, :, :]
 
@@ -88,14 +88,15 @@ class Simulator:
 
         if theta.ndim == 2:  # just one grid element
             traj_full = traj_full.reshape(batch_size, self.n_time_points, 1)
-        return dict(observable=traj_full)
+            increments = increments.reshape(batch_size, self.n_time_points, 1)
+        return dict(observable=traj_full, increments=increments)
 
 class Prior:
     def __init__(self, n_time_points):
         self.mu_mean = 0
         self.mu_std = 3
-        self.log_tau_mean = 0
-        self.log_tau_std = 1
+        self.log_sigma_mean = 0
+        self.log_sigma_std = 1
         self.n_params_global = 2
         self.n_params_local = 1
 
@@ -105,9 +106,9 @@ class Prior:
         test = self.simulator(test_prior)
         self.x_mean = torch.tensor([np.mean(test['observable'])], dtype=torch.float32)
         self.x_std = torch.tensor([np.std(test['observable'])], dtype=torch.float32)
-        self.prior_global_mean = torch.tensor(np.array([np.mean(test_prior['mu']), np.mean(test_prior['log_tau'])]),
+        self.prior_global_mean = torch.tensor(np.array([np.mean(test_prior['mu']), np.mean(test_prior['log_sigma'])]),
                                               dtype=torch.float32)
-        self.prior_global_std = torch.tensor(np.array([np.std(test_prior['mu']), np.std(test_prior['log_tau'])]),
+        self.prior_global_std = torch.tensor(np.array([np.std(test_prior['mu']), np.std(test_prior['log_sigma'])]),
                                              dtype=torch.float32)
         self.prior_local_mean = torch.tensor(np.array([np.mean(test_prior['theta'])]),
                                              dtype=torch.float32)
@@ -120,34 +121,34 @@ class Prior:
 
     def sample_single(self, batch_size):
         mu = np.random.normal(loc=self.mu_mean, scale=self.mu_std, size=(batch_size,1))
-        log_tau = np.random.normal(loc=self.log_tau_mean, scale=self.log_tau_std, size=(batch_size,1))
-        theta = np.random.normal(loc=mu, scale=np.exp(log_tau), size=(batch_size, 1))
-        return dict(mu=mu, log_tau=log_tau, theta=theta)
+        log_sigma = np.random.normal(loc=self.log_sigma_mean, scale=self.log_sigma_std, size=(batch_size,1))
+        theta = np.random.normal(loc=mu, scale=np.exp(log_sigma), size=(batch_size, 1))
+        return dict(mu=mu, log_sigma=log_sigma, theta=theta)
 
     def sample_full(self, batch_size, n_grid):
         mu = np.random.normal(loc=self.mu_mean, scale=self.mu_std, size=(batch_size, 1))
-        log_tau = np.random.normal(loc=self.log_tau_mean, scale=self.log_tau_std, size=(batch_size, 1))
-        theta = np.random.normal(loc=mu[:, np.newaxis], scale=np.exp(log_tau)[:, np.newaxis],
+        log_sigma = np.random.normal(loc=self.log_sigma_mean, scale=self.log_sigma_std, size=(batch_size, 1))
+        theta = np.random.normal(loc=mu[:, np.newaxis], scale=np.exp(log_sigma)[:, np.newaxis],
                                  size=(batch_size, n_grid, n_grid))
-        return dict(mu=mu, log_tau=log_tau, theta=theta)
+        return dict(mu=mu, log_sigma=log_sigma, theta=theta)
 
     def score_global_batch(self, theta_batch_norm, condition_norm=None):
         """ Computes the global score for a batch of parameters."""
         theta_batch = self.denormalize_theta(theta_batch_norm, global_params=True)
-        mu, log_tau = theta_batch[..., 0], theta_batch[..., 1]
+        mu, log_sigma = theta_batch[..., 0], theta_batch[..., 1]
         grad_logp_mu = -(mu - self.mu_mean) / (self.mu_std**2)
-        grad_logp_tau = -(log_tau - self.log_tau_mean) / (self.log_tau_std**2)
+        grad_logp_sigma = -(log_sigma - self.log_sigma_mean) / (self.log_sigma_std**2)
         # correct the score for the normalization
-        score = torch.stack([grad_logp_mu, grad_logp_tau], dim=-1)
+        score = torch.stack([grad_logp_mu, grad_logp_sigma], dim=-1)
         return score * self.prior_global_std
 
     def score_local_batch(self, theta_batch_norm, condition_norm):
         """ Computes the local score for a batch of samples. """
         theta = self.denormalize_theta(theta_batch_norm, global_params=False)
         condition = self.denormalize_theta(condition_norm, global_params=True)
-        mu, log_tau = condition[..., 0], condition[..., 1]
-        # Gradient w.r.t theta conditioned on mu and log_tau
-        grad_logp_theta = -(theta - mu) / torch.exp(log_tau*2)
+        mu, log_sigma = condition[..., 0], condition[..., 1]
+        # Gradient w.r.t theta conditioned on mu and log_sigma
+        grad_logp_theta = -(theta - mu) / torch.exp(log_sigma*2)
         # correct the score for the normalization
         score = grad_logp_theta * self.prior_local_std
         return score
@@ -214,7 +215,7 @@ def generate_synthetic_data(prior, n_samples, n_time_points, grid_size=None, dat
     simulator = Simulator(n_time_points=n_time_points)
     sim_batch = simulator(batch_params)
 
-    param_global = torch.tensor(np.concatenate((batch_params['mu'], batch_params['log_tau']), axis=1),
+    param_global = torch.tensor(np.concatenate((batch_params['mu'], batch_params['log_sigma']), axis=1),
                                 dtype=torch.float32)
     param_local = torch.tensor(batch_params['theta'], dtype=torch.float32)
     data = torch.tensor(sim_batch['observable'], dtype=torch.float32)
@@ -416,7 +417,7 @@ stan_file = os.path.join('problems', 'gaussian_grid.stan')
 stan_model = CmdStanModel(stan_file=stan_file)
 
 
-def get_stan_posterior(sim_test, dt_obs):
+def get_stan_posterior(sim_test, dt_obs, chains=4):
     time_steps, n_grid, _ = sim_test.shape
     sim_test = sim_test.reshape(-1, time_steps)
     n_obs = sim_test.shape[0]
@@ -426,13 +427,13 @@ def get_stan_posterior(sim_test, dt_obs):
     stan_data = {
         'N': n_obs,
         'T': time_steps,
-        'x': sim_test,
+        'dx': sim_test,
         'dt_obs': dt_obs
     }
 
     # Fit the model to the data
-    fit = stan_model.sample(data=stan_data, show_progress=False, chains=10)
+    fit = stan_model.sample(data=stan_data, show_progress=False, chains=chains)
 
-    global_posterior = np.concatenate([fit.draws_pd("mu"), fit.draws_pd("mu")], axis=-1)
+    global_posterior = np.concatenate([fit.draws_pd("mu"), fit.draws_pd("log_sigma")], axis=-1)
     local_posterior = fit.draws_pd("theta").T
     return global_posterior, local_posterior
