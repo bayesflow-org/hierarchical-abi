@@ -109,6 +109,7 @@ class Prior:
             self.norm_prior_global_std = self.norm_prior_global_std.to(device)
             self.norm_x_mean = self.norm_x_mean.to(device)
             self.norm_x_std = self.norm_x_std.to(device)
+            self.scale_tensor = self.scale_tensor.to(device)
             self.current_device = device
         return
 
