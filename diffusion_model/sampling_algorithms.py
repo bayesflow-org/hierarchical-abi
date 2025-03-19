@@ -609,6 +609,9 @@ def adaptive_sampling(model, x_obs,
             if len(ls) == max_evals / 2:
                 print('maximum steps reached, not computing any more posterior samples.')
                 break
+            if torch.isnan(ps).any():
+                print("NaNs in theta, increase number of steps.")
+                break
         post_samples = np.concatenate(post_samples, axis=1)
         if return_steps:
             return post_samples, list_accepted_steps
@@ -752,6 +755,9 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
                                         random_seed=random_seed+i if random_seed is not None else None,
                                         device=device, verbose=verbose)
             )
+            if torch.isnan(post_samples[-1]).any():
+                print("NaNs in theta, increase number of steps.")
+                break
         return np.concatenate(post_samples, axis=1)
 
     # Initialize sampling
