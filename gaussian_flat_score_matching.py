@@ -1,7 +1,6 @@
 #%% md
 # # Flat Gaussian with compositional score matching
 
-#%%
 import ast
 import os
 
@@ -16,9 +15,8 @@ from torch.utils.data import DataLoader
 import itertools
 import sys
 
-from diffusion_model import CompositionalScoreModel, SDE, train_score_model, adaptive_sampling, count_parameters
-from problems.gaussian_flat import GaussianProblem, Prior, Simulator, visualize_simulation_output, \
-    generate_synthetic_data, \
+from diffusion_model import CompositionalScoreModel, SDE, train_score_model, adaptive_sampling
+from problems.gaussian_flat import GaussianProblem, Prior, generate_synthetic_data, \
     sample_posterior, analytical_posterior_mean_std, posterior_contraction
 #%%
 torch_device = torch.device("cuda")
@@ -85,7 +83,7 @@ score_model = CompositionalScoreModel(
     prior=prior,
     name_prefix=f'model{model_id}_'
 )
-count_parameters(score_model)
+#count_parameters(score_model)
 print(score_model.name)
 
 # make dir for plots
@@ -191,34 +189,26 @@ max_steps = 10000
 #for variable_of_interest in variables_of_interest:
 #variable_of_interest = variables_of_interest[0]
 
-mini_batch = [None]
+mini_batch = [100]
 n_conditions = [1]
 cosine_shifts = [0]
 d_factors = [1]  # using the d factor depending on the mini batch size
+data_sizes = np.array([1, 10, 100, 1000, 10000, 100000])
 
 if variable_of_interest == 'mini_batch':
     # Set up your data sizes and mini-batch parameters.
-    data_sizes = np.array([1, 10, 100, 1000, 10000])
     mini_batch = [1, 10, 100, 1000, 10000, None]
     second_variable_of_interest = 'data_size'
 
 elif variable_of_interest == 'n_conditions':
-    # Set up your data sizes and mini-batch parameters.
-    data_sizes = np.array([1, 10, 100, 1000, 10000, 100000])
     n_conditions = [1, 5, 10, 20, 50, 100]
     second_variable_of_interest = 'data_size'
 
 elif variable_of_interest == 'cosine_shift':
-    # Set up your data sizes and mini-batch parameters.
-    data_sizes = np.array([1, 10, 100, 1000, 10000])
-    mini_batch = [10]
     cosine_shifts = [0, -1, 1, 2, 5, 10]
     second_variable_of_interest = 'data_size'
 
 elif variable_of_interest in ['damping_factor', 'damping_factor_prior', 'damping_factor_t']:
-    # Set up your data sizes and mini-batch parameters.
-    data_sizes = np.array([10, 100, 1000, 10000, 100000])
-    mini_batch = [10]
     d_factors = [0.0001, 0.001, 0.01, 0.1, 0.5, 0.75, 0.9, 1]
     second_variable_of_interest = 'data_size'
 else:
