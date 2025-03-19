@@ -196,7 +196,7 @@ class Prior:
 
 
 
-class AR1Problem(Dataset):
+class AR1GridProblem(Dataset):
     def __init__(self, n_data, prior, online_learning=False, amortize_time=False, max_number_of_obs=1):
         # Create model and dataset
         self.prior = prior

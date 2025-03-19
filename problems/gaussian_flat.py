@@ -42,7 +42,6 @@ class Prior:
         self.D = 10  # The dimensionality of the Gaussian prior distribution.
         self.scale = 0.1 * np.ones(self.D)  # The scale of the Gaussian prior.
         self.scale_tensor = torch.tensor(self.scale, dtype=torch.float32)
-        #self.scale = np.linspace(0.1, 1, self.D)
 
         self.n_params_global = self.D
         self.n_params_local = 0  # not a hierarchical model
@@ -51,11 +50,11 @@ class Prior:
         test_prior = self.sample(1000)
         self.simulator = Simulator()
         test = self.simulator(test_prior)
-        self.x_mean = torch.tensor(np.mean(test['observable'], axis=0), dtype=torch.float32)
-        self.x_std = torch.tensor(np.std(test['observable'], axis=0), dtype=torch.float32)
-        self.prior_global_mean = torch.tensor(np.mean(test_prior['theta'], axis=0), dtype=torch.float32)
-        self.prior_global_std = torch.tensor(np.std(test_prior['theta'], axis=0), dtype=torch.float32)
-        self.device = 'cpu'
+        self.norm_x_mean = torch.tensor(np.mean(test['observable'], axis=0), dtype=torch.float32)
+        self.norm_x_std = torch.tensor(np.std(test['observable'], axis=0), dtype=torch.float32)
+        self.norm_prior_global_mean = torch.tensor(np.mean(test_prior['theta'], axis=0), dtype=torch.float32)
+        self.norm_prior_global_std = torch.tensor(np.std(test_prior['theta'], axis=0), dtype=torch.float32)
+        self.current_device = 'cpu'
 
     def __call__(self, batch_size):
         return self.sample(batch_size=batch_size)
@@ -82,47 +81,36 @@ class Prior:
         theta_batch = self.denormalize_theta(theta_batch_norm, global_params=True)
         score = -theta_batch / torch.square(self.scale_tensor)
         # correct the score for the normalization
-        return score * self.prior_global_std
+        return score * self.norm_prior_global_std
 
     def score_global_batch(self, theta_batch_norm, condition_norm=None):
         return self.score_batch(theta_batch_norm)
 
     def normalize_theta(self, theta, global_params=True):
-        if self.device != theta.device:
-            self.prior_global_mean = self.prior_global_mean.to(theta.device)
-            self.prior_global_std = self.prior_global_std.to(theta.device)
-            self.scale_tensor = self.scale_tensor.to(theta.device)
-            self.x_mean = self.x_mean.to(theta.device)
-            self.x_std = self.x_std.to(theta.device)
-            self.device = theta.device
-            #print(f"Moving prior to device {theta.device}")
+        self._move_to_device(theta.device)
         if global_params:
-            return (theta - self.prior_global_mean) / self.prior_global_std
+            return (theta - self.norm_prior_global_mean) / self.norm_prior_global_std
         raise ValueError('This is not a hierarchical model.')
 
     def denormalize_theta(self, theta, global_params=True):
-        if self.device != theta.device:
-            self.prior_global_mean = self.prior_global_mean.to(theta.device)
-            self.prior_global_std = self.prior_global_std.to(theta.device)
-            self.scale_tensor = self.scale_tensor.to(theta.device)
-            self.x_mean = self.x_mean.to(theta.device)
-            self.x_std = self.x_std.to(theta.device)
-            self.device = theta.device
-            #print(f"Moving prior to device {theta.device}")
+        self._move_to_device(theta.device)
         if global_params:
-            return theta * self.prior_global_std + self.prior_global_mean
+            return theta * self.norm_prior_global_std + self.norm_prior_global_mean
         raise ValueError('This is not a hierarchical model.')
 
     def normalize_data(self, x):
-        if self.device != x.device:
-            self.prior_global_mean = self.prior_global_mean.to(x.device)
-            self.prior_global_std = self.prior_global_std.to(x.device)
-            self.scale_tensor = self.scale_tensor.to(x.device)
-            self.x_mean = self.x_mean.to(x.device)
-            self.x_std = self.x_std.to(x.device)
-            self.device = x.device
-            # print(f"Moving prior to device {theta.device}")
-        return (x - self.x_mean) / self.x_std
+        self._move_to_device(x.device)
+        return (x - self.norm_x_mean) / self.norm_x_std
+
+    def _move_to_device(self, device):
+        if self.current_device != device:
+            print(f"Moving prior to device: {device}")
+            self.norm_prior_global_mean = self.norm_prior_global_mean.to(device)
+            self.norm_prior_global_std = self.norm_prior_global_std.to(device)
+            self.norm_x_mean = self.norm_x_mean.to(device)
+            self.norm_x_std = self.norm_x_std.to(device)
+            self.current_device = device
+        return
 
 
 def sample_posterior(x, prior_sigma, sigma, n_samples=1):

@@ -136,7 +136,7 @@ class FLI_Prior:
         self.a_std_hyperprior_std = 1
 
         # Build prior parameters as tensors.
-        self.prior_means = torch.tensor(
+        self.hyper_prior_means = torch.tensor(
             [self.tau1_mean_hyperprior_mean,
              self.tau1_std_hyperprior_mean,
              self.delta_tau_mean_hyperprior_mean,
@@ -145,7 +145,7 @@ class FLI_Prior:
              self.a_std_hyperprior_mean],
             dtype=torch.float32
         )
-        self.prior_stds = torch.tensor(
+        self.hyper_prior_stds = torch.tensor(
             [self.tau1_mean_hyperprior_std,
              self.tau1_std_hyperprior_std,
              self.delta_tau_mean_hyperprior_std,
@@ -164,13 +164,13 @@ class FLI_Prior:
         self.n_time_points = self.simulator.n_time_points
 
         test = self.sample_single(1000)
-        self.x_mean = torch.tensor([np.mean(test['data'])], dtype=torch.float32)
-        self.x_std = torch.tensor([np.std(test['data'])], dtype=torch.float32)
-        self.prior_global_mean = torch.tensor(np.mean(test['global_params'], axis=0), dtype=torch.float32)
-        self.prior_global_std = torch.tensor(np.std(test['global_params'], axis=0), dtype=torch.float32)
-        self.prior_local_mean = torch.tensor(np.mean(test['local_params'], axis=0), dtype=torch.float32)
-        self.prior_local_std = torch.tensor(np.std(test['local_params'], axis=0), dtype=torch.float32)
-        self.device = 'cpu'
+        self.norm_x_mean = torch.tensor([np.mean(test['data'])], dtype=torch.float32)
+        self.norm_x_std = torch.tensor([np.std(test['data'])], dtype=torch.float32)
+        self.norm_prior_global_mean = torch.tensor(np.mean(test['global_params'], axis=0), dtype=torch.float32)
+        self.norm_prior_global_std = torch.tensor(np.std(test['global_params'], axis=0), dtype=torch.float32)
+        self.norm_prior_local_mean = torch.tensor(np.mean(test['local_params'], axis=0), dtype=torch.float32)
+        self.norm_prior_local_std = torch.tensor(np.std(test['local_params'], axis=0), dtype=torch.float32)
+        self.current_device = 'cpu'
 
     def sample_global(self):
         self.log_tau_G = np.random.normal(self.tau1_mean_hyperprior_mean, self.tau1_mean_hyperprior_std)
@@ -259,9 +259,9 @@ class FLI_Prior:
         """ Computes the global score for a batch of parameters."""
         theta_batch = self.denormalize_theta(theta_batch_norm, global_params=True)
         # Compute the score (gradient of log prior) elementwise.
-        score = -(theta_batch - self.prior_means) / (self.prior_stds ** 2)
+        score = -(theta_batch - self.hyper_prior_means) / (self.hyper_prior_stds ** 2)
         # correct the score for the normalization
-        return score * self.prior_global_std
+        return score * self.norm_prior_global_std
 
     def score_local_batch(self, theta_batch_norm, condition_norm):
         """ Computes the local score for a batch of samples. """
@@ -281,38 +281,36 @@ class FLI_Prior:
         # Compute the local score.
         score = -(theta - local_means) / (local_stds ** 2)
         # correct the score for the normalization
-        return score * self.prior_local_std
+        return score * self.norm_prior_local_std
 
     def normalize_theta(self, theta, global_params):
-        if self.device != theta.device:
-            self.move_to_device(theta.device)
+        self._move_to_device(theta.device)
         if global_params:
-            return (theta - self.prior_global_mean) / self.prior_global_std
-        return (theta - self.prior_local_mean) / self.prior_local_std
+            return (theta - self.norm_prior_global_mean) / self.norm_prior_global_std
+        return (theta - self.norm_prior_local_mean) / self.norm_prior_local_std
 
     def denormalize_theta(self, theta, global_params):
-        if self.device != theta.device:
-            self.move_to_device(theta.device)
+        self._move_to_device(theta.device)
         if global_params:
-            return theta * self.prior_global_std + self.prior_global_mean
-        return theta * self.prior_local_std + self.prior_local_mean
+            return theta * self.norm_prior_global_std + self.norm_prior_global_mean
+        return theta * self.norm_prior_local_std + self.norm_prior_local_mean
 
     def normalize_data(self, x):
-        if self.device != x.device:
-            self.move_to_device(x.device)
-        return (x - self.x_mean) / self.x_std
+        self._move_to_device(x.device)
+        return (x - self.norm_x_mean) / self.norm_x_std
 
-    def move_to_device(self, device):
-        print(f"Moving prior to device {device}")
-        self.prior_global_mean = self.prior_global_mean.to(device)
-        self.prior_global_std = self.prior_global_std.to(device)
-        self.prior_local_mean = self.prior_local_mean.to(device)
-        self.prior_local_std = self.prior_local_std.to(device)
-        self.prior_means = self.prior_means.to(device)
-        self.prior_stds = self.prior_stds.to(device)
-        self.x_mean = self.x_mean.to(device)
-        self.x_std = self.x_std.to(device)
-        self.device = device
+    def _move_to_device(self, device):
+        if self.current_device != device:
+            print(f"Moving prior to device: {device}")
+            self.norm_prior_global_mean = self.norm_prior_global_mean.to(device)
+            self.norm_prior_global_std = self.norm_prior_global_std.to(device)
+            self.norm_prior_local_mean = self.norm_prior_local_mean.to(device)
+            self.norm_prior_local_std = self.norm_prior_local_std.to(device)
+            self.hyper_prior_means = self.hyper_prior_means.to(device)
+            self.hyper_prior_stds = self.hyper_prior_stds.to(device)
+            self.norm_x_mean = self.norm_x_mean.to(device)
+            self.norm_x_std = self.norm_x_std.to(device)
+            self.current_device = device
         return
 
 def generate_synthetic_data(prior, n_samples, n_local_samples=None, normalize=False, random_seed=None):
