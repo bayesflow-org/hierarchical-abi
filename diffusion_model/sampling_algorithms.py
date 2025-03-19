@@ -609,7 +609,7 @@ def adaptive_sampling(model, x_obs,
             if len(ls) == max_evals / 2:
                 print('maximum steps reached, not computing any more posterior samples.')
                 break
-            if torch.isnan(ps).any():
+            if np.isnan(ps).any():
                 print("NaNs in theta, increase number of steps.")
                 break
         post_samples = np.concatenate(post_samples, axis=1)
