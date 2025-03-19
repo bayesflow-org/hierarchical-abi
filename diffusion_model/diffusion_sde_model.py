@@ -389,11 +389,12 @@ class HierarchicalScoreModel(nn.Module):
             use_film (bool, optional): Whether to use FiLM-residual blocks. Default is False.
             dropout_rate (float, optional): Dropout rate. Default is 0.1.
             use_spectral_norm (bool, optional): Whether to use spectral normalization. Default is False.
+            name_prefix (str, optional): Prefix for the name of the model. Default is ''.
     """
     def __init__(self,
                  input_dim_theta_global, input_dim_theta_local, input_dim_x,
                  hidden_dim, n_blocks, sde, prior, max_number_of_obs=1, prediction_type='v', weighting_type=None,
-                 time_embed_dim=16, use_film=False, dropout_rate=0.1, use_spectral_norm=False):
+                 time_embed_dim=16, use_film=False, dropout_rate=0.1, use_spectral_norm=False, name_prefix=''):
         super(HierarchicalScoreModel, self).__init__()
         self.prediction_type = prediction_type
         self.sde = sde
@@ -401,8 +402,8 @@ class HierarchicalScoreModel(nn.Module):
         self.weighting_type = weighting_type
         self.max_number_of_obs = max_number_of_obs
         self.current_number_of_obs = max_number_of_obs  # this is just needed for sampling
-        self.name = (f'hierarchical_score_model_{prediction_type}_{sde.kernel_type}_{sde.noise_schedule}_{weighting_type}'
-                     f'{"_factorized"+str(max_number_of_obs) if max_number_of_obs > 1 else ""}')
+        self.name = (f'{name_prefix}hierarchical_score_model_{prediction_type}_{sde.kernel_type}_{sde.noise_schedule}'
+                     f'_{weighting_type}{"_factorized"+str(max_number_of_obs) if max_number_of_obs > 1 else ""}')
 
         self.summary_net = nn.GRU(
             input_size=input_dim_x,
