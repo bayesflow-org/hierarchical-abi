@@ -206,9 +206,9 @@ class FLI_Prior:
         return dict(tau_L1_std=tau_L1_std, tau_L2_std=tau_L2_std)
 
     def sample_local(self, n_local_samples):
-        log_tau_L = np.random.normal(self.log_tau_G, np.exp(self.log_sigma_tau_G), size=(n_local_samples,1))
-        log_delta_tau_L = np.random.normal(self.log_delta_tau_G, np.exp(self.log_delta_sigma_tau_G), size=(n_local_samples,1))
-        a_l = np.random.normal(self.a_mean, np.exp(self.a_log_std), size=(n_local_samples,1))
+        log_tau_L = np.random.normal(self.log_tau_G, np.exp(self.log_sigma_tau_G), size=n_local_samples)
+        log_delta_tau_L = np.random.normal(self.log_delta_tau_G, np.exp(self.log_delta_sigma_tau_G), size=n_local_samples)
+        a_l = np.random.normal(self.a_mean, np.exp(self.a_log_std), size=n_local_samples)
 
         tau_L = np.exp(log_tau_L)
         tau_L_2 = tau_L + np.exp(log_delta_tau_L)
@@ -233,14 +233,15 @@ class FLI_Prior:
                                 global_sample['log_delta_tau_G'], global_sample['log_delta_sigma_tau_G'],
                                 global_sample['a_mean'], global_sample['a_log_std']]
 
-            local_params[i] = np.concatenate((local_sample['log_tau_L'],
+            local_params[i] = np.stack((local_sample['log_tau_L'],
                                               local_sample['log_delta_tau_L'],
                                               local_sample['a_l']), axis=-1)
             data[i] = sim['observable'].reshape(n_local_samples, self.n_time_points)
 
-        #if n_local_samples == 1:
-        #    local_params = local_params[:, 0]
-        #    data = data[:, 0]
+        if not np.isfinite(global_params).all():
+            raise ValueError('Non-finite global parameters')
+        if not np.isfinite(local_params).all():
+            raise ValueError('Non-finite local parameters')
         return dict(global_params=global_params, local_params=local_params, data=data)
 
     def sample_full(self, batch_size):
@@ -324,14 +325,14 @@ class FLI_Prior:
             self.current_device = device
         return
 
-def generate_synthetic_data(prior, n_samples, n_local_samples=1, normalize=False,
+def generate_synthetic_data(prior, n_data, n_local_samples=1, normalize=False,
                             as_grid=False,
                             random_seed=None):
     """Generate synthetic data for the hierarchical model.
 
     Parameters:
         prior (Prior): Prior distribution for the model.
-        n_samples (int): Number of samples to generate.
+        n_data (int): Number of samples to generate.
         n_local_samples (int): Number of pixels in the grid for each sample.
         normalize (bool): Whether to normalize the data.
         as_grid (bool): Whether to return the data as a grid.
@@ -340,7 +341,7 @@ def generate_synthetic_data(prior, n_samples, n_local_samples=1, normalize=False
     if random_seed is not None:
         np.random.seed(random_seed)
 
-    sample_dict = prior.sample_single(n_samples, n_local_samples=n_local_samples)
+    sample_dict = prior.sample_single(n_data, n_local_samples=n_local_samples)
     param_global = torch.tensor(sample_dict['global_params'], dtype=torch.float32)
     param_local = torch.tensor(sample_dict['local_params'], dtype=torch.float32)
     data = torch.tensor(sample_dict['data'], dtype=torch.float32)
@@ -349,7 +350,9 @@ def generate_synthetic_data(prior, n_samples, n_local_samples=1, normalize=False
         grid_size = int(np.sqrt(n_local_samples))
         n_time_steps = data.shape[-1]
         data = data[:, :grid_size*grid_size]
-        data = data.reshape(n_samples, n_time_steps, grid_size, grid_size)
+        data = data.reshape(n_data, n_time_steps, grid_size, grid_size)
+        param_local = param_local[:, :grid_size*grid_size]
+        param_local = param_local.reshape(n_data, grid_size, grid_size, prior.n_params_local)
     if normalize:
         param_global = prior.normalize_theta(param_global, global_params=True)
         param_local = prior.normalize_theta(param_local, global_params=False)
