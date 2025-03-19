@@ -1,6 +1,5 @@
 import os
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from cmdstanpy import CmdStanModel
@@ -58,7 +57,7 @@ class Prior:
         self.log_beta_std_std = 1
         self.n_params_global = 3
         self.n_params_local = 1
-        self.global_param_names = [r'$\mu$', r'$\log \sigma$']
+        self.global_param_names = [r'$\alpha$', r'$\beta_{\mu}$', r'$\log \sigma_{\beta}$']
 
         # Build prior parameters as tensors.
         self.hyper_prior_means = torch.tensor(
@@ -108,7 +107,6 @@ class Prior:
         self.beta = np.random.normal(loc=self.beta_mu, scale=np.exp(self.log_beta_std), size=n_local_samples)
         return dict(beta=self.beta)
 
-
     def sample(self, batch_size, n_local_samples=1, n_time_points=10):
         # Sample global and local parameters and simulate data
         global_params = np.zeros((batch_size, self.n_params_global))
@@ -127,12 +125,6 @@ class Prior:
 
         # add axis for parameter
         local_params = local_params[:, :, np.newaxis]
-        # add axis for features
-        data = data[:, :, :, np.newaxis]
-
-        if n_local_samples == 1:
-            local_params = local_params[:, 0]
-            data = data[:, 0]
 
         # Convert to tensors
         global_params = torch.tensor(global_params, dtype=torch.float32)
@@ -223,6 +215,13 @@ class AR1GridProblem(Dataset):
         self.thetas_global = self.prior.normalize_theta(sim_dict['global_params'], global_params=True)
         self.thetas_local = self.prior.normalize_theta(sim_dict['local_params'], global_params=False)
         self.xs = self.prior.normalize_data(sim_dict['data'])
+
+        if self.max_number_of_obs == 1:
+            # squeeze obs-dimension for RNN
+            self.xs = self.xs.squeeze(1)
+        # add feature dimension for RNN
+        self.xs = self.xs.unsqueeze(-1)
+
         self.epsilon_global = torch.randn_like(self.thetas_global, dtype=torch.float32)
         self.epsilon_local = torch.randn_like(self.thetas_local, dtype=torch.float32)
 
@@ -274,130 +273,3 @@ def get_stan_posterior(sim_test, sigma_noise, chains=4):
                                        fit.draws_pd("mu_beta"), fit.draws_pd("log_std_beta")], axis=-1)
     local_posterior = fit.draws_pd("beta").T
     return global_posterior, local_posterior
-
-
-def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis", same_scale=True):
-    """
-    Visualize the full simulation trajectory on a grid of subplots.
-
-    Parameters:
-        sim_output (np.ndarray): Simulation trajectory output.
-            For a single simulation, it can be either:
-              - 3D: shape (grid_size, n_time_points, n_features)
-              - 4D: shape (n_grid, n_grid, n_time_points, n_features)
-        title_prefix (str, list): Prefix for subplot titles.
-        cmap (str): Colormap for imshow when visualizing 2D grid outputs.
-        same_scale (bool): Whether to use the same color scale for all subplots.
-    """
-    if sim_output.ndim == 3:
-        # (n_time_points, n_grid, n_features)
-        n_grid = int(np.sqrt(sim_output.shape[0]))
-        sim_output = sim_output[:n_grid**2, :]
-        sim_output = sim_output.reshape(n_grid, n_grid, -1)
-    elif sim_output.ndim == 4:
-        n_grid = sim_output.shape[0]
-        sim_output = sim_output.reshape(n_grid, n_grid, -1)
-    else:
-        raise ValueError("Simulation output must be 2D or 3D.")
-
-    # Determine number of time points.
-    n_time_points = sim_output.shape[-1]
-
-    # Automatically choose grid layout (approximate square).
-    n_cols = n_time_points
-    n_rows = 1
-
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(3 * n_cols, 3 * n_rows))
-    # Flatten axes array in case it's 2D.
-    axes = axes.flatten()
-
-    for i in range(n_time_points):
-        ax = axes[i]
-        # Check if the grid is 1D or 2D.
-        # 2D grid: shape (n_grid, n_grid, n_time_points)
-        if same_scale:
-            im = ax.imshow(sim_output[:, :, i], cmap=cmap, vmin=sim_output.min(), vmax=sim_output.max())
-        else:
-            im = ax.imshow(sim_output[:, :, i], cmap=cmap)
-        if isinstance(title_prefix, list):
-            ax.set_title(title_prefix[i])
-        else:
-            ax.set_title(f"{title_prefix} {i}")
-        fig.colorbar(im, ax=ax)
-
-    # Hide any unused subplots.
-    for j in range(n_time_points, len(axes)):
-        axes[j].axis('off')
-
-    plt.tight_layout()
-    plt.show()
-    return
-
-
-def plot_shrinkage(global_samples, local_samples, ci=95, min_max=None):
-    """
-    Plots the shrinkage of local estimates toward the global mean for each n_data.
-
-    Parameters:
-      global_samples: np.ndarray of shape (n_data, n_samples, 3)
-                      The last dimension holds [alpha, global_mean, log_std].
-      local_samples:  np.ndarray of shape (n_data, n_samples, n_individuals, 1)
-                      The last dimension holds the local parameter.
-      ci:             Confidence interval percentage (default 95).
-    """
-    if global_samples.shape[-1] == 3:
-        global_samples = global_samples[:, :, 1:]
-    n_data, n_samples, _ = global_samples.shape
-    n_individuals = local_samples.shape[2]
-
-    # Create a subplot for each n_data
-    nrows, ncols = int(np.ceil(n_data / 4)), 4
-    fig, axes = plt.subplots(nrows, ncols, figsize=(12, int(np.ceil(n_data / 4))*2),
-                             sharex=True, sharey=True, tight_layout=True)
-    axes = axes.flatten()
-
-    # If there is only one subplot, wrap it in a list for consistent indexing.
-    if n_data == 1:
-        axes = [axes]
-
-    for i in range(n_data):
-        ax = axes[i]
-
-        # Process global posterior for this n_data:
-        global_mean_samples = global_samples[i, :, 0]
-        global_mean_est = np.mean(global_mean_samples)
-        global_ci = [global_mean_est-1.96*np.mean(np.exp(global_samples[i, :, 1])),
-                     global_mean_est+1.96*np.mean(np.exp(global_samples[i, :, 1]))]
-
-        # Process local posterior for each individual at data index i:
-        local_means = np.zeros(n_individuals)
-        local_cis = np.zeros((n_individuals, 2))
-
-        for j in range(n_individuals):
-            samples_j = local_samples[i, :, j, 0]
-            local_means[j] = np.mean(samples_j)
-            local_cis[j, :] = np.percentile(samples_j, [50 - ci/2, 50 + ci/2])
-
-        indices = np.arange(n_individuals)
-        # Plot local estimates with error bars
-        h1 = ax.errorbar(indices, local_means,
-                    yerr=[local_means - local_cis[:, 0], local_cis[:, 1] - local_means],
-                    fmt='o', capsize=5, label='Local posterior mean')
-
-        # Plot the global estimate as a horizontal dashed line
-        h2 = ax.axhline(global_mean_est, color='red', linestyle='--', label='Global posterior mean')
-        # Shade the global CI
-        h3 = ax.fill_between(indices, global_ci[0], global_ci[1],
-                        color='red', alpha=0.2, label='Global 95% CI')
-
-        ax.set_ylabel("Parameter Value")
-        ax.set_title(f"Data {i}")
-        if min_max is not None:
-            ax.set_ylim(min_max)
-    fig.legend(handles=[h1, h2, h3], loc='lower center', ncols=3, bbox_to_anchor=(0.5, -0.05))
-    axes[-1].set_xlabel("Individual Index")
-    for i in range(n_data, len(axes)):
-        # disable axis
-        axes[i].set_visible(False)
-    plt.show()
-
