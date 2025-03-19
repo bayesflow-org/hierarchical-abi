@@ -8,17 +8,18 @@ from torch.utils.data import Dataset
 
 
 class Simulator:
-    def __init__(self, n_time_points, max_time=1):
+    def __init__(self, n_time_points, max_time=1, sigma_noise=1):
         self.max_time = max_time
         self.dt = self.max_time / n_time_points
         self.n_time_points = n_time_points
+        self.sigma_noise = sigma_noise
 
     def __call__(self, params):
         """
         Simulate Brownian motion with drift.
 
         The SDE is:
-            dx(t) = theta * dt + 1 * sqrt(dt) * dW(t)
+            dx(t) = theta * dt + sigma_noise * sqrt(dt) * dW(t)
         starting from 0.
 
         The simulation runs for self.n_time_steps steps (with step dt)
@@ -81,7 +82,7 @@ class Simulator:
 
         # Compute increments:
         #   increment = theta * dt + sqrt(dt) * noise
-        increments = theta_expanded * self.dt + np.sqrt(self.dt) * noise
+        increments = theta_expanded * self.dt + self.sigma_noise * np.sqrt(self.dt) * noise
 
         # Full trajectory: shape (batch_size, n_time_steps+1, *grid_shape)
         traj_full = np.cumsum(increments, axis=1)
@@ -348,7 +349,7 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
     return
 
 
-def plot_shrinkage(global_samples, local_samples, ci=95):
+def plot_shrinkage(global_samples, local_samples, ci=95, min_max=None):
     """
     Plots the shrinkage of local estimates toward the global mean for each n_data.
 
@@ -404,6 +405,8 @@ def plot_shrinkage(global_samples, local_samples, ci=95):
 
         ax.set_ylabel("Parameter Value")
         ax.set_title(f"Data {i}")
+        if min_max is not None:
+            ax.set_ylim(min_max)
     fig.legend(handles=[h1, h2, h3], loc='lower center', ncols=3, bbox_to_anchor=(0.5, -0.05))
     axes[-1].set_xlabel("Individual Index")
     for i in range(n_data, len(axes)):
@@ -417,7 +420,7 @@ stan_file = os.path.join('problems', 'gaussian_grid.stan')
 stan_model = CmdStanModel(stan_file=stan_file)
 
 
-def get_stan_posterior(sim_test, dt_obs, chains=4):
+def get_stan_posterior(sim_test, dt_obs, sigma_noise, chains=4):
     time_steps, n_grid, _ = sim_test.shape
     sim_test = sim_test.reshape(-1, time_steps)
     n_obs = sim_test.shape[0]
@@ -428,7 +431,8 @@ def get_stan_posterior(sim_test, dt_obs, chains=4):
         'N': n_obs,
         'T': time_steps,
         'dx': sim_test,
-        'dt_obs': dt_obs
+        'dt_obs': dt_obs,
+        'sigma_noise': sigma_noise
     }
 
     # Fit the model to the data

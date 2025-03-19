@@ -1,6 +1,3 @@
-import os
-
-import matplotlib.image as mpimg
 import numpy as np
 import torch
 from matplotlib.colors import ListedColormap
@@ -9,21 +6,25 @@ from torch.utils.data import Dataset
 
 
 class Simulator:
-    def __init__(self, n_time_points, max_time=1):
-        self.max_time = max_time
-        self.dt = self.max_time / n_time_points
-        self.n_time_points = n_time_points
-
+    def __init__(self):
         self.gw = 40  # gate width in ps
-        self.img_size = (520, 696)  # full image size
 
-        self.noise = np.load('system_noise.npy')
-        self.pIRF = np.load('IRF.npy')
+        self.noise = np.load('problems/FLI/system_noise.npy')
+        self.pIRF = np.load('problems/FLI/IRF.npy')
+
+        self.n_time_points = self.pIRF.shape[2]
+        self.img_size_full = (self.pIRF.shape[0], self.pIRF.shape[1])
 
     def __call__(self, params):
         # Convert parameters to numpy arrays.
-        tau_L, tau_L_2, A_L = np.array(params['tau_L', 'tau_L_2', 'A_L'])
-        F_dec_conv = self.decay_gen(tau_L=tau_L, tau_L_2=tau_L_2, A_L=A_L)
+        batch_tau_L, batch_tau_L_2, batch_A_L = params['tau_L'], params['tau_L_2'], params['A_L']
+
+        sims = []
+        for tau_L, tau_L_2, A_L in zip(batch_tau_L, batch_tau_L_2, batch_A_L):
+            F_dec_conv = self.decay_gen_single(tau_L=tau_L, tau_L_2=tau_L_2, A_L=A_L)
+            sims.append(F_dec_conv)
+
+        F_dec_conv = np.stack(sims)
         return dict(observable=F_dec_conv)
 
     def sample_augmented_noise(self):
@@ -37,8 +38,43 @@ class Simulator:
             noise = self.noise[i, j, ::-1]
         return noise
 
-    def decay_gen(self, tau_L, tau_L_2, A_L):
-        img = np.random.randint(0, high=1000, size=(img_size[0], img_size[1]))
+    def decay_gen_single(self, tau_L, tau_L_2, A_L):
+        img = np.random.randint(0, high=1000, size=(1, 1))
+        cropped_pIRF = self.random_crop(self.pIRF, crop_size=(1, 1))
+
+        a1, b1, c1 = np.shape(cropped_pIRF)
+        t = np.linspace(0, c1 * (self.gw * (10 ** -3)), c1)
+        t_minus = np.multiply(t, -1)
+        frac2 = 1 - A_L
+        A = np.multiply(A_L, np.exp(np.divide(t_minus, tau_L)))
+        B = np.multiply(frac2, np.exp(np.divide(t_minus, tau_L_2)))
+        dec = A + B
+        irf_out = self.norm1D(cropped_pIRF[0,0])
+        dec_conv = self.conv_dec(self.norm1D(dec), irf_out)
+        dec_conv = self.norm1D(np.squeeze(dec_conv)) * img
+        dec_conv += self.sample_augmented_noise()
+        return dec_conv
+
+    @staticmethod
+    def random_crop(array, crop_size):
+        A, B, C = array.shape
+        a, b = crop_size
+
+        if a > A or b > B:
+            raise ValueError("Crop size must be smaller than or equal to the original array size")
+
+        # Randomly select the top-left corner of the crop
+        top = np.random.randint(0, A - a + 1)
+        left = np.random.randint(0, B - b + 1)
+
+        # Crop the subarray
+        return array[top:top + a, left:left + b, :]
+
+    def decay_gen_full(self, tau_L, tau_L_2, A_L):
+        if tau_L.size != self.img_size_full[0] * self.img_size_full[1]:
+            raise ValueError("tau_L must be the same size as the image")
+
+        img = np.random.randint(0, high=1000, size=(self.img_size_full[0], self.img_size_full[1]))
 
         a, b = np.shape(img)
         a1, b1, c1 = np.shape(self.pIRF)
@@ -60,27 +96,12 @@ class Simulator:
                 if tau2[i, j] != 0:
                     B[i, j, :] = np.multiply(frac2[i, j], np.exp(np.divide(t_minus, tau2[i, j])))
                 dec[i, j, :] = A[i, j, :] + B[i, j, :]
-                irf_out[i, j, :] = self.norm1D(self.pIRF[np.random.randint(a1), np.random.randint(b1), :])
+                irf_out[i, j, :] = self.norm1D(self.pIRF[i, j, :])
                 dec_conv[i, j, :] = self.conv_dec(self.norm1D(np.squeeze(dec[i, j, :])), np.squeeze(irf_out[i, j, :]))
                 dec_conv[i, j, :] = self.norm1D(np.squeeze(dec_conv[i, j, :])) * img[i, j]
-                #dec_conv[i, j, :] += self.noise[i, j, :]
-                dec_conv[i, j, :] += self.sample_augmented_noise()
+                dec_conv[i, j, :] += self.noise[i, j, :]
+                #dec_conv[i, j, :] += self.sample_augmented_noise()
         return dec_conv
-
-    @staticmethod
-    def tiff2tpsfs(p):
-        k = os.listdir(p)
-        le = len(k)
-        img0 = mpimg.imread(os.path.join(p, k[0]))
-        (a, b) = np.shape(img0)
-        tpsfs = np.zeros([a, b, le - 1])
-        for count, file in enumerate(os.listdir(p)):
-            # Check whether file is in text format or not
-            if file.endswith(".tif"):
-                imt = mpimg.imread(os.path.join(p, file))
-                tpsfs[:, :, count] = imt
-        inten = np.sum(tpsfs, axis=2)
-        return tpsfs, inten
 
     @staticmethod
     def norm1D(fn):
@@ -92,8 +113,6 @@ class Simulator:
 
     @staticmethod
     def conv_dec(dec, irf):
-        c = np.shape(dec)
-        #     conv = np.zeros((2 * c - 1,1))
         conv = np.convolve(dec, irf)
         conv = conv[:len(dec)]
         return conv
@@ -116,24 +135,41 @@ class FLI_Prior:
         self.a_std_hyperprior_mean = -1
         self.a_std_hyperprior_std = 1
 
+        # Build prior parameters as tensors.
+        self.prior_means = torch.tensor(
+            [self.tau1_mean_hyperprior_mean,
+             self.tau1_std_hyperprior_mean,
+             self.delta_tau_mean_hyperprior_mean,
+             self.delta_tau_std_hyperprior_mean,
+             self.a_mean_hyperprior_mean,
+             self.a_std_hyperprior_mean],
+            dtype=torch.float32
+        )
+        self.prior_stds = torch.tensor(
+            [self.tau1_mean_hyperprior_std,
+             self.tau1_std_hyperprior_std,
+             self.delta_tau_mean_hyperprior_std,
+             self.delta_tau_std_hyperprior_std,
+             self.a_mean_hyperprior_std,
+             self.a_std_hyperprior_std],
+            dtype=torch.float32
+        )
+
         self.sample_global()
         self.n_params_global = 6
         self.n_params_local = 3
 
         np.random.seed(0)
-        test_prior = self.sample_single(1000)
-        self.simulator = Simulator(n_time_points=n_time_points)
-        test = self.simulator(test_prior)
-        self.x_mean = torch.tensor([np.mean(test['observable'])], dtype=torch.float32)
-        self.x_std = torch.tensor([np.std(test['observable'])], dtype=torch.float32)
-        self.prior_global_mean = torch.tensor(np.array([np.mean(test_prior['mu']), np.mean(test_prior['log_tau'])]),
-                                              dtype=torch.float32)
-        self.prior_global_std = torch.tensor(np.array([np.std(test_prior['mu']), np.std(test_prior['log_tau'])]),
-                                             dtype=torch.float32)
-        self.prior_local_mean = torch.tensor(np.array([np.mean(test_prior['theta'])]),
-                                             dtype=torch.float32)
-        self.prior_local_std = torch.tensor(np.array([np.std(test_prior['theta'])]),
-                                            dtype=torch.float32)
+        self.simulator = Simulator()
+        self.n_time_points = self.simulator.n_time_points
+
+        test = self.sample_single(1000)
+        self.x_mean = torch.tensor([np.mean(test['data'])], dtype=torch.float32)
+        self.x_std = torch.tensor([np.std(test['data'])], dtype=torch.float32)
+        self.prior_global_mean = torch.tensor(np.mean(test['global_params'], axis=0), dtype=torch.float32)
+        self.prior_global_std = torch.tensor(np.std(test['global_params'], axis=0), dtype=torch.float32)
+        self.prior_local_mean = torch.tensor(np.mean(test['local_params'], axis=0), dtype=torch.float32)
+        self.prior_local_std = torch.tensor(np.std(test['local_params'], axis=0), dtype=torch.float32)
         self.device = 'cpu'
 
     def sample_global(self):
@@ -159,9 +195,9 @@ class FLI_Prior:
         return dict(tau_L1_std=tau_L1_std, tau_L2_std=tau_L2_std)
 
     def sample_local(self, n_local_samples):
-        log_tau_L = np.random.normal(self.log_tau_G, np.exp(self.log_sigma_tau_G), size=n_local_samples)
-        log_delta_tau_L = np.random.normal(self.log_delta_tau_G, np.exp(self.log_delta_sigma_tau_G), size=n_local_samples)
-        a_l = np.random.normal(self.a_mean, np.exp(self.a_log_std), size=n_local_samples)
+        log_tau_L = np.random.normal(self.log_tau_G, np.exp(self.log_sigma_tau_G), size=(n_local_samples,1))
+        log_delta_tau_L = np.random.normal(self.log_delta_tau_G, np.exp(self.log_delta_sigma_tau_G), size=(n_local_samples,1))
+        a_l = np.random.normal(self.a_mean, np.exp(self.a_log_std), size=(n_local_samples,1))
 
         tau_L = np.exp(log_tau_L)
         tau_L_2 = tau_L + np.exp(log_delta_tau_L)
@@ -172,143 +208,152 @@ class FLI_Prior:
     def __call__(self, batch_size):
         return self.sample_single(batch_size)
 
-    def sample_single(self, batch_size):
-        mu = np.random.normal(loc=self.mu_mean, scale=self.mu_std, size=(batch_size,1))
-        log_tau = np.random.normal(loc=self.log_tau_mean, scale=self.log_tau_std, size=(batch_size,1))
-        theta = np.random.normal(loc=mu, scale=np.exp(log_tau), size=(batch_size, 1))
-        return dict(mu=mu, log_tau=log_tau, theta=theta)
+    def sample_single(self, batch_size, n_local_samples=1):
+        global_params = np.zeros((batch_size, self.n_params_global))
+        local_params = np.zeros((batch_size, n_local_samples, self.n_params_local))
+        data = np.zeros((batch_size, n_local_samples, self.n_time_points))
 
-    def sample_full(self, batch_size, n_grid):
-        mu = np.random.normal(loc=self.mu_mean, scale=self.mu_std, size=(batch_size, 1))
-        log_tau = np.random.normal(loc=self.log_tau_mean, scale=self.log_tau_std, size=(batch_size, 1))
-        theta = np.random.normal(loc=mu[:, np.newaxis], scale=np.exp(log_tau)[:, np.newaxis],
-                                 size=(batch_size, n_grid, n_grid))
-        return dict(mu=mu, log_tau=log_tau, theta=theta)
+        for i in range(batch_size):
+            global_sample = self.sample_global()
+            local_sample = self.sample_local(n_local_samples=n_local_samples)
+            sim = self.simulator(local_sample)
+
+            global_params[i] = [global_sample['log_tau_G'], global_sample['log_sigma_tau_G'],
+                                global_sample['log_delta_tau_G'], global_sample['log_delta_sigma_tau_G'],
+                                global_sample['a_mean'], global_sample['a_log_std']]
+
+            local_params[i] = np.concatenate((local_sample['log_tau_L'],
+                                              local_sample['log_delta_tau_L'],
+                                              local_sample['a_l']), axis=-1)
+            data[i] = sim['observable']
+
+        if n_local_samples == 1:
+            local_params = local_params[:, 0]
+            data = data[:, 0]
+        return dict(global_params=global_params, local_params=local_params, data=data)
+
+    def sample_full(self, batch_size):
+        n_local_samples = self.simulator.img_size_full.shape[0] * self.simulator.img_size_full.shape[1]
+
+        global_params = np.zeros((batch_size, self.n_params_global))
+        local_params = np.zeros((batch_size, n_local_samples, self.n_params_local))
+        data = np.zeros((batch_size, n_local_samples, self.n_time_points))
+
+        for i in range(batch_size):
+            global_sample = self.sample_global()
+            local_sample = self.sample_local(n_local_samples=n_local_samples)
+            sim = self.simulator.decay_gen_full(
+                tau_L=local_sample['tau_L'],
+                tau_L_2=local_sample['tau_L_2'],
+                A_L=local_sample['A_L']
+            )
+
+            global_params[i] = [global_sample['log_tau_G'], global_sample['log_sigma_tau_G'],
+                                global_sample['log_delta_tau_G'], global_sample['log_delta_sigma_tau_G'],
+                                global_sample['a_mean'], global_sample['a_log_std']]
+            local_params[i] = [local_sample['log_tau_L'], local_sample['log_delta_tau_L'], local_sample['a_l']]
+            data[i] = sim['observable']
+        return dict(global_params=global_params, local_params=local_params, data=data)
 
     def score_global_batch(self, theta_batch_norm, condition_norm=None):
         """ Computes the global score for a batch of parameters."""
         theta_batch = self.denormalize_theta(theta_batch_norm, global_params=True)
-        mu, log_tau = theta_batch[..., 0], theta_batch[..., 1]
-        grad_logp_mu = -(mu - self.mu_mean) / (self.mu_std**2)
-        grad_logp_tau = -(log_tau - self.log_tau_mean) / (self.log_tau_std**2)
+        # Compute the score (gradient of log prior) elementwise.
+        score = -(theta_batch - self.prior_means) / (self.prior_stds ** 2)
         # correct the score for the normalization
-        score = torch.stack([grad_logp_mu, grad_logp_tau], dim=-1)
         return score * self.prior_global_std
 
     def score_local_batch(self, theta_batch_norm, condition_norm):
         """ Computes the local score for a batch of samples. """
         theta = self.denormalize_theta(theta_batch_norm, global_params=False)
         condition = self.denormalize_theta(condition_norm, global_params=True)
-        mu, log_tau = condition[..., 0], condition[..., 1]
-        # Gradient w.r.t theta conditioned on mu and log_tau
-        grad_logp_theta = -(theta - mu) / torch.exp(log_tau*2)
+
+        # Extract the relevant entries:
+        # For local parameters: [log_tau_L, log_delta_tau_L, a_l]
+        # For conditioning global parameters, we use:
+        #   - Mean for log_tau_L: condition[..., 0] (global.log_tau_G)
+        #   - Mean for log_delta_tau_L: condition[..., 2] (global.log_delta_tau_G)
+        #   - Mean for a_l: condition[..., 4] (global.a_mean)
+        # and standard deviations given by exp(global.log_sigma_tau_G), exp(global.log_delta_sigma_tau_G), exp(global.a_log_std)
+        local_means = condition[..., [0, 2, 4]]
+        local_stds = torch.exp(condition[..., [1, 3, 5]])
+
+        # Compute the local score.
+        score = -(theta - local_means) / (local_stds ** 2)
         # correct the score for the normalization
-        score = grad_logp_theta * self.prior_local_std
-        return score
+        return score * self.prior_local_std
 
     def normalize_theta(self, theta, global_params):
         if self.device != theta.device:
-            self.prior_global_mean = self.prior_global_mean.to(theta.device)
-            self.prior_global_std = self.prior_global_std.to(theta.device)
-            self.prior_local_mean = self.prior_local_mean.to(theta.device)
-            self.prior_local_std = self.prior_local_std.to(theta.device)
-            self.device = theta.device
-            #print(f"Moving prior to device {theta.device}")
+            self.move_to_device(theta.device)
         if global_params:
             return (theta - self.prior_global_mean) / self.prior_global_std
         return (theta - self.prior_local_mean) / self.prior_local_std
 
     def denormalize_theta(self, theta, global_params):
         if self.device != theta.device:
-            self.prior_global_mean = self.prior_global_mean.to(theta.device)
-            self.prior_global_std = self.prior_global_std.to(theta.device)
-            self.prior_local_mean = self.prior_local_mean.to(theta.device)
-            self.prior_local_std = self.prior_local_std.to(theta.device)
-            self.x_mean = self.x_mean.to(theta.device)
-            self.x_std = self.x_std.to(theta.device)
-            self.device = theta.device
-            #print(f"Moving prior to device {theta.device}")
+            self.move_to_device(theta.device)
         if global_params:
             return theta * self.prior_global_std + self.prior_global_mean
         return theta * self.prior_local_std + self.prior_local_mean
 
     def normalize_data(self, x):
         if self.device != x.device:
-            self.prior_global_mean = self.prior_global_mean.to(x.device)
-            self.prior_global_std = self.prior_global_std.to(x.device)
-            self.prior_local_mean = self.prior_local_mean.to(x.device)
-            self.prior_local_std = self.prior_local_std.to(x.device)
-            self.x_mean = self.x_mean.to(x.device)
-            self.x_std = self.x_std.to(x.device)
+            self.move_to_device(x.device)
         return (x - self.x_mean) / self.x_std
 
+    def move_to_device(self, device):
+        print(f"Moving prior to device {device}")
+        self.prior_global_mean = self.prior_global_mean.to(device)
+        self.prior_global_std = self.prior_global_std.to(device)
+        self.prior_local_mean = self.prior_local_mean.to(device)
+        self.prior_local_std = self.prior_local_std.to(device)
+        self.prior_means = self.prior_means.to(device)
+        self.prior_stds = self.prior_stds.to(device)
+        self.x_mean = self.x_mean.to(device)
+        self.x_std = self.x_std.to(device)
+        self.device = device
+        return
 
-def generate_synthetic_data(prior, n_samples, n_time_points, grid_size=None, data_size=None, normalize=False, random_seed=None):
+def generate_synthetic_data(prior, n_samples, n_local_samples=None, normalize=False, random_seed=None):
     """Generate synthetic data for the hierarchical model.
 
     Parameters:
         prior (Prior): Prior distribution for the model.
         n_samples (int): Number of samples to generate.
-        n_time_points (int): Number of time points for the simulator.
-        grid_size (int): Size of the grid for the simulator.
-        data_size (int): Size of the grid=data_size**2 for the simulator, but then only return data_size (so a batch
-            and not the full grid). Grid size must be proved as well for data_size to work.
+        n_local_samples (int): Number of pixels in the grid for each sample.
         normalize (bool): Whether to normalize the data.
         random_seed (int): Random seed for reproducibility.
     """
     if random_seed is not None:
         np.random.seed(random_seed)
-    if grid_size is not None:
-        batch_params = prior.sample_full(n_samples, n_grid=grid_size)
-    else:
-        batch_params = prior.sample_single(n_samples)
-    if data_size is not None:
-        if grid_size is None:
-            raise ValueError("Grid size must be provided.")
-    simulator = Simulator(n_time_points=n_time_points)
-    sim_batch = simulator(batch_params)
 
-    param_global = torch.tensor(np.concatenate((batch_params['mu'], batch_params['log_tau']), axis=1),
-                                dtype=torch.float32)
-    param_local = torch.tensor(batch_params['theta'], dtype=torch.float32)
-    data = torch.tensor(sim_batch['observable'], dtype=torch.float32)
+    sample_dict = prior.sample_single(n_samples, n_local_samples=n_local_samples)
+    param_global = torch.tensor(sample_dict['global_params'], dtype=torch.float32)
+    param_local = torch.tensor(sample_dict['local_params'], dtype=torch.float32)
+    data = torch.tensor(sample_dict['data'][:, :, np.newaxis], dtype=torch.float32)
     if normalize:
         param_global = prior.normalize_theta(param_global, global_params=True)
         param_local = prior.normalize_theta(param_local, global_params=False)
         data = prior.normalize_data(data)
-    if grid_size is not None and data_size is not None:
-        # create local params and data in shape (n_batch, n_samples, n_time_points, n_features), where n_samples=grid_size^2
-        param_local = param_local.unsqueeze(1).reshape(n_samples, grid_size**2, -1)
-        data = data.reshape(n_samples, data.shape[1], grid_size ** 2, -1)
-        # Now, permute dimensions to have (n_samples, grid_size**2, n_time_points, n_features)
-        data = data.permute(0, 2, 1, 3)
-        param_local = param_local[:, :data_size]
-        data = data[:, :data_size]
     return param_global, param_local, data
 
 
-class GaussianGridProblem(Dataset):
-    def __init__(self, n_data, prior, online_learning=False, amortize_time=False, max_number_of_obs=1):
+class FLIProblem(Dataset):
+    def __init__(self, n_data, prior, online_learning=False, max_number_of_obs=1):
         # Create model and dataset
         self.prior = prior
         self.n_data = n_data
         self.max_number_of_obs = max_number_of_obs
         self.n_obs = self.max_number_of_obs  # this can change for each batch
         self.online_learning = online_learning
-        self.amortize_time = amortize_time
-        self.max_number_of_time_points = 100
-        self.n_time_points = prior.simulator.n_time_points
-        if self.amortize_time and not self.online_learning:
-            raise NotImplementedError
         self.generate_data()
 
     def generate_data(self):
         # Create model and dataset
         self.thetas_global, self.thetas_local, self.xs = generate_synthetic_data(
             self.prior,
-            n_time_points=self.n_time_points,
-            grid_size=int(np.ceil(np.sqrt(self.max_number_of_obs))) if self.max_number_of_obs > 1 else None,  # no need to simulate the full grid
-            data_size=self.max_number_of_obs if self.max_number_of_obs > 1 else None,
+            n_local_samples=self.n_obs,
             n_samples=self.n_data, normalize=True
         )
         self.epsilon_global = torch.randn_like(self.thetas_global, dtype=torch.float32)
@@ -341,8 +386,6 @@ class GaussianGridProblem(Dataset):
         if self.max_number_of_obs > 1:
             # sample number of observations
             self.n_obs = np.random.choice([1, 5, 10, 20, 50, 100])
-        if self.amortize_time:
-            self.n_time_points = np.random.randint(2, self.max_number_of_time_points + 1)
 
 
 def petcolormap(m=256):
