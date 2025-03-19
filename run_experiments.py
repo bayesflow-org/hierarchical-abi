@@ -8,7 +8,7 @@ max_obs = [1, 100]
 
 def main():
     for m_obs in max_obs:
-        arguments = np.arange(30 if m_obs==1 else 40)
+        arguments = np.arange(30 if m_obs==1 else 10)
         for arg in arguments:
             print(f"Running {script_name} with argument: {m_obs}-{arg}")
             try:
