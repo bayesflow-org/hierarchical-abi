@@ -34,16 +34,17 @@ if max_number_of_obs > 1:
 model_ids = np.arange(10)  # train 10 models
 model_id, variable_of_interest = list(itertools.product(model_ids, variables_of_interest))[experiment_id]
 
-print(experiment_id, model_id, variable_of_interest)
+print('Exp:', experiment_id, 'Model:', model_id, variable_of_interest)
 
 #%%
 prior = Prior()
-simulator_test = Simulator()
+#simulator_test = Simulator()
+np.random.seed(experiment_id)
 
 # test the simulator
-prior_test = prior.sample(2)
-sim_test = simulator_test(prior_test, n_obs=1000)
-visualize_simulation_output(sim_test['observable'])
+#prior_test = prior.sample(2)
+#sim_test = simulator_test(prior_test, n_obs=1000)
+#visualize_simulation_output(sim_test['observable'])
 #%%
 batch_size = 128
 #max_number_of_obs = 1  # larger than one means we condition the score on multiple observations
