@@ -3,22 +3,25 @@ import os
 import numpy as np
 import torch
 from cmdstanpy import CmdStanModel
+from scipy.special import expit, logit
 from torch.utils.data import Dataset
 
+N_TIME_POINTS = 25
 
 class Simulator:
-    def __init__(self, sigma_noise=1):
+    def __init__(self, sigma_noise=0.1):
         """
         Simulator for the hierarchical AR(1) model:
-            y[t] = y[t-1] + theta + sigma_noise * epsilon[t]
-        starting from an initial value (default: 0).
+            y[t] = alpha + beta y[t-1] + noise[t]
+        starting from an initial value.
 
         Parameters:
             sigma_noise (float): noise standard deviation.
         """
         self.sigma_noise = sigma_noise
+        self.initial_is_zero = False
 
-    def __call__(self, params, n_time_points=10):
+    def __call__(self, params, n_time_points=N_TIME_POINTS):
         beta = np.array(params['beta'])
         alpha = np.array(params['alpha'])
         N = beta.size
@@ -36,7 +39,8 @@ class Simulator:
         traj = np.zeros((N, n_time_points))
 
         # Simulate the AR(1) process for each trajectory and each batch
-        traj[:, 0] =  noise[:, 0]
+        if not self.initial_is_zero:
+            traj[:, 0] = noise[:, 0]
         for t in range(1, n_time_points):
             traj[:, t] = alpha + traj[:, t - 1] * beta + noise[:, t]
 
@@ -47,14 +51,13 @@ class Prior:
     def __init__(self):
         """
         Hierarchical prior for the AR(1) model.
-
         """
         self.alpha_mean = 0
         self.alpha_std = 1
         self.beta_mu_mean = 0
-        self.beta_mu_std = 1
-        self.log_beta_std_mean = -1
-        self.log_beta_std_std = 1
+        self.beta_mu_std = 1 #0.1
+        self.log_beta_std_mean = 0 #np.log(0.1)
+        self.log_beta_std_std = 1 #0.5
         self.n_params_global = 3
         self.n_params_local = 1
         self.global_param_names = [r'$\alpha$', r'$\beta_{\mu}$', r'$\log \sigma_{\beta}$']
@@ -82,8 +85,8 @@ class Prior:
         self.norm_x_std = torch.std(test['data'])
         self.norm_prior_global_mean = torch.mean(test['global_params'], dim=0)
         self.norm_prior_global_std = torch.std(test['global_params'], dim=0)
-        self.norm_prior_local_mean = torch.mean(test['local_params'], dim=0)
-        self.norm_prior_local_std = torch.std(test['local_params'], dim=0)
+        self.norm_prior_local_mean = torch.mean(test['local_params_raw'], dim=0)
+        self.norm_prior_local_std = torch.std(test['local_params_raw'], dim=0)
 
         self.current_device = 'cpu'
 
@@ -104,12 +107,25 @@ class Prior:
 
     def _sample_local(self, n_local_samples=1):
         # Sample local parameters
-        self.beta = np.random.normal(loc=self.beta_mu, scale=np.exp(self.log_beta_std), size=n_local_samples)
-        return dict(beta=self.beta)
+        beta_raw = np.random.normal(loc=self.beta_mu, scale=np.exp(self.log_beta_std), size=n_local_samples)
+        beta = self.transform_local_params(beta_raw)
+        return dict(beta=beta, beta_raw=beta_raw)
 
-    def sample(self, batch_size, n_local_samples=1, n_time_points=10):
+    @staticmethod
+    def transform_local_params(local_params):
+        return 2*expit(local_params)-1
+
+    @staticmethod
+    def back_transform_local_params(local_params):
+        local_params_raw =logit((local_params + 1) / 2)
+        local_params_raw[local_params_raw < -100] = -100
+        local_params_raw[local_params_raw > 100] = 100
+        return local_params_raw
+
+    def sample(self, batch_size, n_local_samples=1, n_time_points=N_TIME_POINTS, get_grid=False):
         # Sample global and local parameters and simulate data
         global_params = np.zeros((batch_size, self.n_params_global))
+        local_params_raw = np.zeros((batch_size, n_local_samples))
         local_params = np.zeros((batch_size, n_local_samples))
         data = np.zeros((batch_size, n_local_samples, n_time_points))
 
@@ -120,17 +136,25 @@ class Prior:
             sim = self.simulator(sim_dict, n_time_points=n_time_points)
 
             global_params[i] = [global_sample['alpha'], global_sample['beta_mu'], global_sample['log_beta_std']]
+            local_params_raw[i] = local_sample['beta_raw']
             local_params[i] = local_sample['beta']
             data[i] = sim['observable']
-
-        # add axis for parameter
-        local_params = local_params[:, :, np.newaxis]
 
         # Convert to tensors
         global_params = torch.tensor(global_params, dtype=torch.float32)
         local_params = torch.tensor(local_params, dtype=torch.float32)
+        local_params_raw = torch.tensor(local_params_raw, dtype=torch.float32)
         data = torch.tensor(data, dtype=torch.float32)
-        return dict(global_params=global_params, local_params=local_params, data=data)
+        if get_grid:
+            grid_size = int(np.sqrt(n_local_samples))
+            data = data[:, :grid_size ** 2]
+            data = data.reshape(batch_size, n_time_points, grid_size, grid_size)
+            local_params = local_params[:, :grid_size ** 2]
+            local_params_raw = local_params_raw[:, :grid_size ** 2]
+            local_params = local_params.reshape(batch_size, grid_size, grid_size)
+            local_params_raw = local_params_raw.reshape(batch_size, grid_size, grid_size)
+        return dict(global_params=global_params, local_params=local_params,
+                    local_params_raw=local_params_raw, data=data)
 
 
     def score_global_batch(self, theta_batch_norm, condition_norm=None):
@@ -187,7 +211,6 @@ class Prior:
         return
 
 
-
 class AR1GridProblem(Dataset):
     def __init__(self, n_data, prior, online_learning=False, amortize_time=False, max_number_of_obs=1):
         # Create model and dataset
@@ -200,12 +223,12 @@ class AR1GridProblem(Dataset):
 
         self.amortize_time = amortize_time
         self.max_number_of_time_points = 100
-        self.n_time_points = 10
+        self.n_time_points = N_TIME_POINTS
         if self.amortize_time and not self.online_learning:
             raise NotImplementedError
-        self.generate_data()
+        self._generate_data()
 
-    def generate_data(self):
+    def _generate_data(self):
         # Create model and dataset
         sim_dict = self.prior.sample(
             batch_size=self.n_data,
@@ -213,11 +236,11 @@ class AR1GridProblem(Dataset):
             n_time_points=self.n_time_points
         )
         self.thetas_global = self.prior.normalize_theta(sim_dict['global_params'], global_params=True)
-        self.thetas_local = self.prior.normalize_theta(sim_dict['local_params'], global_params=False)
+        self.thetas_local = self.prior.normalize_theta(sim_dict['local_params_raw'], global_params=False)
         self.xs = self.prior.normalize_data(sim_dict['data'])
 
         if self.max_number_of_obs == 1:
-            # squeeze obs-dimension for RNN
+            # squeeze obs-dimension
             self.xs = self.xs.squeeze(1)
         # add feature dimension for RNN
         self.xs = self.xs.unsqueeze(-1)
@@ -240,16 +263,21 @@ class AR1GridProblem(Dataset):
 
     def on_epoch_end(self):  # for online learning
         # Regenerate data at the end of each epoch
-        if self.online_learning:
-            self.generate_data()
+        if self.online_learning:  # todo: should only be called when on_batch_end does not generate new data
+            self._generate_data()
 
     def on_batch_end(self):
         # Called at the end of each batch
+        gen_data = False
         if self.max_number_of_obs > 1:
             # sample number of observations
             self.n_obs = np.random.choice([1, 5, 10, 20, 50, 100])
+            gen_data = True
         if self.amortize_time:
             self.n_time_points = np.random.randint(2, self.max_number_of_time_points + 1)
+            gen_data = True
+        if gen_data:
+            self._generate_data()
 
 
 stan_file = os.path.join('problems', 'ar1_grid.stan')

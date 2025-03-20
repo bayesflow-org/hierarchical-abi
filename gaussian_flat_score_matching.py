@@ -19,7 +19,7 @@ from diffusion_model import CompositionalScoreModel, SDE, train_score_model, ada
 from problems.gaussian_flat import GaussianProblem, Prior, generate_synthetic_data, \
     sample_posterior, analytical_posterior_mean_std, posterior_contraction
 #%%
-torch_device = torch.device("cuda")
+torch_device = torch.device("cpu")
 
 
 # get arguments
@@ -72,13 +72,12 @@ current_sde = SDE(
 score_model = CompositionalScoreModel(
     input_dim_theta_global=prior.n_params_global,
     input_dim_x=prior.D,
-    hidden_dim=64,
-    n_blocks=3,
+    hidden_dim=128,
+    n_blocks=5,
     max_number_of_obs=max_number_of_obs,
     prediction_type=['score', 'e', 'x', 'v'][3],
     sde=current_sde,
-    time_embed_dim=16,
-    use_film=False,
+    time_embed_dim=32,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
     name_prefix=f'model{model_id}_'
@@ -97,8 +96,8 @@ if not os.path.exists(f"plots/{score_model.name}"):
 
     # plot loss history
     plt.figure(figsize=(6, 3), tight_layout=True)
-    plt.plot(loss_history[:, 0], label='Mean Train')
-    plt.plot(loss_history[:, 1], label='Mean Valid')
+    plt.plot(loss_history[:, 0], label='Train')
+    plt.plot(loss_history[:, 1], label='Valid')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.legend()
@@ -120,41 +119,10 @@ score_model.eval()
 # - we show how mini batching effects the posterior
 # 
 # Metrics:
-# - MMD between true and estimated posterior samples
+# - KL Divergence between true and estimated posterior samples
 # - RMSE between the medians of true and estimated posterior samples
 # - Posterior contraction: (1 - var_empirical_posterior / var_prior) / (1 - var_true_posterior / var_prior), and using the mean variances over all parameters
 #%%
-def gaussian_kernel(x, y, sigma):
-    """Compute Gaussian kernel between two sets of samples."""
-    x = np.atleast_2d(x)
-    y = np.atleast_2d(y)
-    sq_dists = np.sum((x[:, None, :] - y[None, :, :]) ** 2, axis=2)
-    return np.exp(-sq_dists / (2 * sigma ** 2))
-
-def compute_mmd(x, y, sigma=1.0):
-    """
-    Compute the Maximum Mean Discrepancy (MMD) between two sets of samples.
-
-    Args:
-        x (np.ndarray): Samples from distribution P, shape (n, d).
-        y (np.ndarray): Samples from distribution Q, shape (m, d).
-        sigma (float): Bandwidth for the Gaussian kernel.
-
-    Returns:
-        float: Estimated MMD^2 value.
-    """
-    x = np.asarray(x)
-    y = np.asarray(y)
-
-    # Compute kernel matrices
-    K_xx = gaussian_kernel(x, x, sigma)
-    K_yy = gaussian_kernel(y, y, sigma)
-    K_xy = gaussian_kernel(x, y, sigma)
-
-    # Compute MMD^2
-    mmd_squared = (np.mean(K_xx) + np.mean(K_yy) - 2 * np.mean(K_xy))
-    return mmd_squared
-
 
 def kl_divergence(x, samples_q):
     try:
@@ -241,21 +209,30 @@ for n in data_sizes:
     # Iterate over experimental setting
     for mb, nc, cs, d_factor in itertools.product(mini_batch, n_conditions, cosine_shifts, d_factors):
         # Skip mini-batch settings that are larger than or equal to the data size.
-        if mb is not None and mb > n:
+        if mb is not None and mb >= n:
             continue
-        if mb == n:
-            mb = None
         if nc > n:
             continue
 
+        skip = False
         for max_reached in reached_max_evals:
-            if max_reached[1] == nc and max_reached[2] == cs and max_reached[3] == d_factor:
-                # for this condition, if a lower mini batch size already failed we can skip that as well
-                if max_reached[0] is None or mb is None:
-                    pass
-                elif max_reached[0] <= mb:
-                    print(f'smaller mini batch size already failed, skipping {nc}, {cs}')
-                    continue
+            if max_reached[0] <= n:  # check if for a smaller data size we already failed
+                if max_reached[2] == nc and max_reached[3] == cs and max_reached[4] == d_factor:
+                    # all conditions are the same, only mini batch size is different
+                    if max_reached[1] is None:
+                        pass
+                    elif mb is None or max_reached[1] < mb:
+                        print(f'smaller mini batch size already failed, skipping {nc}, {cs}')
+                        skip = True
+                        break
+                elif max_reached[2] == nc and max_reached[3] == cs and max_reached[4] < d_factor:
+                    # all conditions are the same (assuming mini-batching does not change)
+                    # check if smaller damping factor already failed
+                    print(f'smaller damping factor already failed, skipping {nc}, {cs}')
+                    skip = True
+                    break
+        if skip:
+            continue
 
         print(f"Data Size: {n}, Mini Batch: {mb}, Conditions: {nc}, Cosine shift: {cs}, Damping Factor: {d_factor}")
         # Set current number of conditions
@@ -305,7 +282,6 @@ for n in data_sizes:
                                                   sigma=prior.simulator.scale, n_samples=n_post_samples) for x in test_data], axis=0)
 
         # Compute metrics.
-        mmd = [compute_mmd(test_samples[i], true_samples[i]) for i in range(n_samples_data)]
         if test_samples.shape[1] > 1:
             kl = [kl_divergence(test_data[i], test_samples[i]) for i in range(n_samples_data)]
         else:
@@ -321,12 +297,12 @@ for n in data_sizes:
         # Number of steps
         if np.isnan(test_samples).any():
             n_steps = np.inf
-            reached_max_evals.append((mb, nc, cs, d_factor))
+            reached_max_evals.append((n, mb, nc, cs, d_factor))
         else:
             n_steps = np.mean([len(ls) for ls in list_steps])
             if n_steps >= max_steps:
-                # no need to check larger mini batches, will also fail to converge
-                reached_max_evals.append((mb, nc, cs, d_factor))
+                # others will also fail to converge
+                reached_max_evals.append((n, mb, nc, cs, d_factor))
 
         # Print current metrics.
         print(f"KL: {np.mean(kl)}, #Steps: {n_steps}")
@@ -342,7 +318,6 @@ for n in data_sizes:
                 'cosine_shift': cs,
                 "n_steps": n_steps,
                 "list_steps": np.where(np.isnan(list_steps[0]), None, list_steps[0]).tolist(),  # only for the first sample
-                "mmd": mmd[i],
                 "kl": kl[i],
                 "median": np.median(test_samples, axis=1)[i],
                 "median_rmse": rmse,

@@ -27,20 +27,22 @@ class Simulator:
         F_dec_conv = np.stack(sims)
         return dict(observable=F_dec_conv)
 
-    def sample_augmented_noise(self):
+    def _sample_augmented_noise(self):
         i = np.random.choice(self.noise.shape[0])
         j = np.random.choice(self.noise.shape[1])
 
         # augment noise, can be forward or backward
-        if np.random.rand() > 0.5:
+        if np.random.rand() > 0.8:
             noise = self.noise[i, j]
         else:
-            noise = self.noise[i, j, ::-1]
+            arr = np.arange(self.noise.shape[2])
+            np.random.shuffle(arr)
+            noise = self.noise[i, j, arr]
         return noise
 
     def decay_gen_single(self, tau_L, tau_L_2, A_L):
         img = np.random.randint(0, high=1000, size=(1, 1))
-        cropped_pIRF = self.random_crop(self.pIRF, crop_size=(1, 1))
+        cropped_pIRF = self._random_crop(self.pIRF, crop_size=(1, 1))
 
         a1, b1, c1 = np.shape(cropped_pIRF)
         t = np.linspace(0, c1 * (self.gw * (10 ** -3)), c1)
@@ -49,14 +51,14 @@ class Simulator:
         A = np.multiply(A_L, np.exp(np.divide(t_minus, tau_L)))
         B = np.multiply(frac2, np.exp(np.divide(t_minus, tau_L_2)))
         dec = A + B
-        irf_out = self.norm1D(cropped_pIRF[0,0])
-        dec_conv = self.conv_dec(self.norm1D(dec), irf_out)
-        dec_conv = self.norm1D(np.squeeze(dec_conv)) * img
-        dec_conv += self.sample_augmented_noise()
+        irf_out = self._norm1D(cropped_pIRF[0,0])
+        dec_conv = self._conv_dec(self._norm1D(dec), irf_out)
+        dec_conv = self._norm1D(np.squeeze(dec_conv)) * img
+        dec_conv += self._sample_augmented_noise()
         return dec_conv
 
     @staticmethod
-    def random_crop(array, crop_size):
+    def _random_crop(array, crop_size):
         A, B, C = array.shape
         a, b = crop_size
 
@@ -96,15 +98,15 @@ class Simulator:
                 if tau2[i, j] != 0:
                     B[i, j, :] = np.multiply(frac2[i, j], np.exp(np.divide(t_minus, tau2[i, j])))
                 dec[i, j, :] = A[i, j, :] + B[i, j, :]
-                irf_out[i, j, :] = self.norm1D(self.pIRF[i, j, :])
-                dec_conv[i, j, :] = self.conv_dec(self.norm1D(np.squeeze(dec[i, j, :])), np.squeeze(irf_out[i, j, :]))
-                dec_conv[i, j, :] = self.norm1D(np.squeeze(dec_conv[i, j, :])) * img[i, j]
+                irf_out[i, j, :] = self._norm1D(self.pIRF[i, j, :])
+                dec_conv[i, j, :] = self._conv_dec(self._norm1D(np.squeeze(dec[i, j, :])), np.squeeze(irf_out[i, j, :]))
+                dec_conv[i, j, :] = self._norm1D(np.squeeze(dec_conv[i, j, :])) * img[i, j]
                 dec_conv[i, j, :] += self.noise[i, j, :]
-                #dec_conv[i, j, :] += self.sample_augmented_noise()
+                #dec_conv[i, j, :] += self._sample_augmented_noise()
         return dec_conv
 
     @staticmethod
-    def norm1D(fn):
+    def _norm1D(fn):
         if np.amax(fn) == 0:
             nfn = fn
         else:
@@ -112,13 +114,16 @@ class Simulator:
         return nfn
 
     @staticmethod
-    def conv_dec(dec, irf):
+    def _conv_dec(dec, irf):
         conv = np.convolve(dec, irf)
         conv = conv[:len(dec)]
         return conv
 
 
 class FLI_Prior:
+    """
+    Prior parameters for the FLI problem. All hyper-priors are log-normal.
+    """
     def __init__(self):
         self.tau1_mean_hyperprior_mean = np.log(0.2)
         self.tau1_mean_hyperprior_std = 0.7
@@ -159,7 +164,7 @@ class FLI_Prior:
             dtype=torch.float32
         )
 
-        self.sample_global()
+        self._sample_global()
         self.n_params_global = 6
         self.n_params_local = 3
 
@@ -178,12 +183,13 @@ class FLI_Prior:
 
     @staticmethod
     def get_local_param_names(n_local_samples):
-        return np.concatenate([[r'$\log \tau_1^{L' + str(i) + '}$',
-                                r'$\log \Delta\tau_2^{L' + str(i) + '}$',
-                                r'$\log a^{L' + str(i) + '}$'] for i in range(n_local_samples)])
+        names = [[r'$\log \tau_1^{L' + str(i) + '}$',
+                  r'$\log \Delta\tau_2^{L' + str(i) + '}$',
+                  r'$\log a^{L' + str(i) + '}$'] for i in range(n_local_samples)]
+        return np.concatenate(names)
 
 
-    def sample_global(self):
+    def _sample_global(self):
         self.log_tau_G = np.random.normal(self.tau1_mean_hyperprior_mean, self.tau1_mean_hyperprior_std)
         self.log_sigma_tau_G = np.random.normal(self.tau1_std_hyperprior_mean, self.tau1_std_hyperprior_std)
 
@@ -192,50 +198,72 @@ class FLI_Prior:
 
         self.a_mean = np.random.normal(self.a_mean_hyperprior_mean, self.a_mean_hyperprior_std)
         self.a_log_std = np.random.normal(self.a_std_hyperprior_mean, self.a_std_hyperprior_std)
-        self.A_mean = expit(self.a_mean)
 
+        # transform parameters
+        tau_G, tau_G_2, A_G, tau_G_std, tau_G_2_std, A_G_std = self.transform_raw_params(
+            self.log_tau_G, self.log_delta_tau_G, self.a_mean,
+            self.log_sigma_tau_G, self.log_delta_sigma_tau_G, self.a_log_std
+        )
         return dict(log_tau_G=self.log_tau_G, log_sigma_tau_G=self.log_sigma_tau_G,
                     log_delta_tau_G=self.log_delta_tau_G, log_delta_sigma_tau_G=self.log_delta_sigma_tau_G,
-                    a_mean=self.a_mean, a_log_std=self.a_log_std, A_mean=self.A_mean)
+                    a_mean=self.a_mean, a_log_std=self.a_log_std,
+                    tau_G=tau_G, tau_G_2=tau_G_2, A_G=A_G, tau_G_std=tau_G_std, tau_G_2_std=tau_G_2_std, A_G_std=A_G_std)
 
-    def get_local_variances(self):
-        var_tau_L = np.exp(2 * self.log_tau_G + np.exp(self.log_sigma_tau_G)**2) * (np.exp(np.exp(self.log_sigma_tau_G)**2) - 1)
-        var_delta = np.exp(2 * self.log_delta_tau_G + np.exp(self.log_delta_sigma_tau_G)**2) * (np.exp(np.exp(self.log_delta_sigma_tau_G)**2) - 1)
-        tau_L1_std = np.sqrt(var_tau_L)
-        tau_L2_std = np.sqrt(var_tau_L + var_delta)
-        return dict(tau_L1_std=tau_L1_std, tau_L2_std=tau_L2_std)
-
-    def sample_local(self, n_local_samples):
+    def _sample_local(self, n_local_samples):
         log_tau_L = np.random.normal(self.log_tau_G, np.exp(self.log_sigma_tau_G), size=n_local_samples)
         log_delta_tau_L = np.random.normal(self.log_delta_tau_G, np.exp(self.log_delta_sigma_tau_G), size=n_local_samples)
         a_l = np.random.normal(self.a_mean, np.exp(self.a_log_std), size=n_local_samples)
 
-        tau_L = np.exp(log_tau_L)
-        tau_L_2 = tau_L + np.exp(log_delta_tau_L)
-        A_L = expit(a_l)
-        return dict(tau_L=tau_L, tau_L_2=tau_L_2, A_L=A_L,
-                    log_tau_L=log_tau_L, log_delta_tau_L=log_delta_tau_L, a_l=a_l)
+        # transform parameters
+        tau_L, tau_L_2, A_L = self.transform_raw_params(log_tau_L, log_delta_tau_L, a_l)
+        return dict(log_tau_L=log_tau_L, log_delta_tau_L=log_delta_tau_L, a_l=a_l,
+                    tau_L=tau_L, tau_L_2=tau_L_2, A_L=A_L)
+
+    @staticmethod
+    def transform_raw_params(log_tau, log_delta_tau, a, log_tau_std=None, log_delta_tau_std=None, log_a_std=None):
+        tau = np.exp(log_tau)
+        tau_2 = tau + np.exp(log_delta_tau)
+        A = expit(a)
+
+        if log_tau_std is not None and log_delta_tau is not None and log_a_std is not None:
+            tau_std = tau * np.exp(log_tau_std)
+            tau_2_std = np.sqrt((tau * np.exp(log_tau_std))**2 + (np.exp(log_delta_tau) * np.exp(log_delta_tau_std))**2)
+            A_std = A * (1 - A) * np.exp(log_a_std)
+            return tau, tau_2, A, tau_std, tau_2_std, A_std
+        return tau, tau_2, A
 
     def __call__(self, batch_size):
         return self.sample_single(batch_size)
 
-    def sample_single(self, batch_size, n_local_samples=1):
+    def sample_single(self, batch_size, n_local_samples=1, transform_params=False):
+        """
+        Sample a batch of data. The number of local samples can be specified. The data is returned as a dictionary.
+        IRF and noise are randomly sampled for each pixel.
+        """
         global_params = np.zeros((batch_size, self.n_params_global))
         local_params = np.zeros((batch_size, n_local_samples, self.n_params_local))
         data = np.zeros((batch_size, n_local_samples, self.n_time_points))
 
         for i in range(batch_size):
-            global_sample = self.sample_global()
-            local_sample = self.sample_local(n_local_samples=n_local_samples)
+            global_sample = self._sample_global()
+            local_sample = self._sample_local(n_local_samples=n_local_samples)
             sim = self.simulator(local_sample)
 
-            global_params[i] = [global_sample['log_tau_G'], global_sample['log_sigma_tau_G'],
-                                global_sample['log_delta_tau_G'], global_sample['log_delta_sigma_tau_G'],
-                                global_sample['a_mean'], global_sample['a_log_std']]
+            if not transform_params:
+                global_params[i] = [global_sample['log_tau_G'], global_sample['log_sigma_tau_G'],
+                                    global_sample['log_delta_tau_G'], global_sample['log_delta_sigma_tau_G'],
+                                    global_sample['a_mean'], global_sample['a_log_std']]
 
-            local_params[i] = np.stack((local_sample['log_tau_L'],
-                                              local_sample['log_delta_tau_L'],
-                                              local_sample['a_l']), axis=-1)
+                local_params[i] = np.stack((local_sample['log_tau_L'],
+                                                  local_sample['log_delta_tau_L'],
+                                                  local_sample['a_l']), axis=-1)
+            else:
+                global_params[i] = [global_sample['tau_G'], global_sample['tau_G_std'],
+                                    global_sample['tau_G_2'], global_sample['tau_G_2_std'],
+                                    global_sample['A_G'], global_sample['A_G_std']]
+                local_params[i] = np.stack((local_sample['tau_L'],
+                                            local_sample['tau_L_2'],
+                                            local_sample['A_L']), axis=-1)
             data[i] = sim['observable'].reshape(n_local_samples, self.n_time_points)
 
         if not np.isfinite(global_params).all():
@@ -245,6 +273,10 @@ class FLI_Prior:
         return dict(global_params=global_params, local_params=local_params, data=data)
 
     def sample_full(self, batch_size):
+        """
+        Sample a batch of data. The data is returned as a dictionary.
+        IRF and noise are NOT randomly sampled for each pixel, and image size if fixed for more realistic data.
+        """
         n_local_samples = self.simulator.img_size_full.shape[0] * self.simulator.img_size_full.shape[1]
 
         global_params = np.zeros((batch_size, self.n_params_global))
@@ -252,8 +284,8 @@ class FLI_Prior:
         data = np.zeros((batch_size, n_local_samples, self.n_time_points))
 
         for i in range(batch_size):
-            global_sample = self.sample_global()
-            local_sample = self.sample_local(n_local_samples=n_local_samples)
+            global_sample = self._sample_global()
+            local_sample = self._sample_local(n_local_samples=n_local_samples)
             sim = self.simulator.decay_gen_full(
                 tau_L=local_sample['tau_L'],
                 tau_L_2=local_sample['tau_L_2'],
@@ -325,9 +357,9 @@ class FLI_Prior:
             self.current_device = device
         return
 
+
 def generate_synthetic_data(prior, n_data, n_local_samples=1, normalize=False,
-                            as_grid=False,
-                            random_seed=None):
+                            as_grid=False, transform_params=False, random_seed=None):
     """Generate synthetic data for the hierarchical model.
 
     Parameters:
@@ -336,12 +368,13 @@ def generate_synthetic_data(prior, n_data, n_local_samples=1, normalize=False,
         n_local_samples (int): Number of pixels in the grid for each sample.
         normalize (bool): Whether to normalize the data.
         as_grid (bool): Whether to return the data as a grid.
+        transform_params (bool): Whether to transform the parameters.
         random_seed (int): Random seed for reproducibility.
     """
     if random_seed is not None:
         np.random.seed(random_seed)
 
-    sample_dict = prior.sample_single(n_data, n_local_samples=n_local_samples)
+    sample_dict = prior.sample_single(n_data, n_local_samples=n_local_samples, transform_params=transform_params)
     param_global = torch.tensor(sample_dict['global_params'], dtype=torch.float32)
     param_local = torch.tensor(sample_dict['local_params'], dtype=torch.float32)
     data = torch.tensor(sample_dict['data'], dtype=torch.float32)
@@ -363,54 +396,55 @@ def generate_synthetic_data(prior, n_data, n_local_samples=1, normalize=False,
 class FLIProblem(Dataset):
     def __init__(self, n_data, prior, online_learning=False, max_number_of_obs=1):
         # Create model and dataset
-        self.prior = prior
-        self.n_data = n_data
-        self.max_number_of_obs = max_number_of_obs
-        self.n_obs = self.max_number_of_obs  # this can change for each batch
-        self.online_learning = online_learning
-        self.generate_data()
+        self._prior = prior
+        self._n_data = n_data
+        self._max_number_of_obs = max_number_of_obs
+        self._n_obs = self._max_number_of_obs  # this can change for each batch if max_number_of_obs > 1
+        self._online_learning = online_learning
+        self._generate_data()
 
-    def generate_data(self):
+    def _generate_data(self):
         # Create model and dataset
-        self.thetas_global, self.thetas_local, self.xs = generate_synthetic_data(
-            self.prior,
-            n_local_samples=self.n_obs,
-            n_samples=self.n_data, normalize=True
+        self._thetas_global, self._thetas_local, self._xs = generate_synthetic_data(
+            self._prior,
+            n_local_samples=self._max_number_of_obs,
+            n_data=self._n_data, normalize=True, transform_params=False,
         )
-        if self.max_number_of_obs == 1:
-            # squeeze obs-dimension for RNN
-            self.xs = self.xs.squeeze(1)
+        if self._max_number_of_obs == 1:
+            # squeeze obs-dimension
+            self._xs = self._xs.squeeze(1)
+            self._thetas_local = self._thetas_local.squeeze(1)
         # add feature dimension for RNN
-        self.xs = self.xs.unsqueeze(-1)
+        self._xs = self._xs.unsqueeze(-1)
         # generate noise
-        self.epsilon_global = torch.randn_like(self.thetas_global, dtype=torch.float32)
-        self.epsilon_local = torch.randn_like(self.thetas_local, dtype=torch.float32)
+        self._epsilon_global = torch.randn_like(self._thetas_global, dtype=torch.float32)
+        self._epsilon_local = torch.randn_like(self._thetas_local, dtype=torch.float32)
 
     def __len__(self):
         # this should return the size of the dataset
-        return len(self.thetas_global)
+        return len(self._thetas_global)
 
     def __getitem__(self, idx):
         # this should return one sample from the dataset
-        features_global = self.thetas_global[idx]
-        if self.max_number_of_obs > 1:
-            features_local = self.thetas_local[idx, :self.n_obs]
-            target = self.xs[idx, :self.n_obs]
+        features_global = self._thetas_global[idx]
+        if self._max_number_of_obs > 1:
+            features_local = self._thetas_local[idx, :self._n_obs]
+            target = self._xs[idx, :self._n_obs]
         else:
-            features_local = self.thetas_local[idx]
-            target = self.xs[idx]
-        noise_global = self.epsilon_global[idx]
-        noise_local = self.epsilon_local[idx]
+            features_local = self._thetas_local[idx]
+            target = self._xs[idx]
+        noise_global = self._epsilon_global[idx]
+        noise_local = self._epsilon_local[idx]
         return features_global, noise_global, features_local, noise_local, target
 
     def on_epoch_end(self):  # for online learning
         # Regenerate data at the end of each epoch
-        if self.online_learning:
-            self.generate_data()
+        if self._online_learning:
+            self._generate_data()
 
     def on_batch_end(self):
         # Called at the end of each batch
-        if self.max_number_of_obs > 1:
+        if self._max_number_of_obs > 1:
             # sample number of observations
-            self.n_obs = np.random.choice([1, 5, 10, 20, 50, 100])
+            self._n_obs = np.random.choice([1, 5, 10, 20, 50, 100])
 

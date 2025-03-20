@@ -1,216 +1,9 @@
-import numpy as np
 import torch
 import torch.nn as nn
 
 from diffusion_model.helper_functions import sech
-
-
-class GaussianFourierProjection(nn.Module):
-    """Gaussian random features for encoding time steps."""
-    def __init__(self, embed_dim, init_scale=30.):
-        super().__init__()
-        # Randomly sample weights during initialization. These weights are fixed
-        # during optimization and are not trainable.
-        self.register_buffer('W', torch.randn(embed_dim // 2) * 2 * np.pi)
-        self.scale = nn.Parameter(torch.tensor(init_scale), requires_grad=True)
-
-    def forward(self, x):
-        x_proj = x * self.W * self.scale
-        return torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
-
-
-# Define the Residual Block
-class ResidualBlock(nn.Module):
-    def __init__(self, in_dim, out_dim, dropout_rate, use_spectral_norm):
-        """
-        Args:
-            in_dim (int): Dimensionality of the input hidden state.
-            out_dim (int): Desired dimensionality of the output.
-            dropout_rate (float): Dropout rate.
-            use_spectral_norm (bool): Whether to apply spectral normalization.
-        """
-        super(ResidualBlock, self).__init__()
-
-        # First linear layer: from [in_dim] -> out_dim
-        self.fc1 = nn.Linear(in_dim, out_dim)
-        self.norm1 = nn.LayerNorm(out_dim)
-
-        # Second linear layer: from [out_dim] -> out_dim
-        self.fc2 = nn.Linear(out_dim, out_dim)
-        self.norm2 = nn.LayerNorm(out_dim)
-
-        self.activation = nn.SiLU()  # SiLU is equivalent to swish
-        self.dropout = nn.Dropout(dropout_rate)
-
-        # If input and output dims differ, project h for the skip connection.
-        if in_dim != out_dim:
-            self.skip = nn.Linear(in_dim, out_dim)
-        else:
-            self.skip = None
-
-        # Apply spectral normalization if specified.
-        if use_spectral_norm:
-            self.fc1 = nn.utils.parametrizations.spectral_norm(self.fc1)
-            self.fc2 = nn.utils.parametrizations.spectral_norm(self.fc2)
-            if self.skip is not None:
-                self.skip = nn.utils.parametrizations.spectral_norm(self.skip)
-
-    def forward(self, x):
-        # x: [batch_size, in_dim]
-
-        # First transformation with conditioning
-        out = self.fc1(x)
-        out = self.norm1(out)
-        out = self.activation(out)
-        out = self.dropout(out)
-
-        # Second transformation
-        out = self.fc2(out)
-        out = self.norm2(out)
-
-        # Apply skip connection: if dims differ, project h first.
-        skip = self.skip(x) if self.skip is not None else x
-
-        return self.activation(out + skip)
-
-
-class ConditionalResidualBlock(nn.Module):
-    def __init__(self, in_dim, out_dim, cond_dim, dropout_rate, use_spectral_norm):
-        """
-        Args:
-            in_dim (int): Dimensionality of the input hidden state.
-            out_dim (int): Desired dimensionality of the output.
-            cond_dim (int): Dimensionality of the conditioning vector.
-            dropout_rate (float): Dropout rate.
-            use_spectral_norm (bool): Whether to apply spectral normalization.
-        """
-        super(ConditionalResidualBlock, self).__init__()
-
-        # First linear layer: from [in_dim; cond_dim] -> out_dim
-        self.fc1 = nn.Linear(in_dim + cond_dim, out_dim)
-        self.norm1 = nn.LayerNorm(out_dim)
-
-        # Second linear layer: from [out_dim; cond_dim] -> out_dim
-        self.fc2 = nn.Linear(out_dim + cond_dim, out_dim)
-        self.norm2 = nn.LayerNorm(out_dim)
-
-        self.activation = nn.SiLU()  # SiLU is equivalent to swish
-        self.dropout = nn.Dropout(dropout_rate)
-
-        # If input and output dims differ, project h for the skip connection.
-        if in_dim != out_dim:
-            self.skip = nn.Linear(in_dim, out_dim)
-        else:
-            self.skip = None
-
-        # Zero-initialize fc2 so that its output is zero at initialization.
-        nn.init.zeros_(self.fc2.weight)
-        nn.init.zeros_(self.fc2.bias)
-
-        # Apply spectral normalization if specified.
-        if use_spectral_norm:
-            self.fc1 = nn.utils.parametrizations.spectral_norm(self.fc1)
-            self.fc2 = nn.utils.parametrizations.spectral_norm(self.fc2)
-            if self.skip is not None:
-                self.skip = nn.utils.parametrizations.spectral_norm(self.skip)
-
-    def forward(self, h, cond):
-        # h: [batch_size, in_dim]
-        # cond: [batch_size, cond_dim]
-
-        # First transformation with conditioning
-        x = torch.cat([h, cond], dim=-1)  # [batch_size, in_dim + cond_dim]
-        out = self.fc1(x)
-        out = self.norm1(out)
-        out = self.activation(out)
-        out = self.dropout(out)
-
-        # Second transformation with conditioning injected again
-        out = self.fc2(torch.cat([out, cond], dim=-1))
-        out = self.norm2(out)
-
-        # Apply skip connection: if dims differ, project h first.
-        skip = self.skip(h) if self.skip is not None else h
-
-        return self.activation(out + skip)
-
-class FiLMResidualBlock(nn.Module):
-    def __init__(self, in_dim, out_dim, cond_dim, dropout_rate, use_spectral_norm):
-        super().__init__()
-        self.fc = nn.Linear(in_dim, out_dim)
-        self.film_gamma = nn.Linear(cond_dim, out_dim)
-        self.film_beta = nn.Linear(cond_dim, out_dim)
-        self.activation = nn.SiLU()
-        self.dropout = nn.Dropout(dropout_rate)
-        if in_dim != out_dim:
-            self.skip = nn.Linear(in_dim, out_dim)
-        else:
-            self.skip = nn.Identity()
-        self.norm = nn.LayerNorm(out_dim)
-
-        # Zero-initialize the fc and film_beta layers so that:
-        #   self.fc(h) -> 0, and self.film_beta(cond) -> 0.
-        nn.init.zeros_(self.fc.weight)
-        nn.init.zeros_(self.fc.bias)
-        nn.init.zeros_(self.film_beta.weight)
-        nn.init.zeros_(self.film_beta.bias)
-
-        # Apply spectral normalization if specified.
-        if use_spectral_norm:
-            self.fc = nn.utils.parametrizations.spectral_norm(self.fc)
-            if in_dim != out_dim:
-                self.skip = nn.utils.parametrizations.spectral_norm(self.skip)
-
-    def forward(self, h, cond):
-        # h: [batch, in_dim], cond: [batch, cond_dim]
-        x = self.fc(h)
-        # Compute modulation parameters
-        gamma = self.film_gamma(cond)
-        beta = self.film_beta(cond)
-        # Apply FiLM modulation
-        x = gamma * x + beta
-        x = self.activation(x)
-        x = self.dropout(x)
-        x = self.norm(x)
-        return self.activation(x + self.skip(h))
-
-
-class TimeDistributedGRU(nn.Module):
-    def __init__(self, module):
-        super(TimeDistributedGRU, self).__init__()
-        self.module = module
-        # check if module is GRU
-        if isinstance(module, nn.GRU):
-            pass
-        else:
-            raise ValueError("Module must be an instance of nn.GRU")
-
-    def forward(self, x):
-        # Assume input x is of shape (batch_size, n_obs, n_time_steps, n_features)
-        batch_size, n_obs, n_time_steps, n_features = x.size(0), x.size(1), x.size(2), x.size(3)
-        # Merge batch and time dimensions
-        x_reshaped = x.contiguous().view(batch_size * n_obs, n_time_steps, n_features)
-        # Apply the module
-        _, y = self.module(x_reshaped)
-        # Reshape back to (n_rnn_layers, batch_size, n_obs, hidden_dim)
-        y = y.contiguous().view(y.shape[0], batch_size, n_obs, y.shape[2])
-        return None, y  # to match output of GRU
-
-class TimeDistributedDense(nn.Module):
-    def __init__(self, module):
-        super(TimeDistributedDense, self).__init__()
-        self.module = module
-
-    def forward(self, x):
-        # Assume input x is of shape (batch_size, n_obs, n_features)
-        batch_size, n_obs, n_features = x.size(0), x.size(1), x.size(2)
-        # Merge batch and time dimensions
-        x_reshaped = x.contiguous().view(batch_size * n_obs, n_features)
-        # Apply the module
-        y = self.module(x_reshaped)
-        # Reshape back to (batch_size, n_obs, hidden_dim)
-        y = y.contiguous().view(batch_size, n_obs, y.shape[1])
-        return y
+from diffusion_model.helper_networks import (MLP, FiLMResidualBlock,
+                                             GaussianFourierProjection, TimeDistributedDense, TimeDistributedLSTM)
 
 
 class ScoreModel(nn.Module):
@@ -240,48 +33,49 @@ class ScoreModel(nn.Module):
             raise ValueError("Invalid prediction type. Must be one of 'score', 'e', 'x', or 'v'.")
         self.prediction_type = prediction_type
         self.sde = sde
+        self.use_film = use_film
 
         # Gaussian random feature embedding layer for time
         self.embed = nn.Sequential(
             GaussianFourierProjection(embed_dim=time_embed_dim),
             nn.Linear(time_embed_dim, time_embed_dim),
-            nn.SiLU()
+            nn.Mish()
         )
 
         # Define the dimension of the conditioning vector
         cond_dim = input_dim_x + input_dim_condition + time_embed_dim
-        self.cond_dim = cond_dim
 
         # Project the concatenation of theta and the condition into hidden_dim
-        self.input_layer = nn.Linear(input_dim_theta, hidden_dim)
+        self.input_layer = nn.Linear(input_dim_theta, hidden_dim // 2)
 
         if input_dim_condition > 0:
             self.cond_layer = nn.Linear(input_dim_condition, input_dim_theta)
 
-        # Create a sequence of conditional residual blocks
-        if not use_film:
-            self.blocks = nn.ModuleList([
-                ConditionalResidualBlock(in_dim=hidden_dim, out_dim=hidden_dim if b < n_blocks - 1 else input_dim_theta,
-                                         cond_dim=cond_dim, dropout_rate=dropout_rate, use_spectral_norm=use_spectral_norm)
-                for b in range(n_blocks)
-            ])
+        if not self.use_film:
+            # Create a sequence of residual blocks
+            self.blocks = MLP(
+                input_shape=hidden_dim//2+cond_dim,
+                widths=[hidden_dim]*n_blocks,
+                dropout=dropout_rate,
+                spectral_normalization=use_spectral_norm
+            )
         else:
             # Create a series of FiLM-residual blocks
             self.blocks = nn.ModuleList([
-                FiLMResidualBlock(in_dim=hidden_dim, out_dim=hidden_dim if b < n_blocks - 1 else input_dim_theta,
+                FiLMResidualBlock(in_dim=hidden_dim // 2 if b == 0 else hidden_dim,
+                                  out_dim=hidden_dim,
                                   cond_dim=cond_dim, dropout_rate=dropout_rate, use_spectral_norm=use_spectral_norm)
                 for b in range(n_blocks)
             ])
 
         # Final layer to get back to the theta dimension
-        self.final_linear = nn.Linear(input_dim_theta, input_dim_theta)
+        self.final_linear = nn.Linear(hidden_dim, input_dim_theta)
         if use_spectral_norm:
             # initialize weights close zero since we want to predict the noise (otherwise in conflict with the spectral norm)
             nn.init.xavier_uniform_(self.final_linear.weight, gain=1e-3)
         else:
-             # initialize weights to identify
-            #nn.init.zeros_(self.final_linear.weight)
-            nn.init.eye_(self.final_linear.weight)
+             # initialize weights to zero
+            nn.init.zeros_(self.final_linear.weight)
         nn.init.zeros_(self.final_linear.bias)
 
         # Apply spectral normalization
@@ -318,20 +112,22 @@ class ScoreModel(nn.Module):
         # initial input
         h = self.input_layer(theta)
 
-        # Pass through each block, injecting the same cond at each layer
-        for block in self.blocks:
-            h = block(h, cond)
+        if self.use_film:
+            # Pass through each block, injecting the same cond at each layer
+            for block in self.blocks:
+                h = block(h, cond)
+        else:
+            # Pass through each block, concatenating the cond at the beginning
+            h_cond = torch.cat([h, cond], dim=-1)
+            h = self.blocks(h_cond)
 
         # If conditions are provided, compute an update from them
         if skip is None:
             update = self.cond_layer(conditions)
-            h = h + update
+            theta_emb = self.final_linear(h) + update
         else:
             # Add a skip connection from the input projection
-            h = h + skip
-
-        # Final linear layer to get back to the theta dimension
-        theta_emb = self.final_linear(h)
+            theta_emb = self.final_linear(h) + skip
 
         if pred_score:
             return self.convert_to_score(pred=theta_emb, z=theta, log_snr=log_snr, clip_x=clip_x)
@@ -387,14 +183,14 @@ class HierarchicalScoreModel(nn.Module):
             weighting_type (str, optional): Type of weighting to use. Default is None.
             time_embed_dim (int, optional): Dimension of time embedding. Default is 16.
             use_film (bool, optional): Whether to use FiLM-residual blocks. Default is False.
-            dropout_rate (float, optional): Dropout rate. Default is 0.1.
+            dropout_rate (float, optional): Dropout rate. Default is 0.05.
             use_spectral_norm (bool, optional): Whether to use spectral normalization. Default is False.
             name_prefix (str, optional): Prefix for the name of the model. Default is ''.
     """
     def __init__(self,
                  input_dim_theta_global, input_dim_theta_local, input_dim_x,
                  hidden_dim, n_blocks, sde, prior, max_number_of_obs=1, prediction_type='v', weighting_type=None,
-                 time_embed_dim=16, use_film=False, dropout_rate=0.1, use_spectral_norm=False, name_prefix=''):
+                 time_embed_dim=16, use_film=False, dropout_rate=0.05, use_spectral_norm=False, name_prefix=''):
         super(HierarchicalScoreModel, self).__init__()
         self.prediction_type = prediction_type
         self.sde = sde
@@ -405,14 +201,14 @@ class HierarchicalScoreModel(nn.Module):
         self.name = (f'{name_prefix}hierarchical_score_model_{prediction_type}_{sde.kernel_type}_{sde.noise_schedule}'
                      f'_{weighting_type}{"_factorized"+str(max_number_of_obs) if max_number_of_obs > 1 else ""}')
 
-        self.summary_net = nn.GRU(
+        self.summary_net = nn.LSTM(
             input_size=input_dim_x,
             hidden_size=hidden_dim,
             num_layers=1,
             batch_first=True
         )
         if max_number_of_obs > 1:
-            self.summary_net = TimeDistributedGRU(self.summary_net)
+            self.summary_net = TimeDistributedLSTM(self.summary_net)
             input_dim_x_after_summary = hidden_dim * 2 + 1 # mean, std, n_obs
         else:
             input_dim_x_after_summary = hidden_dim
@@ -448,7 +244,7 @@ class HierarchicalScoreModel(nn.Module):
 
     def forward(self, theta_global, theta_local, time, x, pred_score, clip_x=False):  # __call__ method for the model
         """Forward pass through the global and local model. This usually only used, during training."""
-        _, x_emb = self.summary_net(x)
+        _, (x_emb, _) = self.summary_net(x)
         x_emb = x_emb[0]  # only one layer, not bidirectional
         if self.max_number_of_obs == 1:
             global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb,
@@ -496,7 +292,7 @@ class HierarchicalScoreModel(nn.Module):
 
     def forward_global(self, theta_global, time, x, pred_score, clip_x=False):
         """Forward pass through the global model. Usually we want the score, not the predicting task from training."""
-        _, x_emb = self.summary_net(x)
+        _, (x_emb, _) = self.summary_net(x)
         x_emb = x_emb[0]  # only one layer, not bidirectional
         if self.max_number_of_obs == 1:
             global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb,
@@ -545,14 +341,14 @@ class CompositionalScoreModel(nn.Module):
             weighting_type (str, optional): Type of weighting to use. Default is None.
             time_embed_dim (int, optional): Dimension of time embedding. Default is 16.
             use_film (bool, optional): Whether to use FiLM-residual blocks. Default is False.
-            dropout_rate (float, optional): Dropout rate. Default is 0.1.
+            dropout_rate (float, optional): Dropout rate. Default is 0.05.
             use_spectral_norm (bool, optional): Whether to use spectral normalization. Default is False.
             name_prefix (str, optional): Prefix for the name of the model. Default is ''.
     """
     def __init__(self,
                  input_dim_theta_global, input_dim_x,
                  hidden_dim, n_blocks, sde, prior, max_number_of_obs=1, prediction_type='v', weighting_type=None,
-                 time_embed_dim=16, use_film=False, dropout_rate=0.1, use_spectral_norm=False, name_prefix=''):
+                 time_embed_dim=16, use_film=False, dropout_rate=0.05, use_spectral_norm=False, name_prefix=''):
         super(CompositionalScoreModel, self).__init__()
         self.prediction_type = prediction_type
         self.sde = sde
@@ -565,7 +361,7 @@ class CompositionalScoreModel(nn.Module):
 
         self.summary_net = nn.Sequential(
             nn.Linear(input_dim_x, hidden_dim),
-            nn.SiLU()
+            nn.Mish()
         )
 
         if max_number_of_obs > 1:

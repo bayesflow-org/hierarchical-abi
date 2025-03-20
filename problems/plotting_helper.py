@@ -10,19 +10,19 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
     Parameters:
         sim_output (np.ndarray): Simulation trajectory output.
             For a single simulation, it can be either:
-              - 2D: shape (grid_size, n_time_points)
-              - 3D: shape (n_grid, n_grid, n_time_points)
+              - 2D: shape (n_time_points, grid_size)
+              - 3D: shape (n_time_points, n_grid, n_grid)
         title_prefix (str, list): Prefix for subplot titles.
         cmap (str): Colormap for imshow when visualizing 2D grid outputs.
         same_scale (bool): Whether to use the same color scale for all subplots.
     """
     if sim_output.ndim == 2:
         # (n_time_points, n_grid)
-        n_grid = int(np.sqrt(sim_output.shape[0]))
+        n_grid = int(np.sqrt(sim_output.shape[1]))
         sim_output = sim_output[:n_grid**2, :]
         sim_output = sim_output.reshape(n_grid, n_grid, -1)
     elif sim_output.ndim == 3:
-        n_grid = sim_output.shape[0]
+        n_grid = sim_output.shape[1]
         sim_output = sim_output.reshape(n_grid, n_grid, -1)
     else:
         raise ValueError("Simulation output must be 2D or 3D.")
@@ -66,14 +66,12 @@ def plot_shrinkage(global_samples, local_samples, ci=95, min_max=None):
     Plots the shrinkage of local estimates toward the global mean for each n_data.
 
     Parameters:
-      global_samples: np.ndarray of shape (n_data, n_samples, 3)
-                      The last dimension holds [alpha, global_mean, log_std].
+      global_samples: np.ndarray of shape (n_data, n_samples, 2)
+                      The last dimension holds [global_mean, log_std].
       local_samples:  np.ndarray of shape (n_data, n_samples, n_individuals, 1)
                       The last dimension holds the local parameter.
       ci:             Confidence interval percentage (default 95).
     """
-    if global_samples.shape[-1] == 3:
-        global_samples = global_samples[:, :, 1:]
     n_data, n_samples, _ = global_samples.shape
     n_individuals = local_samples.shape[2]
 

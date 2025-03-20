@@ -15,14 +15,14 @@ parameters {
 transformed parameters {
   // Non-centered parameterization
   real<lower=0> std_beta = exp(log_std_beta);
-  vector[N] beta = mu_beta + std_beta * beta_raw;
+  vector[N] beta = 2*inv_logit(mu_beta + std_beta * beta_raw) - 1;
 }
 
 model {
   // Priors for the global parameters:
   alpha ~ normal(0, 1);
   mu_beta ~ normal(0, 1);
-  log_std_beta ~ normal(-1, 1);
+  log_std_beta ~ normal(0, 1);
 
   // Non-centered prior
   beta_raw ~ normal(0, 1);

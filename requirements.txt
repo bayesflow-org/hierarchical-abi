@@ -1,5 +1,5 @@
 torch~=2.6.0
-git+https://github.com/bayesflow-org/bayesflow.git@dev
+bayesflow~=2.0.0
 prettytable
 brainpy~=2.6.0.post20241205
 cmdstanpy~=1.2.5
