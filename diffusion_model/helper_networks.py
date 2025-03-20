@@ -45,29 +45,24 @@ class ConfigurableHiddenBlock(nn.Module):
         self.activation_fn = get_activation(activation)
 
         # For residual connection: projector will be created lazily if needed.
-        self.projector = None
+        if input_shape != units:
+            self.projector = nn.Linear(input_shape, self.units, bias=False)
+            # Initialize using Xavier/Glorot uniform.
+            nn.init.xavier_uniform_(self.projector.weight)
+        else:
+            self.projector = nn.Identity()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Compute dense output.
         out = self.dense(x)
+
         # (Optional) Apply dropout.
         if self.dropout is not None:
             out = self.dropout(out)
 
         # If using residual connections, add the input (projected if dimensions differ)
         if self.residual:
-            if x.shape[-1] != self.units:
-                # Lazily create a linear projector if not already created.
-                if self.projector is None:
-                    # Create a linear mapping with no bias.
-                    self.projector = nn.Linear(x.shape[-1], self.units, bias=False)
-                    # Initialize using Xavier/Glorot uniform.
-                    nn.init.xavier_uniform_(self.projector.weight)
-                    # Register the projector as a submodule.
-                    self.add_module("projector", self.projector)
-                res = self.projector(x)
-            else:
-                res = x
+            res = self.projector(x)
             out = out + res
 
         return self.activation_fn(out)

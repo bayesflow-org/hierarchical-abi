@@ -19,7 +19,7 @@ from diffusion_model import CompositionalScoreModel, SDE, train_score_model, ada
 from problems.gaussian_flat import GaussianProblem, Prior, generate_synthetic_data, \
     sample_posterior, analytical_posterior_mean_std, posterior_contraction
 #%%
-torch_device = torch.device("cpu")
+torch_device = torch.device("cuda")
 
 
 # get arguments
