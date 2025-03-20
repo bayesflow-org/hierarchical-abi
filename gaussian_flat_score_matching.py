@@ -287,13 +287,18 @@ for n in data_sizes:
                 mini_batch_arg = {'size': mb, 'damping_factor': damping_factor}
 
         # Run adaptive sampling.
-        test_samples, list_steps = adaptive_sampling(score_model, test_data, conditions=None,
-                                                     n_post_samples=n_post_samples,
-                                                     mini_batch_arg=mini_batch_arg,
-                                                     max_evals=max_steps*2,
-                                                     t_end=0, random_seed=0, device=torch_device,
-                                                     run_sampling_in_parallel=False,  # can actually be faster
-                                                     return_steps=True)
+        try:
+            test_samples, list_steps = adaptive_sampling(score_model, test_data, conditions=None,
+                                                         n_post_samples=n_post_samples,
+                                                         mini_batch_arg=mini_batch_arg,
+                                                         max_evals=max_steps*2,
+                                                         t_end=0, random_seed=0, device=torch_device,
+                                                         run_sampling_in_parallel=False,  # can actually be faster
+                                                         return_steps=True)
+        except torch.OutOfMemoryError as e:
+            print(e)
+            continue
+
         # Sample the true posterior.
         true_samples = np.stack([sample_posterior(x, prior_sigma=prior.scale,
                                                   sigma=prior.simulator.scale, n_samples=n_post_samples) for x in test_data], axis=0)
