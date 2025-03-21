@@ -6,7 +6,7 @@ from cmdstanpy import CmdStanModel
 from scipy.special import expit, logit
 from torch.utils.data import Dataset
 
-N_TIME_POINTS = 25
+N_TIME_POINTS = 10
 
 class Simulator:
     def __init__(self, sigma_noise=0.1):
@@ -212,72 +212,76 @@ class Prior:
 
 
 class AR1GridProblem(Dataset):
-    def __init__(self, n_data, prior, online_learning=False, amortize_time=False, max_number_of_obs=1):
+    def __init__(self, n_data, prior, online_learning=False, amortize_time=False, number_of_obs=1):
         # Create model and dataset
-        self.prior = prior
-        self.n_data = n_data
+        self._prior = prior
+        self._n_data = n_data
 
-        self.max_number_of_obs = max_number_of_obs
-        self.n_obs = self.max_number_of_obs  # this can change for each batch
-        self.online_learning = online_learning
+        self._number_of_obs_list = number_of_obs if isinstance(number_of_obs, list) else [number_of_obs]
+        self._max_number_of_obs = max(self._number_of_obs_list)
+        self._current_n_obs = self._max_number_of_obs
 
-        self.amortize_time = amortize_time
-        self.max_number_of_time_points = 100
-        self.n_time_points = N_TIME_POINTS
-        if self.amortize_time and not self.online_learning:
-            raise NotImplementedError
+        self._max_number_of_time_points = N_TIME_POINTS
+        self._n_time_points = self._max_number_of_time_points
+        self._amortize_time = amortize_time
+
+        self._online_learning = online_learning
         self._generate_data()
 
     def _generate_data(self):
         # Create model and dataset
-        sim_dict = self.prior.sample(
-            batch_size=self.n_data,
-            n_local_samples=self.n_obs,
-            n_time_points=self.n_time_points
+        sim_dict = self._prior.sample(
+            batch_size=self._n_data,
+            n_local_samples=self._max_number_of_obs,
+            n_time_points=self._max_number_of_time_points
         )
-        self.thetas_global = self.prior.normalize_theta(sim_dict['global_params'], global_params=True)
-        self.thetas_local = self.prior.normalize_theta(sim_dict['local_params_raw'], global_params=False)
-        self.xs = self.prior.normalize_data(sim_dict['data'])
+        self._thetas_global = self._prior.normalize_theta(sim_dict['global_params'], global_params=True)
+        self._thetas_local = self._prior.normalize_theta(sim_dict['local_params_raw'], global_params=False)
+        self._xs = self._prior.normalize_data(sim_dict['data'])
 
-        if self.max_number_of_obs == 1:
+        if self._max_number_of_obs == 1:
             # squeeze obs-dimension
-            self.xs = self.xs.squeeze(1)
+            self._xs = self._xs.squeeze(1)
+        else:
+            # expand obs-dimension
+            self._thetas_local = self._thetas_local.unsqueeze(-1)
         # add feature dimension for RNN
-        self.xs = self.xs.unsqueeze(-1)
+        self._xs = self._xs.unsqueeze(-1)
 
-        self.epsilon_global = torch.randn_like(self.thetas_global, dtype=torch.float32)
-        self.epsilon_local = torch.randn_like(self.thetas_local, dtype=torch.float32)
+        self._epsilon_global = torch.randn_like(self._thetas_global, dtype=torch.float32)
+        self._epsilon_local = torch.randn_like(self._thetas_local, dtype=torch.float32)
 
     def __len__(self):
         # this should return the size of the dataset
-        return len(self.thetas_global)
+        return len(self._thetas_global)
 
     def __getitem__(self, idx):
         # this should return one sample from the dataset
-        features_global = self.thetas_global[idx]
-        features_local = self.thetas_local[idx]
-        target = self.xs[idx]
-        noise_global = self.epsilon_global[idx]
-        noise_local = self.epsilon_local[idx]
+        features_global = self._thetas_global[idx]
+        if self._max_number_of_obs > 1:
+            features_local = self._thetas_local[idx, :self._current_n_obs]
+            target = self._xs[idx, :self._current_n_obs]
+        else:
+            features_local = self._thetas_local[idx]
+            target = self._xs[idx]
+        if self._amortize_time:
+            target = target[:, :, :self._n_time_points]
+        noise_global = self._epsilon_global[idx]
+        noise_local = self._epsilon_local[idx]
         return features_global, noise_global, features_local, noise_local, target
 
-    def on_epoch_end(self):  # for online learning
+    def on_epoch_end(self):
         # Regenerate data at the end of each epoch
-        if self.online_learning:  # todo: should only be called when on_batch_end does not generate new data
+        if self._online_learning:
             self._generate_data()
 
     def on_batch_end(self):
         # Called at the end of each batch
-        gen_data = False
-        if self.max_number_of_obs > 1:
+        if self._max_number_of_obs > 1:
             # sample number of observations
-            self.n_obs = np.random.choice([1, 5, 10, 20, 50, 100])
-            gen_data = True
-        if self.amortize_time:
-            self.n_time_points = np.random.randint(2, self.max_number_of_time_points + 1)
-            gen_data = True
-        if gen_data:
-            self._generate_data()
+            self._current_n_obs = np.random.choice(self._number_of_obs_list)
+        if self._amortize_time:
+            self._n_time_points = np.random.randint(2, self._max_number_of_time_points + 1)
 
 
 stan_file = os.path.join('problems', 'ar1_grid.stan')

@@ -394,12 +394,19 @@ def generate_synthetic_data(prior, n_data, n_local_samples=1, normalize=False,
 
 
 class FLIProblem(Dataset):
-    def __init__(self, n_data, prior, online_learning=False, max_number_of_obs=1):
+    def __init__(self, n_data, prior, online_learning=False, amortize_time=False, number_of_obs=1):
         # Create model and dataset
         self._prior = prior
         self._n_data = n_data
-        self._max_number_of_obs = max_number_of_obs
-        self._n_obs = self._max_number_of_obs  # this can change for each batch if max_number_of_obs > 1
+
+        self._number_of_obs_list = number_of_obs if isinstance(number_of_obs, list) else [number_of_obs]
+        self._max_number_of_obs = max(self._number_of_obs_list)
+        self._current_n_obs = self._max_number_of_obs
+
+        self._max_number_of_time_points = 201
+        self._n_time_points = self._max_number_of_time_points
+        self._amortize_time = amortize_time
+
         self._online_learning = online_learning
         self._generate_data()
 
@@ -408,7 +415,8 @@ class FLIProblem(Dataset):
         self._thetas_global, self._thetas_local, self._xs = generate_synthetic_data(
             self._prior,
             n_local_samples=self._max_number_of_obs,
-            n_data=self._n_data, normalize=True, transform_params=False,
+            n_data=self._n_data,
+            normalize=True, transform_params=False,
         )
         if self._max_number_of_obs == 1:
             # squeeze obs-dimension
@@ -428,16 +436,18 @@ class FLIProblem(Dataset):
         # this should return one sample from the dataset
         features_global = self._thetas_global[idx]
         if self._max_number_of_obs > 1:
-            features_local = self._thetas_local[idx, :self._n_obs]
-            target = self._xs[idx, :self._n_obs]
+            features_local = self._thetas_local[idx, :self._current_n_obs]
+            target = self._xs[idx, :self._current_n_obs]
         else:
             features_local = self._thetas_local[idx]
             target = self._xs[idx]
+        if self._amortize_time:
+            target = target[:, :, :self._n_time_points]
         noise_global = self._epsilon_global[idx]
         noise_local = self._epsilon_local[idx]
         return features_global, noise_global, features_local, noise_local, target
 
-    def on_epoch_end(self):  # for online learning
+    def on_epoch_end(self):
         # Regenerate data at the end of each epoch
         if self._online_learning:
             self._generate_data()
@@ -446,5 +456,6 @@ class FLIProblem(Dataset):
         # Called at the end of each batch
         if self._max_number_of_obs > 1:
             # sample number of observations
-            self._n_obs = np.random.choice([1, 5, 10, 20, 50, 100])
-
+            self._current_n_obs = np.random.choice(self._number_of_obs_list)
+        if self._amortize_time:
+            self._n_time_points = np.random.randint(2, self._max_number_of_time_points + 1)
