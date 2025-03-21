@@ -166,7 +166,6 @@ if variable_of_interest == 'mini_batch':
     # Set up your data sizes and mini-batch parameters.
     mini_batch = [1, 10, 100, 1000, 10000, None]
     second_variable_of_interest = 'data_size'
-    data_sizes = np.array([1, 10, 100, 1000, 10000])
 
 elif variable_of_interest == 'n_conditions':
     n_conditions = [1, 5, 10, 20, 50, 100]
