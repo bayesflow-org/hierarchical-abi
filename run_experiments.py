@@ -98,16 +98,17 @@ def main2(var_id):
         results.append(r)
 
     results = pd.concat(results, ignore_index=True)
+    results.drop("list_steps", axis=1, inplace=True)
     results.to_csv(f"results_{variable_of_interest}.csv")
 
 if __name__ == "__main__":
     #main()
     #print("All runs completed.")
-    #main2(var_id=0)
-    #print("Var0 joined.")
-    #main2(var_id=1)
-    #print("Var1 joined.")
-    #main2(var_id=2)
-    #print("Var2 joined.")
+    main2(var_id=0)
+    print("Var0 joined.")
+    main2(var_id=1)
+    print("Var1 joined.")
+    main2(var_id=2)
+    print("Var2 joined.")
     main2(var_id=3)
     print("Var3 joined.")
