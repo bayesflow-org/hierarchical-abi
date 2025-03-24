@@ -3,6 +3,7 @@ import logging
 import subprocess
 
 import numpy as np
+import pandas as pd
 
 script_name = 'gaussian_flat_score_matching.py'
 max_obs = [1, 100]
@@ -80,6 +81,33 @@ def main():
                 logger.removeHandler(handler)
 
 
+def main2(var_id):
+    variable_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t',
+                            'n_conditions'][var_id]
+    if variable_of_interest == 'n_conditions':
+        name_i = lambda \
+            i: f"model{i}_compositional_score_model_v_variance_preserving_cosine_likelihood_weighting_factorized100"
+    else:
+        name_i = lambda i: f"model{i}_compositional_score_model_v_variance_preserving_cosine_likelihood_weighting"
+
+    results = []
+    for i in range(10):
+        name_df = f"plots/{name_i(i)}/df_results_{variable_of_interest}.csv"
+        r = pd.read_csv(name_df, index_col=0)
+        r['model_id'] = i
+        results.append(r)
+
+    results = pd.concat(results, ignore_index=True)
+    results.to_csv(f"results_{variable_of_interest}.csv")
+
 if __name__ == "__main__":
-    main()
-    print("All runs completed.")
+    #main()
+    #print("All runs completed.")
+    #main2(var_id=0)
+    #print("Var0 joined.")
+    #main2(var_id=1)
+    #print("Var1 joined.")
+    #main2(var_id=2)
+    #print("Var2 joined.")
+    main2(var_id=3)
+    print("Var3 joined.")
