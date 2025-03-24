@@ -231,6 +231,26 @@ for n in data_sizes:
                     skip = True
                     break
         if skip:
+            results.append({
+                "data_size": n,
+                "data_id": -1,
+                "mini_batch": mb if mb is not None else n,
+                "damping_factor": d_factor,
+                'n_conditions': nc,
+                'cosine_shift': cs,
+                "n_steps": max_steps,
+                "list_steps": np.nan,
+                "kl": np.nan,
+                "median": np.nan,
+                "median_rmse": np.nan,
+                "c_error": np.nan,
+                "contractions": np.nan,
+                "rel_contraction": np.nan,
+            })
+            df_results = pd.DataFrame(results)
+            # Convert lists to strings for CSV storage
+            df_results['list_steps'] = df_results['list_steps'].apply(lambda x: str(x))
+            df_results.to_csv(df_path)
             continue
 
         print(f"Data Size: {n}, Mini Batch: {mb}, Conditions: {nc}, Cosine shift: {cs}, Damping Factor: {d_factor}")
@@ -274,6 +294,26 @@ for n in data_sizes:
                                                          return_steps=True)
         except torch.OutOfMemoryError as e:
             print(e)
+            results.append({
+                "data_size": n,
+                "data_id": -1,
+                "mini_batch": mb if mb is not None else n,
+                "damping_factor": d_factor,
+                'n_conditions': nc,
+                'cosine_shift': cs,
+                "n_steps": max_steps,
+                "list_steps": np.nan,
+                "kl": np.nan,
+                "median": np.nan,
+                "median_rmse": np.nan,
+                "c_error": np.nan,
+                "contractions": np.nan,
+                "rel_contraction": np.nan,
+            })
+            df_results = pd.DataFrame(results)
+            # Convert lists to strings for CSV storage
+            df_results['list_steps'] = df_results['list_steps'].apply(lambda x: str(x))
+            df_results.to_csv(df_path)
             continue
 
         # Sample the true posterior.
