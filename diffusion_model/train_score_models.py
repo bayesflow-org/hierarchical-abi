@@ -137,6 +137,9 @@ def train_hierarchical_score_model(model, dataloader, dataloader_valid=None,
     return loss_history
 
 
+############ COMPOSITIONAL SCORE MODEL TRAINING ############
+
+
 def compute_score_loss(theta_global_batch, x_batch, model, epsilon_global_batch=None):
     # Generate diffusion time and step size
     diffusion_time = generate_diffusion_time(size=theta_global_batch.shape[0],
@@ -160,9 +163,6 @@ def compute_score_loss(theta_global_batch, x_batch, model, epsilon_global_batch=
     loss_global = torch.mean(effective_weight * torch.sum(torch.square(pred_global - epsilon_global_batch), dim=-1))
     return loss_global
 
-
-
-############ COMPOSITIONAL SCORE MODEL TRAINING ############
 
 # Training loop for Score Model
 def train_score_model(model, dataloader, dataloader_valid=None,

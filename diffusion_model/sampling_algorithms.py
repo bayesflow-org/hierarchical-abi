@@ -328,7 +328,7 @@ def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp
     # Expand diffusion_time to shape (n_post_samples*n_scores_update, 1)
     t_exp = diffusion_time.unsqueeze(1).expand(-1, mini_batch_dict['size'], -1).contiguous().view(-1, 1)
 
-    if conditions_exp is None:
+    if conditions_exp is None and n_scores_update_full > 1:
         theta_exp = theta.unsqueeze(1).expand(-1, mini_batch_dict['size'], -1).contiguous().view(-1, model.prior.n_params_global)
         model_indv_scores = model.forward_global(
             theta_global=theta_exp,
@@ -355,6 +355,18 @@ def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp
         # just the plus 1 is missing
         damping_factor_prior = mini_batch_dict['damping_factor_prior'](diffusion_time)
         model_scores = damping_factor_prior * prior_scores + model_sum_scores
+    elif conditions_exp is None and n_scores_update_full == 1:
+        #theta_exp = theta.contiguous().view(-1, model.prior.n_params_global)
+        model_indv_scores = model.forward_global(
+            theta_global=theta,
+            time=t_exp,
+            x=x_exp,
+            pred_score=True,
+            clip_x=True
+        )
+        # apply damping
+        damping_factor = mini_batch_dict['damping_factor'](diffusion_time)
+        model_scores = damping_factor * model_indv_scores
     else:
         theta_exp = theta.contiguous().view(-1, model.prior.n_params_local)
 

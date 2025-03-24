@@ -12,7 +12,7 @@ class ScoreModel(nn.Module):
 
         Args:
             input_dim_theta (int): Input dimension for theta.
-            input_dim_x (int): Input dimension for x.
+            input_dim_x (int): Input dimension for x. (e.g., output dimension of the summary network)
             input_dim_condition (int): Input dimension for the condition. Can be 0 for global score.
             hidden_dim (int): Hidden dimension for theta network.
             n_blocks (int): Number of residual blocks.
@@ -22,11 +22,18 @@ class ScoreModel(nn.Module):
             use_film (bool): Whether to use FiLM-residual blocks.
             use_spectral_norm (bool): Whether to use spectral normalization.
             sde (SDE): SDE model. Needed to calculate the kernel.
+            weighting_type (str): Type of weighting to use. Default is None.
+            max_number_of_obs (int): Maximal number of observations grouped together.
+            name_prefix (str): Prefix for the name of the model. Default is ''.
+            prior (Prior): Prior model. Default is None.
+            summary_net (nn.Module): Summary network. Default is nn.Identity.
     """
     def __init__(self,
                  input_dim_theta, input_dim_x, input_dim_condition,
                  hidden_dim, n_blocks, prediction_type,
-                 time_embed_dim, use_film, dropout_rate, use_spectral_norm, sde):
+                 time_embed_dim, use_film, dropout_rate, use_spectral_norm, sde,
+                 weighting_type, max_number_of_obs, name_prefix='', prior=None,
+                 summary_net=None):
         super(ScoreModel, self).__init__()
 
         if prediction_type not in ['score', 'e', 'x', 'v']:
@@ -34,6 +41,13 @@ class ScoreModel(nn.Module):
         self.prediction_type = prediction_type
         self.sde = sde
         self.use_film = use_film
+        self.weighting_type = weighting_type
+        self.max_number_of_obs = max_number_of_obs
+        self.current_number_of_obs = max_number_of_obs
+        self.name = (f'{name_prefix}score_model_{prediction_type}_{sde.kernel_type}_{sde.noise_schedule}'
+                     f'_{weighting_type}')
+        self.n_params_global = input_dim_theta
+        self.prior = prior
 
         # Gaussian random feature embedding layer for time
         self.embed = nn.Sequential(
@@ -41,6 +55,11 @@ class ScoreModel(nn.Module):
             nn.Linear(time_embed_dim, time_embed_dim),
             nn.Mish()
         )
+
+        if summary_net is not None:
+            self.summary_net = summary_net
+        else:
+            self.summary_net = nn.Identity()
 
         # Define the dimension of the conditioning vector
         cond_dim = input_dim_x + input_dim_condition + time_embed_dim
@@ -82,6 +101,15 @@ class ScoreModel(nn.Module):
         if use_spectral_norm:
             self.input_layer = nn.utils.parametrizations.spectral_norm(self.input_layer)
 
+    def __call__(self, theta_global, time, x, pred_score, clip_x=False):
+        return self.forward(theta=theta_global, time=time, x=x, conditions=None, pred_score=pred_score, clip_x=clip_x)
+
+    def forward_global(self, theta_global, time, x, pred_score, clip_x=False):
+        if x.ndim == 4:
+            # there is time dimension, which we do not need
+            x = x.squeeze(2)
+        return self.forward(theta=theta_global, time=time, x=x, conditions=None, pred_score=pred_score, clip_x=clip_x)
+
     def forward(self, theta, time, x, conditions, pred_score, clip_x):
         """
         Forward pass of the ScoreModel.
@@ -100,13 +128,15 @@ class ScoreModel(nn.Module):
         # Compute a time embedding (shape: [batch, time_embed_dim])
         log_snr = self.sde.get_snr(t=time)
         t_emb = self.embed(log_snr)
+        # Compute the summary of x, in the hierarchical case this is just the identity as x is already embedded
+        x_emb = self.summary_net(x)
 
         # Form the conditioning vector. If conditions is None, only x and time are used.
         if conditions is not None:
-            cond = torch.cat([x, conditions, t_emb], dim=-1)
+            cond = torch.cat([x_emb, conditions, t_emb], dim=-1)
             skip = None
         else:
-            cond = torch.cat([x, t_emb], dim=-1)
+            cond = torch.cat([x_emb, t_emb], dim=-1)
             skip = theta.clone()
 
         # initial input
@@ -225,7 +255,9 @@ class HierarchicalScoreModel(nn.Module):
             use_film=use_film,
             dropout_rate=dropout_rate,
             use_spectral_norm=use_spectral_norm,
-            sde=sde
+            sde=sde,
+            weighting_type=weighting_type,
+            max_number_of_obs=max_number_of_obs
         )
         self.n_params_local = input_dim_theta_local
         self.local_model = ScoreModel(
@@ -239,7 +271,9 @@ class HierarchicalScoreModel(nn.Module):
             use_film=use_film,
             dropout_rate=dropout_rate,
             use_spectral_norm=use_spectral_norm,
-            sde=sde
+            sde=sde,
+            weighting_type=weighting_type,
+            max_number_of_obs=max_number_of_obs
         )
 
     def forward(self, theta_global, theta_local, time, x, pred_score, clip_x=False):  # __call__ method for the model
@@ -382,7 +416,9 @@ class CompositionalScoreModel(nn.Module):
             use_film=use_film,
             dropout_rate=dropout_rate,
             use_spectral_norm=use_spectral_norm,
-            sde=sde
+            sde=sde,
+            weighting_type=weighting_type,
+            max_number_of_obs=max_number_of_obs
         )
 
     def forward(self, theta_global, time, x, pred_score, clip_x=False):  # __call__ method for the model
