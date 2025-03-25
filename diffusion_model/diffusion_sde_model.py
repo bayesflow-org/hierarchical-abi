@@ -65,15 +65,20 @@ class ScoreModel(nn.Module):
         cond_dim = input_dim_x + input_dim_condition + time_embed_dim
 
         # Project the concatenation of theta and the condition into hidden_dim
-        self.input_layer = nn.Linear(input_dim_theta, hidden_dim // 2)
+        self.input_layer = nn.Sequential(
+            nn.Linear(input_dim_theta, hidden_dim // 2),
+            nn.Mish()
+        )
 
         if input_dim_condition > 0:
-            self.cond_layer = nn.Linear(input_dim_condition, input_dim_theta)
+            self.projection_layer = nn.Linear(input_dim_condition, hidden_dim, bias=False)
+        else:
+            self.projection_layer = nn.Linear(input_dim_theta, hidden_dim, bias=False)
 
         if not self.use_film:
             # Create a sequence of residual blocks
             self.blocks = MLP(
-                input_shape=hidden_dim//2+cond_dim,
+                input_shape=hidden_dim // 2 + cond_dim,
                 widths=[hidden_dim]*n_blocks,
                 dropout=dropout_rate,
                 spectral_normalization=use_spectral_norm
@@ -88,21 +93,16 @@ class ScoreModel(nn.Module):
             ])
 
         # Final layer to get back to the theta dimension
-        self.final_linear = nn.Linear(hidden_dim, input_dim_theta)
-        if use_spectral_norm:
-            # initialize weights close zero since we want to predict the noise (otherwise in conflict with the spectral norm)
-            nn.init.xavier_uniform_(self.final_linear.weight, gain=1e-3)
+        if self.prediction_type == 'v' and self.sde.kernel_type == 'sub_variance_preserving':
+            self.final_linear = nn.Linear(hidden_dim, input_dim_theta * 2)  # e- and x-prediction
         else:
-             # initialize weights to zero
-            nn.init.zeros_(self.final_linear.weight)
-        nn.init.zeros_(self.final_linear.bias)
+            self.final_linear = nn.Linear(hidden_dim, input_dim_theta)
 
         # Apply spectral normalization
         if use_spectral_norm:
+            self.final_linear = nn.utils.parametrizations.spectral_norm(self.final_linear)
             self.input_layer = nn.utils.parametrizations.spectral_norm(self.input_layer)
-
-    def __call__(self, theta_global, time, x, pred_score, clip_x=False):
-        return self.forward(theta=theta_global, time=time, x=x, conditions=None, pred_score=pred_score, clip_x=clip_x)
+            self.projection_layer = nn.utils.parametrizations.spectral_norm(self.projection_layer)
 
     def forward_global(self, theta_global, time, x, pred_score, clip_x=False):
         if x.ndim == 4:
@@ -110,7 +110,7 @@ class ScoreModel(nn.Module):
             x = x.squeeze(2)
         return self.forward(theta=theta_global, time=time, x=x, conditions=None, pred_score=pred_score, clip_x=clip_x)
 
-    def forward(self, theta, time, x, conditions, pred_score, clip_x):
+    def forward(self, theta, time, x, conditions=None, pred_score=False, clip_x=False):
         """
         Forward pass of the ScoreModel.
 
@@ -134,10 +134,10 @@ class ScoreModel(nn.Module):
         # Form the conditioning vector. If conditions is None, only x and time are used.
         if conditions is not None:
             cond = torch.cat([x_emb, conditions, t_emb], dim=-1)
-            skip = None
+            h_update = conditions
         else:
             cond = torch.cat([x_emb, t_emb], dim=-1)
-            skip = theta.clone()
+            h_update = theta.clone()
 
         # initial input
         h = self.input_layer(theta)
@@ -151,25 +151,29 @@ class ScoreModel(nn.Module):
             h_cond = torch.cat([h, cond], dim=-1)
             h = self.blocks(h_cond)
 
-        # If conditions are provided, compute an update from them
-        if skip is None:
-            update = self.cond_layer(conditions)
-            theta_emb = self.final_linear(h) + update
-        else:
-            # Add a skip connection from the input projection
-            theta_emb = self.final_linear(h) + skip
+        # If conditions are provided, compute an update from them else use skip connection
+        h = h + self.projection_layer(h_update)
+
+        # Add a skip connection from the input projection
+        h = self.final_linear(h)
 
         if pred_score:
-            return self.convert_to_score(pred=theta_emb, z=theta, log_snr=log_snr, clip_x=clip_x)
+            return self.convert_to_score(pred=h, z=theta, log_snr=log_snr, clip_x=clip_x)
 
         # convert the prediction to e always
-        return self.convert_to_e(pred=theta_emb, z=theta, log_snr=log_snr, clip_x=clip_x)
+        return self.convert_to_e(pred=h, z=theta, log_snr=log_snr, clip_x=clip_x)
 
 
     def convert_to_x(self, pred, z, alpha, sigma, clip_x):
         if self.prediction_type == 'v':
-            # convert prediction into error
-            x = alpha * z - sigma * pred
+            # convert v into x
+            if self.sde.kernel_type == 'variance_preserving':
+                x = alpha * z - sigma * pred
+            elif self.sde.kernel_type == 'sub_variance_preserving':
+                e_tilde, x_tilde = torch.tensor_split(pred, 2, dim=-1)
+                x = torch.square(sigma) * x_tilde + alpha * (z - sigma * e_tilde)
+            else:
+                raise ValueError('For v-prediction unknown sde.kernel_type {}'.format(self.sde.kernel_type))
         elif self.prediction_type == 'e':
             # prediction is the error
             x = (z - sigma * pred) / alpha
@@ -421,11 +425,11 @@ class CompositionalScoreModel(nn.Module):
             max_number_of_obs=max_number_of_obs
         )
 
-    def forward(self, theta_global, time, x, pred_score, clip_x=False):  # __call__ method for the model
+    def forward(self, theta, time, x, pred_score, clip_x=False):  # __call__ method for the model
         """Forward pass through the global and local model. This usually only used, during training."""
         x_emb = self.summary_net(x)
         if self.max_number_of_obs == 1:
-            global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb,
+            global_out = self.global_model.forward(theta=theta, time=time, x=x_emb,
                                                    conditions=None, pred_score=pred_score, clip_x=clip_x)
         else:
             # for global, concat observations
@@ -438,7 +442,7 @@ class CompositionalScoreModel(nn.Module):
             n_obs = torch.ones((x_emb.shape[0], 1), dtype=x_emb.dtype, device=x_emb.device) * x_emb.shape[
                 1] / self.max_number_of_obs
             x_emb_global = torch.cat([x_mean, x_std, n_obs], dim=-1)
-            global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb_global,
+            global_out = self.global_model.forward(theta=theta, time=time, x=x_emb_global,
                                                    conditions=None, pred_score=pred_score, clip_x=clip_x)
 
         return global_out
@@ -452,7 +456,7 @@ class CompositionalScoreModel(nn.Module):
         elif x.ndim == 3:
             # there is time dimension, which we do not need
             x = x.squeeze(1)
-        return self.forward(theta_global=theta_global, time=time, x=x, pred_score=pred_score, clip_x=clip_x)
+        return self.forward(theta=theta_global, time=time, x=x, pred_score=pred_score, clip_x=clip_x)
 
     def forward_local(self, theta_local, theta_global, time, x, pred_score, clip_x=False):
         """Forward pass through the local model. Usually we want the score, not the predicting task from training."""
@@ -483,8 +487,8 @@ class SDE:
         print(f"Kernel type: {self.kernel_type}, noise schedule: {self.noise_schedule}")
         print(f"t_min: {self.t_min}, t_max: {self.t_max}")
         print(f'alpha, sigma:',
-              self.kernel(log_snr=self.get_snr(t=self.t_min)),
-              self.kernel(log_snr=self.get_snr(t=self.t_max)))
+              self.kernel(log_snr=self.get_snr(t=0)),
+              self.kernel(log_snr=self.get_snr(t=1)))
 
     @property
     def log_snr_min(self):
@@ -513,14 +517,14 @@ class SDE:
             return self._sub_variance_preserving_kernel(log_snr=log_snr)
         raise ValueError("Invalid kernel type.")
 
-    def grad_log_kernel(self, x, x0, t):
+    def grad_log_kernel(self, x, x0, t):  # t is not truncated
         if self.kernel_type == 'variance_preserving':
             return self._grad_log_variance_preserving_kernel(x, x0, t)
         if self.kernel_type == 'sub_variance_preserving':
             return self._grad_log_sub_variance_preserving_kernel(x, x0, t)
         raise ValueError("Invalid kernel type.")
 
-    def get_snr(self, t):
+    def get_snr(self, t):  # t is not truncated
         t_trunc = self.t_min + (self.t_max - self.t_min) * t
         if self.noise_schedule == 'linear':
             return -torch.log(torch.exp(torch.square(t_trunc)) - 1)
@@ -546,25 +550,25 @@ class SDE:
             return 1 / (1 + torch.exp(snr / 2))
         raise ValueError("Invalid 'noise_schedule'.")
 
-    def _get_snr_derivative(self, t):
+    def _get_snr_derivative(self, t):  # t is not truncated
         """
         Compute d/dt log(1 + e^(-snr(t))) for the truncated schedules.
         """
-        # Compute the truncated time x = t_trunc
-        x = self.t_min + (self.t_max - self.t_min) * t
+        # Compute the truncated time t_trunc
+        t_trunc = self.t_min + (self.t_max - self.t_min) * t
         # Compute snr(t) using the existing function
         snr = self.get_snr(t=t)
 
         # Compute d/dx snr(x) based on the noise schedule
         if self.noise_schedule == 'linear':
             # d/dx snr(x) = - 2*x*exp(x^2) / (exp(x^2) - 1)
-            dsnr_dx = - (2 * x * torch.exp(x**2)) / (torch.exp(x**2) - 1)
+            dsnr_dx = - (2 * t_trunc * torch.exp(t_trunc**2)) / (torch.exp(t_trunc**2) - 1)
         elif self.noise_schedule == 'cosine':
             # d/dx snr(x) = -2*pi/sin(pi*x)
-            dsnr_dx = - (2 * torch.pi) / torch.sin(torch.pi * x)
+            dsnr_dx = - (2 * torch.pi) / torch.sin(torch.pi * t_trunc)
         elif self.noise_schedule == 'flow_matching':
             # d/dx snr(x) = -2/(x*(1-x))
-            dsnr_dx = - 2 / (x * (1 - x))
+            dsnr_dx = - 2 / (t_trunc * (1 - t_trunc))
         else:
             raise ValueError("Invalid 'noise_schedule'.")
 
@@ -576,7 +580,7 @@ class SDE:
         factor = torch.exp(-snr) / (1 + torch.exp(-snr))
         return - factor * dsnr_dt
 
-    def _beta_integral(self, t):
+    def _beta_integral(self, t):  # t is not truncated
         """Song et al. (2021) defined this as integral over the beta, here we express is equivalently via the snr"""
         return torch.log(1 + torch.exp(-self.get_snr(t)))
 
@@ -595,7 +599,7 @@ class SDE:
         sigma_t = torch.sqrt(torch.sigmoid(-log_snr))
         return alpha_t, sigma_t
 
-    def _grad_log_variance_preserving_kernel(self, x, x0, t):
+    def _grad_log_variance_preserving_kernel(self, x, x0, t):  # t is not truncated
         """
         Computes the gradient of the log probability density of the variance-preserving kernel.
 
@@ -639,7 +643,7 @@ class SDE:
             sigma_t = 1  - torch.square(alpha_t)
         return alpha_t, sigma_t
 
-    def _grad_log_sub_variance_preserving_kernel(self, x, x0, t):
+    def _grad_log_sub_variance_preserving_kernel(self, x, x0, t):  # t is not truncated
         """
         Computes the gradient of the log probability density of the sub-variance-preserving kernel.
 
@@ -664,7 +668,7 @@ class SDE:
         grad = -(x - mean_factor * x0) / variance
         return grad
 
-    def get_f_g(self, t, x=None):
+    def get_f_g(self, t, x=None):  # t is not truncated
         if self.kernel_type == 'variance_preserving':
             # Compute beta(t)
             beta_t = self._get_snr_derivative(t)
@@ -692,7 +696,7 @@ class SDE:
         return f, g
 
 
-def weighting_function(t, sde, weighting_type=None, prediction_type='error'):
+def weighting_function(t, sde, weighting_type, prediction_type):
     if prediction_type == 'score':
         # likelihood weighting, since beta(t) = g(t)^2
         g_t = sde.get_f_g(t=t)
