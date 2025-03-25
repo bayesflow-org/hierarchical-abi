@@ -370,3 +370,9 @@ for n in data_sizes:
         # Convert lists to strings for CSV storage
         df_results['list_steps'] = df_results['list_steps'].apply(lambda x: str(x))
         df_results.to_csv(df_path)
+
+# Create a DataFrame from the results list. Save intermediate results
+df_results = pd.DataFrame(results)
+# Convert lists to strings for CSV storage
+df_results['list_steps'] = df_results['list_steps'].apply(lambda x: str(x))
+df_results.to_csv(df_path)

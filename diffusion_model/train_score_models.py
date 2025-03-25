@@ -44,7 +44,7 @@ def train_hierarchical_score_model(model, dataloader, dataloader_valid=None,
                                    device=None):
     print(f"Training {model.prediction_type}-model for {epochs} epochs with learning rate {lr} "
           f"and {model.weighting_type} weighting.")
-    print(f"Model has {model.n_params_global} global parameters and {model.n_params_local} local parameters and is"
+    print(f"Model has {model.n_params_global} global parameters and {model.n_params_local} local parameters and it"
           f" uses compositional conditioning with {model.max_number_of_obs} observations.")
     torch.autograd.set_grad_enabled(True)  # bayesflow turns them off by default
     model.to(device)
@@ -139,7 +139,7 @@ def train_score_model(model, dataloader, dataloader_valid=None,
                       epochs=100, lr=1e-3, cosine_annealing=True,  device=None):
     print(f"Training {model.prediction_type}-model for {epochs} epochs with learning rate {lr} "
           f"and {model.weighting_type} weighting.")
-    print(f"Model has {model.n_params_global} parameters and is uses compositional conditioning "
+    print(f"Model has {model.n_params_global} parameters and it uses compositional conditioning "
           f"with {model.max_number_of_obs} observations.")
     torch.autograd.set_grad_enabled(True)  # bayesflow turns them off by default
     model.to(device)

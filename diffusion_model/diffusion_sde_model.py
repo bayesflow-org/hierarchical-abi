@@ -65,10 +65,10 @@ class ScoreModel(nn.Module):
         cond_dim = input_dim_x + input_dim_condition + time_embed_dim
 
         # Project the concatenation of theta and the condition into hidden_dim
-        self.input_layer = nn.Sequential(
-            nn.Linear(input_dim_theta, hidden_dim // 2),
-            nn.Mish()
-        )
+        #self.input_layer = nn.Sequential(
+        #    nn.Linear(input_dim_theta, hidden_dim // 2),
+        #    nn.Mish()
+        #)
 
         if input_dim_condition > 0:
             self.projection_layer = nn.Linear(input_dim_condition, hidden_dim, bias=False)
@@ -78,7 +78,7 @@ class ScoreModel(nn.Module):
         if not self.use_film:
             # Create a sequence of residual blocks
             self.blocks = MLP(
-                input_shape=hidden_dim // 2 + cond_dim,
+                input_shape=input_dim_theta + cond_dim,
                 widths=[hidden_dim]*n_blocks,
                 dropout=dropout_rate,
                 spectral_normalization=use_spectral_norm
@@ -86,7 +86,7 @@ class ScoreModel(nn.Module):
         else:
             # Create a series of FiLM-residual blocks
             self.blocks = nn.ModuleList([
-                FiLMResidualBlock(in_dim=hidden_dim // 2 if b == 0 else hidden_dim,
+                FiLMResidualBlock(in_dim=input_dim_theta if b == 0 else hidden_dim,
                                   out_dim=hidden_dim,
                                   cond_dim=cond_dim, dropout_rate=dropout_rate, use_spectral_norm=use_spectral_norm)
                 for b in range(n_blocks)
@@ -140,7 +140,8 @@ class ScoreModel(nn.Module):
             h_update = theta.clone()
 
         # initial input
-        h = self.input_layer(theta)
+        #h = self.input_layer(theta)
+        h = theta
 
         if self.use_film:
             # Pass through each block, injecting the same cond at each layer
@@ -696,7 +697,7 @@ class SDE:
         return f, g
 
 
-def weighting_function(t, sde, weighting_type, prediction_type):
+def weighting_function(t, sde, weighting_type, prediction_type='error'):
     if prediction_type == 'score':
         # likelihood weighting, since beta(t) = g(t)^2
         g_t = sde.get_f_g(t=t)

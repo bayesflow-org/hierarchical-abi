@@ -323,7 +323,8 @@ class ShallowSet(nn.Module):
                 nn.Linear(dim_hidden, dim_output))
 
     def forward(self, X):
-        X = self.enc(X).mean(-2)
+        X = self.enc(X)
+        X = X.mean(-2)
         X = self.dec(X) #.reshape(-1, self.num_outputs, self.dim_output)
         return X
 
