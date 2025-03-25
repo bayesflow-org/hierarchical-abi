@@ -2,8 +2,7 @@ import torch
 import torch.nn as nn
 
 from diffusion_model.helper_functions import sech
-from diffusion_model.helper_networks import (MLP, FiLMResidualBlock,
-                                             GaussianFourierProjection, TimeDistributedDense, TimeDistributedLSTM)
+from diffusion_model.helper_networks import (MLP, FiLMResidualBlock, TimeDistributedDense, TimeDistributedLSTM)
 
 
 class ScoreModel(nn.Module):
@@ -13,27 +12,31 @@ class ScoreModel(nn.Module):
         Args:
             input_dim_theta (int): Input dimension for theta.
             input_dim_x (int): Input dimension for x. (e.g., output dimension of the summary network)
-            input_dim_condition (int): Input dimension for the condition. Can be 0 for global score.
             hidden_dim (int): Hidden dimension for theta network.
             n_blocks (int): Number of residual blocks.
-            prediction_type (str): Type of prediction to perform. Can be 'score', 'e', 'x', or 'v'.
-            time_embed_dim (int): Dimension of time embedding.
-            dropout_rate (float): Dropout rate.
-            use_film (bool): Whether to use FiLM-residual blocks.
-            use_spectral_norm (bool): Whether to use spectral normalization.
             sde (SDE): SDE model. Needed to calculate the kernel.
+            prior (Prior): Prior model. Only needed for sampling etc.
+            max_number_of_obs (int): Maximal number of observations grouped together. Default is 1.
+            input_dim_condition (int): Input dimension for the condition. Default is 0.
             weighting_type (str): Type of weighting to use. Default is None.
-            max_number_of_obs (int): Maximal number of observations grouped together.
+            prediction_type (str): Type of prediction to perform. Can be 'score', 'e', 'x', or 'v'.
+            use_film (bool): Whether to use FiLM-residual blocks. Default is False.
+            dropout_rate (float): Dropout rate. Default is 0.05.
+            use_spectral_norm (bool): Whether to use spectral normalization. Default is False.
             name_prefix (str): Prefix for the name of the model. Default is ''.
-            prior (Prior): Prior model. Default is None.
+            time_embedding (nn.Module): Time embedding module. Default is nn.Identity.
             summary_net (nn.Module): Summary network. Default is nn.Identity.
+            full_res_layer (bool): Whether to connect the last layer as residual block. Default is False.
     """
     def __init__(self,
-                 input_dim_theta, input_dim_x, input_dim_condition,
-                 hidden_dim, n_blocks, prediction_type,
-                 time_embed_dim, use_film, dropout_rate, use_spectral_norm, sde,
-                 weighting_type, max_number_of_obs, name_prefix='', prior=None,
-                 summary_net=None):
+                 input_dim_theta, input_dim_x,
+                 hidden_dim, n_blocks,
+                 sde, prior, max_number_of_obs=1, input_dim_condition=0,
+                 weighting_type=None,
+                 prediction_type='v',
+                 use_film=False, dropout_rate=0.05, use_spectral_norm=False,
+                 name_prefix='',
+                 time_embedding=None, summary_net=None, full_res_layer=False):
         super(ScoreModel, self).__init__()
 
         if prediction_type not in ['score', 'e', 'x', 'v']:
@@ -46,34 +49,33 @@ class ScoreModel(nn.Module):
         self.current_number_of_obs = max_number_of_obs
         self.name = (f'{name_prefix}score_model_{prediction_type}_{sde.kernel_type}_{sde.noise_schedule}'
                      f'_{weighting_type}')
-        self.n_params_global = input_dim_theta
+        self.n_params_global = prior.n_params_global
         self.prior = prior
 
-        # Gaussian random feature embedding layer for time
-        self.embed = nn.Sequential(
-            GaussianFourierProjection(embed_dim=time_embed_dim),
-            nn.Linear(time_embed_dim, time_embed_dim),
-            nn.Mish()
-        )
-
-        if summary_net is not None:
-            self.summary_net = summary_net
+        if time_embedding is None:
+            self.time_embedding = nn.Identity()
+            time_embed_dim = 1
         else:
+            self.time_embedding = time_embedding
+            dummy_input = torch.zeros(1, 1)
+            dummy_output = time_embedding(dummy_input)
+            time_embed_dim = dummy_output.shape[1]
+
+        if summary_net is None:
             self.summary_net = nn.Identity()
+        else:
+            self.summary_net = summary_net
 
         # Define the dimension of the conditioning vector
         cond_dim = input_dim_x + input_dim_condition + time_embed_dim
 
-        # Project the concatenation of theta and the condition into hidden_dim
-        #self.input_layer = nn.Sequential(
-        #    nn.Linear(input_dim_theta, hidden_dim // 2),
-        #    nn.Mish()
-        #)
-
-        if input_dim_condition > 0:
-            self.projection_layer = nn.Linear(input_dim_condition, hidden_dim, bias=False)
-        else:
-            self.projection_layer = nn.Linear(input_dim_theta, hidden_dim, bias=False)
+        self.full_res_layer = full_res_layer
+        if full_res_layer:
+            if input_dim_condition > 0:
+                self.projection_layer = nn.Linear(input_dim_condition, hidden_dim)
+            else:
+                self.projection_layer = nn.Linear(input_dim_theta, hidden_dim)
+            nn.init.zeros_(self.projection_layer.bias)
 
         if not self.use_film:
             # Create a sequence of residual blocks
@@ -94,20 +96,24 @@ class ScoreModel(nn.Module):
 
         # Final layer to get back to the theta dimension
         if self.prediction_type == 'v' and self.sde.kernel_type == 'sub_variance_preserving':
-            self.final_linear = nn.Linear(hidden_dim, input_dim_theta * 2)  # e- and x-prediction
+            self.final_projection_linear = nn.Linear(hidden_dim, input_dim_theta * 2)  # e- and x-prediction
         else:
-            self.final_linear = nn.Linear(hidden_dim, input_dim_theta)
+            self.final_projection_linear = nn.Linear(hidden_dim, input_dim_theta)
+        nn.init.zeros_(self.final_projection_linear.bias)
 
         # Apply spectral normalization
         if use_spectral_norm:
-            self.final_linear = nn.utils.parametrizations.spectral_norm(self.final_linear)
+            self.final_projection_linear = nn.utils.parametrizations.spectral_norm(self.final_projection_linear)
             self.input_layer = nn.utils.parametrizations.spectral_norm(self.input_layer)
-            self.projection_layer = nn.utils.parametrizations.spectral_norm(self.projection_layer)
+            if full_res_layer:
+                self.projection_layer = nn.utils.parametrizations.spectral_norm(self.projection_layer)
 
     def forward_global(self, theta_global, time, x, pred_score, clip_x=False):
         if x.ndim == 4:
             # there is time dimension, which we do not need
             x = x.squeeze(2)
+        if x.ndim == 3 and x.shape[1] == 1:
+            x = x.squeeze(1) # todo: remove obs
         return self.forward(theta=theta_global, time=time, x=x, conditions=None, pred_score=pred_score, clip_x=clip_x)
 
     def forward(self, theta, time, x, conditions=None, pred_score=False, clip_x=False):
@@ -127,7 +133,7 @@ class ScoreModel(nn.Module):
         """
         # Compute a time embedding (shape: [batch, time_embed_dim])
         log_snr = self.sde.get_snr(t=time)
-        t_emb = self.embed(log_snr)
+        t_emb = self.time_embedding(log_snr)
         # Compute the summary of x, in the hierarchical case this is just the identity as x is already embedded
         x_emb = self.summary_net(x)
 
@@ -140,23 +146,20 @@ class ScoreModel(nn.Module):
             h_update = theta.clone()
 
         # initial input
-        #h = self.input_layer(theta)
-        h = theta
-
         if self.use_film:
             # Pass through each block, injecting the same cond at each layer
+            h = theta
             for block in self.blocks:
                 h = block(h, cond)
         else:
             # Pass through each block, concatenating the cond at the beginning
-            h_cond = torch.cat([h, cond], dim=-1)
+            h_cond = torch.cat([theta, cond], dim=-1)
             h = self.blocks(h_cond)
 
         # If conditions are provided, compute an update from them else use skip connection
-        h = h + self.projection_layer(h_update)
-
-        # Add a skip connection from the input projection
-        h = self.final_linear(h)
+        if self.full_res_layer:
+            h = h + self.projection_layer(h_update)
+        h = self.final_projection_linear(h)
 
         if pred_score:
             return self.convert_to_score(pred=h, z=theta, log_snr=log_snr, clip_x=clip_x)
@@ -466,7 +469,7 @@ class CompositionalScoreModel(nn.Module):
 
 class SDE:
     def __init__(self, kernel_type='variance_preserving', noise_schedule='cosine',
-                 log_snr_min=-10, log_snr_max=15, s_shift_cosine=0.):
+                 log_snr_min=-15, log_snr_max=15, s_shift_cosine=0.):
         if kernel_type not in ['variance_preserving', 'sub_variance_preserving']:
             raise ValueError("Invalid kernel type.")
         if noise_schedule not in ['linear', 'cosine', 'flow_matching']:

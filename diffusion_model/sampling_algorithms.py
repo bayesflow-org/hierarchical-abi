@@ -38,9 +38,9 @@ def prepare_observations(x_obs, model, n_post_samples, device):
         x_obs = x_obs.to(device)
     x_obs_norm = model.prior.normalize_data(x_obs)
 
+    batch_size = x_obs_norm.shape[0]
     if x_obs_norm.ndim == 4:
         # input is (batch_size, n_time_steps, grid, grid)
-        batch_size = x_obs_norm.shape[0]
         n_time_steps = x_obs_norm.shape[1]
         # Reshape to (batch_size, n_time_steps, n_obs)
         x_obs_norm = x_obs_norm.contiguous().view(batch_size, n_time_steps, -1, 1)
@@ -49,13 +49,17 @@ def prepare_observations(x_obs, model, n_post_samples, device):
         n_obs = x_obs_norm.shape[1]
     elif x_obs_norm.ndim == 3:  # data is not time series
         # input is (batch_size, n_obs, n_dim)
-        batch_size = x_obs_norm.shape[0]
         n_obs = x_obs_norm.shape[1]
         n_time_steps = 1
         # Reshape to (batch_size, n_obs, 1, n_dim)
         x_obs_norm = x_obs_norm.unsqueeze(2)
+    elif x_obs_norm.ndim == 2:   # data is not time series and only one observation
+        # Reshape to (batch_size, 1, 1, n_dim)
+        x_obs_norm = x_obs_norm.unsqueeze(1).unsqueeze(1)
+        n_obs = 1
+        n_time_steps = 1
     else:
-        raise ValueError('x_obs_norm must be 2 or 3 dimensional')
+        raise ValueError('x_obs_norm must be 2 to 4 dimensional.')
 
     ##########################
 
