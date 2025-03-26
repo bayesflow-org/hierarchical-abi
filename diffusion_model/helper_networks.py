@@ -332,6 +332,7 @@ class SetTransformer(nn.Module):
     def __init__(self, dim_input, num_outputs, dim_output,
             num_inds=32, dim_hidden=128, num_heads=4, ln=False):
         super(SetTransformer, self).__init__()
+        self.dim_output = dim_output
         self.enc = nn.Sequential(
                 ISAB(dim_input, dim_hidden, num_heads, num_inds, ln=ln),
                 ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln))
@@ -342,4 +343,4 @@ class SetTransformer(nn.Module):
                 nn.Linear(dim_hidden, dim_output))
 
     def forward(self, X):
-        return self.dec(self.enc(X))
+        return self.dec(self.enc(X)).reshape(-1, self.dim_output)

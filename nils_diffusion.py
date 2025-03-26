@@ -481,9 +481,10 @@ class DenoisingDiffusion(InferenceNetwork):
     def _inverse(self, z: Tensor, conditions: Tensor = None, training: bool = False, **kwargs) -> Tensor:
         # 1. Randomly sample noise (starting point for reverse process)
         samples = z
+        batch_size = keras.ops.shape(z)[0]
         bs = keras.ops.shape(z)[1]
         for t in tqdm(reversed(range(0, self.timesteps)), desc='Diffusion sampling', total=self.timesteps):
-            tt = keras.ops.cast(keras.ops.full([1, bs], t), dtype=keras.ops.dtype(z))
+            tt = keras.ops.cast(keras.ops.full([batch_size, bs], t), dtype=keras.ops.dtype(z))
             tt = expand_right_as(tt, samples) / self.timesteps
             if conditions is not None:
                 z_t_c = keras.ops.concatenate([samples, conditions, tt], axis=-1)

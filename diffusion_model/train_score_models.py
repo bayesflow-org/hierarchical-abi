@@ -38,7 +38,7 @@ def compute_hierarchical_score_loss(
 ############ COMPOSITIONAL SCORE MODEL TRAINING ############
 
 
-def compute_score_loss(theta_noisy, target, x_batch, diffusion_time, model):
+def compute_score_loss(theta_noisy, theta, target, x_batch, diffusion_time, model, add_summary_loss=False):
     # predict from perturbed theta
     pred_theta = model(theta=theta_noisy, time=diffusion_time, x=x_batch, pred_score=False)
 
@@ -46,6 +46,13 @@ def compute_score_loss(theta_noisy, target, x_batch, diffusion_time, model):
                                           prediction_type=model.prediction_type).flatten()
     # calculate the loss (sum over the last dimension, mean over the batch)
     loss_global = torch.mean(effective_weight * torch.sum(torch.square(pred_theta - target), dim=-1))
+
+    if add_summary_loss and not isinstance(model.summary_net, nn.Identity):
+        # add extra loss for the summary net
+        dim_theta = pred_theta.shape[-1]
+        pred_summary = model.summary_net(x_batch)[..., :dim_theta]
+        loss_summary = torch.mean(effective_weight * torch.sum(torch.square(pred_summary - theta), dim=-1))
+        loss_global += loss_summary
     return loss_global
 
 
@@ -54,7 +61,7 @@ def compute_score_loss(theta_noisy, target, x_batch, diffusion_time, model):
 
 # Training loop for Score Model
 def train_score_model(model, dataloader, hierarchical=False, dataloader_valid=None,
-                      epochs=1000, lr=5e-4, cosine_annealing=True, device=None):
+                      epochs=1000, lr=5e-4, cosine_annealing=True, add_summary_loss=False, device=None):
     print(f"Training {model.prediction_type}-model for {epochs} epochs with learning rate {lr} "
           f"and {model.weighting_type} weighting.")
     model.to(device)
@@ -98,14 +105,15 @@ def train_score_model(model, dataloader, hierarchical=False, dataloader_valid=No
                                                            x_batch=x_batch,
                                                            diffusion_time=diffusion_time, model=model)
                 else:
-                    theta_noisy, target, x_batch, diffusion_time = batch
+                    theta_noisy, theta, target, x_batch, diffusion_time = batch
                     theta_noisy = theta_noisy.to(device)
+                    theta = theta.to(device)
                     target = target.to(device)
                     x_batch = x_batch.to(device)
                     diffusion_time = diffusion_time.to(device)
                     # calculate the loss
-                    loss = compute_score_loss(theta_noisy=theta_noisy, target=target, x_batch=x_batch,
-                                              diffusion_time=diffusion_time, model=model)
+                    loss = compute_score_loss(theta_noisy=theta_noisy, theta=theta, target=target, x_batch=x_batch,
+                                              diffusion_time=diffusion_time, model=model, add_summary_loss=add_summary_loss)
                 loss.backward()
                 # gradient clipping
                 nn.utils.clip_grad_norm_(model.parameters(), 1.5)
@@ -140,14 +148,14 @@ def train_score_model(model, dataloader, hierarchical=False, dataloader_valid=No
                                                                  x_batch=x_batch,
                                                                  diffusion_time=diffusion_time, model=model)
                     else:
-                        theta_noisy, target, x_batch, diffusion_time = val_batch
+                        theta_noisy, theta, target, x_batch, diffusion_time = val_batch
                         theta_noisy = theta_noisy.to(device)
                         target = target.to(device)
                         x_batch = x_batch.to(device)
                         diffusion_time = diffusion_time.to(device)
                         # calculate the loss
-                        v_loss = compute_score_loss(theta_noisy=theta_noisy, target=target, x_batch=x_batch,
-                                                    diffusion_time=diffusion_time, model=model)
+                        v_loss = compute_score_loss(theta_noisy=theta_noisy, theta=theta, target=target, x_batch=x_batch,
+                                                    diffusion_time=diffusion_time, model=model, add_summary_loss=add_summary_loss)
                     valid_loss.append(v_loss.item())
                 # update dataset if necessary
                 dataloader_valid.dataset.on_epoch_end()
