@@ -38,23 +38,23 @@ def compute_hierarchical_score_loss(
     pred_global, pred_local = model(theta_global=theta_global_noisy, theta_local=theta_local_noisy,
                                     time=diffusion_time, x=x_batch, pred_score=False)
 
-    effective_weight = weighting_function(diffusion_time, sde=model.sde, weighting_type=model.weighting_type,
+    weight = weighting_function(diffusion_time, sde=model.sde, weighting_type=model.weighting_type,
                                           prediction_type=model.prediction_type)
-    # calculate the loss (sum over the last dimension, mean over the batch)
-    loss_global = torch.mean(effective_weight * torch.sum(torch.square(pred_global - target_global), dim=-1))
-    loss_local = torch.mean(effective_weight * torch.sum(torch.square(pred_local - target_local), dim=-1))
+    # calculate the loss
+    loss_global = weighted_mse_loss(pred_global, target_global, weight)
+    loss_local = weighted_mse_loss(pred_local, target_local, weight)
     return loss_global + loss_local
 
 
 ############ COMPOSITIONAL SCORE MODEL TRAINING ############
 
-def compute_score_loss(theta_noisy, theta, target, x_batch, diffusion_time, model):
+def compute_score_loss(theta_noisy, target, x_batch, diffusion_time, model):
     # predict from perturbed theta
     pred = model(theta=theta_noisy, time=diffusion_time, x=x_batch, pred_score=False)
 
     weight = weighting_function(diffusion_time, sde=model.sde, weighting_type=model.weighting_type,
                                           prediction_type=model.prediction_type).flatten()
-    # calculate the loss (sum over the last dimension, mean over the batch)
+    # calculate the loss
     loss_global = weighted_mse_loss(pred, target, weight)
 
     #if add_summary_loss and not isinstance(model.summary_net, nn.Identity):
@@ -115,14 +115,13 @@ def train_score_model(model, dataloader, hierarchical=False, dataloader_valid=No
                                                            x_batch=x_batch,
                                                            diffusion_time=diffusion_time, model=model)
                 else:
-                    theta_noisy, theta, target, x_batch, diffusion_time = batch
+                    theta_noisy, target, x_batch, diffusion_time = batch
                     theta_noisy = theta_noisy.to(device)
-                    theta = theta.to(device)
                     target = target.to(device)
                     x_batch = x_batch.to(device)
                     diffusion_time = diffusion_time.to(device)
                     # calculate the loss
-                    loss = compute_score_loss(theta_noisy=theta_noisy, theta=theta, target=target, x_batch=x_batch,
+                    loss = compute_score_loss(theta_noisy=theta_noisy, target=target, x_batch=x_batch,
                                               diffusion_time=diffusion_time, model=model)
                 loss.backward()
                 # gradient clipping
@@ -158,13 +157,13 @@ def train_score_model(model, dataloader, hierarchical=False, dataloader_valid=No
                                                                  x_batch=x_batch,
                                                                  diffusion_time=diffusion_time, model=model)
                     else:
-                        theta_noisy, theta, target, x_batch, diffusion_time = val_batch
+                        theta_noisy, target, x_batch, diffusion_time = val_batch
                         theta_noisy = theta_noisy.to(device)
                         target = target.to(device)
                         x_batch = x_batch.to(device)
                         diffusion_time = diffusion_time.to(device)
                         # calculate the loss
-                        v_loss = compute_score_loss(theta_noisy=theta_noisy, theta=theta, target=target, x_batch=x_batch,
+                        v_loss = compute_score_loss(theta_noisy=theta_noisy, target=target, x_batch=x_batch,
                                                     diffusion_time=diffusion_time, model=model)
                     valid_loss.append(v_loss.item())
                 # update dataset if necessary

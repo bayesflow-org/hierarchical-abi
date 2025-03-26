@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-
+from diffusion_model.helper_functions import generate_diffusion_time
 
 class Simulator:
 
@@ -334,45 +334,76 @@ def visualize_simulation_output(sim_output):
 
 
 class GaussianProblem(Dataset):
-    def __init__(self, n_data, prior, online_learning=False, max_number_of_obs=1):
+    def __init__(self, n_data, prior, sde, number_of_obs=1,
+                 online_learning=False, rectified_flow=False):
         # Create model and dataset
-        self.prior = prior
-        self.n_data = n_data
-        self.max_number_of_obs = max_number_of_obs
-        self.n_obs = max_number_of_obs
+        self._prior = prior
+        self._sde = sde
+
+        self._number_of_obs_list = number_of_obs if isinstance(number_of_obs, list) else [number_of_obs]
+        self._amortize_n_conditions = True if isinstance(number_of_obs, list) else False
+        self._max_number_of_obs = max(self._number_of_obs_list)
+        self._current_n_obs = self._max_number_of_obs
+
+        self._n_data = n_data
         self.online_learning = online_learning
+        self._rectified_flow = rectified_flow
         self._generate_data()
+        self._generate_diffusion_target()
 
     def _generate_data(self):
         # Create model and dataset
-        self.thetas_global, self.xs = generate_synthetic_data(
-            self.prior,
-            data_size=self.max_number_of_obs if self.max_number_of_obs > 1 else None,
-            n_samples=self.n_data, normalize=True
+        self._thetas_global, self._xs = generate_synthetic_data(
+            self._prior,
+            data_size=self._max_number_of_obs if self._max_number_of_obs > 1 else None,
+            n_samples=self._n_data, normalize=True
         )
-        self.epsilon_global = torch.randn_like(self.thetas_global, dtype=torch.float32)
+
+        # generate new noise only with new data
+        if self._rectified_flow:
+            self._noise_global = torch.randn_like(self._thetas_global)
+
+    def _generate_diffusion_target(self):
+        # Generate diffusion time and training target
+        self._diffusion_time = generate_diffusion_time(size=self._n_data, return_batch=True)
+
+        # perturb the theta batch
+        snr = self._sde.get_snr(t=self._diffusion_time)
+        self._alpha, self._sigma = self._sde.kernel(log_snr=snr)
+
+        # generate new noise in each epoch
+        if not self._rectified_flow:
+            self._noise_global = torch.randn_like(self._thetas_global)
 
     def __len__(self):
         # this should return the size of the dataset
-        return len(self.thetas_global)
+        return len(self._thetas_global)
 
     def __getitem__(self, idx):
         # this should return one sample from the dataset
-        features = self.thetas_global[idx]
-        if self.max_number_of_obs > 1:
-            target = self.xs[idx, :self.n_obs]
+        if self._amortize_n_conditions:
+            params_global = self._thetas_global[idx, :self._current_n_obs]
+            data = self._xs[idx, :self._current_n_obs]
         else:
-            target = self.xs[idx]
-        noise = self.epsilon_global[idx]
-        return features, noise, target
+            params_global = self._thetas_global[idx]
+            data = self._xs[idx]
+
+        noise_global = self._noise_global[idx]
+
+        param_global_noisy = self._alpha[idx] * params_global + self._sigma[idx] * noise_global
+
+        target_global = noise_global  # for e-prediction
+        return param_global_noisy, target_global, data, self._diffusion_time[idx]
 
     def on_epoch_end(self):  # for online learning
         # Regenerate data at the end of each epoch
         if self.online_learning:
             self._generate_data()
+        self._generate_diffusion_target()
 
     def on_batch_end(self):
-        # Regenerate data at the end of each epoch
-        if self.max_number_of_obs > 1:
+        # Called at the end of each batch
+        if self._amortize_n_conditions:
             # sample number of observations
-            self.n_obs = np.random.choice([1, 5, 10, 20, 50, 100])
+            self._current_n_obs = np.random.choice(self._number_of_obs_list)
+
