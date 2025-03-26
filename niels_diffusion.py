@@ -217,7 +217,7 @@ class SimpleDiffusion(InferenceNetwork):
             raise NotImplementedError(f"Schedule {self.schedule['name']} not implemented")
 
     def clip(self, x: Tensor) -> Tensor:
-        clipped_x = keras.ops.clip(x, -1, 1)
+        clipped_x = keras.ops.clip(x, -5, 5)
         return clipped_x
 
     def diffuse(self, x: Tensor, alpha_t: Tensor, sigma_t: Tensor) -> tuple[Tensor, Tensor]:
@@ -390,7 +390,7 @@ class DenoisingDiffusion(InferenceNetwork):
             beta_start,
             beta_end,
             timesteps,
-            dtype='float64',  # Using float64 for better precision
+            dtype='float32',  # Using float64 for better precision
         )
         self.num_timesteps = int(timesteps)
 

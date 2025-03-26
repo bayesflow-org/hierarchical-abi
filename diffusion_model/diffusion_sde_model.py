@@ -20,6 +20,7 @@ class ScoreModel(nn.Module):
             input_dim_condition (int): Input dimension for the condition. Default is 0.
             weighting_type (str): Type of weighting to use. Default is None.
             prediction_type (str): Type of prediction to perform. Can be 'score', 'e', 'x', or 'v'.
+            loss_type (str): Prediction type to compute the loss on. Can be 'e' or 'v'.
             use_film (bool): Whether to use FiLM-residual blocks. Default is False.
             dropout_rate (float): Dropout rate. Default is 0.05.
             use_spectral_norm (bool): Whether to use spectral normalization. Default is False.
@@ -33,7 +34,7 @@ class ScoreModel(nn.Module):
                  hidden_dim, n_blocks,
                  sde, prior, max_number_of_obs=1, input_dim_condition=0,
                  weighting_type=None,
-                 prediction_type='v',
+                 prediction_type='v', loss_type='e',
                  use_film=False, dropout_rate=0.05, use_spectral_norm=False,
                  name_prefix='',
                  time_embedding=None, summary_net=None, full_res_layer=False):
@@ -41,7 +42,10 @@ class ScoreModel(nn.Module):
 
         if prediction_type not in ['score', 'e', 'x', 'v']:
             raise ValueError("Invalid prediction type. Must be one of 'score', 'e', 'x', or 'v'.")
+        if loss_type not in ['e', 'v']:
+            raise ValueError("Invalid loss type. Must be one of 'e', 'v'.")
         self.prediction_type = prediction_type
+        self.loss_type = loss_type
         self.sde = sde
         self.use_film = use_film
         self.weighting_type = weighting_type
@@ -164,8 +168,8 @@ class ScoreModel(nn.Module):
         if pred_score:
             return self.convert_to_score(pred=h, z=theta, log_snr=log_snr, clip_x=clip_x)
 
-        # convert the prediction to e always
-        return self.convert_to_e(pred=h, z=theta, log_snr=log_snr, clip_x=clip_x)
+        # convert the prediction to e or v
+        return self.convert_to_output(pred=h, z=theta, log_snr=log_snr, clip_x=clip_x)
 
 
     def convert_to_x(self, pred, z, alpha, sigma, clip_x):
@@ -191,11 +195,18 @@ class ScoreModel(nn.Module):
             x = torch.clamp(x, -5, 5)
         return x
 
-    def convert_to_e(self, pred, z, log_snr, clip_x):
-        alpha, sigma = self.sde.kernel(log_snr=log_snr)
-        x_pred = self.convert_to_x(pred=pred, z=z, alpha=alpha, sigma=sigma, clip_x=clip_x)
-        e_pred = (z - x_pred * alpha) / sigma
-        return e_pred
+    def convert_to_output(self, pred, z, log_snr, clip_x):
+        if self.loss_type == 'v':
+            alpha, sigma = self.sde.kernel(log_snr=log_snr)
+            x_pred = self.convert_to_x(pred=pred, z=z, alpha=alpha, sigma=sigma, clip_x=clip_x)
+            out = (alpha * z - x_pred) / sigma
+        elif self.loss_type == 'e':
+            alpha, sigma = self.sde.kernel(log_snr=log_snr)
+            x_pred = self.convert_to_x(pred=pred, z=z, alpha=alpha, sigma=sigma, clip_x=clip_x)
+            out = (z - x_pred * alpha) / sigma
+        else:
+            raise ValueError('Unknown loss type')
+        return out
 
     def convert_to_score(self, pred, z, log_snr, clip_x):
         alpha, sigma = self.sde.kernel(log_snr=log_snr)
@@ -701,6 +712,7 @@ class SDE:
 
 
 def weighting_function(t, sde, weighting_type, prediction_type='error'):
+
     if prediction_type == 'score':
         # likelihood weighting, since beta(t) = g(t)^2
         g_t = sde.get_f_g(t=t)

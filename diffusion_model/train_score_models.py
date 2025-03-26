@@ -6,8 +6,19 @@ import torch.optim as optim
 from diffusion_model.diffusion_sde_model import weighting_function
 
 
-############ HIERARCHICAL COMPOSITIONAL SCORE MODEL TRAINING ############
+def clip_grad_norm_per_tensor(model, max_norm=1.5):
+    for param in model.parameters():
+        if param.grad is not None:
+            grad_norm = param.grad.data.norm(2)
+            if grad_norm > max_norm:
+                param.grad.data.mul_(max_norm / grad_norm)
 
+
+def weighted_mse_loss(prediction, target, weight):
+    return torch.mean(weight * torch.mean(torch.square(prediction - target), dim=-1))
+
+
+############ HIERARCHICAL COMPOSITIONAL SCORE MODEL TRAINING ############
 
 def compute_hierarchical_score_loss(
         theta_global_noisy, target_global, theta_local_noisy, target_local, x_batch,
@@ -37,22 +48,21 @@ def compute_hierarchical_score_loss(
 
 ############ COMPOSITIONAL SCORE MODEL TRAINING ############
 
-
-def compute_score_loss(theta_noisy, theta, target, x_batch, diffusion_time, model, add_summary_loss=False):
+def compute_score_loss(theta_noisy, theta, target, x_batch, diffusion_time, model):
     # predict from perturbed theta
-    pred_theta = model(theta=theta_noisy, time=diffusion_time, x=x_batch, pred_score=False)
+    pred = model(theta=theta_noisy, time=diffusion_time, x=x_batch, pred_score=False)
 
-    effective_weight = weighting_function(diffusion_time, sde=model.sde, weighting_type=model.weighting_type,
+    weight = weighting_function(diffusion_time, sde=model.sde, weighting_type=model.weighting_type,
                                           prediction_type=model.prediction_type).flatten()
     # calculate the loss (sum over the last dimension, mean over the batch)
-    loss_global = torch.mean(effective_weight * torch.sum(torch.square(pred_theta - target), dim=-1))
+    loss_global = weighted_mse_loss(pred, target, weight)
 
-    if add_summary_loss and not isinstance(model.summary_net, nn.Identity):
-        # add extra loss for the summary net
-        dim_theta = pred_theta.shape[-1]
-        pred_summary = model.summary_net(x_batch)[..., :dim_theta]
-        loss_summary = torch.mean(effective_weight * torch.sum(torch.square(pred_summary - theta), dim=-1))
-        loss_global += loss_summary
+    #if add_summary_loss and not isinstance(model.summary_net, nn.Identity):
+    #    # add extra loss for the summary net
+    #    dim_theta = pred.shape[-1]
+    #    pred_summary = model.summary_net(x_batch)[..., :dim_theta]
+    #    loss_summary = weighted_mse_loss(pred_summary, theta, weight)
+    #    loss_global += loss_summary
     return loss_global
 
 
@@ -113,10 +123,10 @@ def train_score_model(model, dataloader, hierarchical=False, dataloader_valid=No
                     diffusion_time = diffusion_time.to(device)
                     # calculate the loss
                     loss = compute_score_loss(theta_noisy=theta_noisy, theta=theta, target=target, x_batch=x_batch,
-                                              diffusion_time=diffusion_time, model=model, add_summary_loss=add_summary_loss)
+                                              diffusion_time=diffusion_time, model=model)
                 loss.backward()
                 # gradient clipping
-                nn.utils.clip_grad_norm_(model.parameters(), 1.5)
+                clip_grad_norm_per_tensor(model, 1.5)  # same as in keras / bayesflow
                 optimizer.step()
                 if scheduler is not None:
                     scheduler.step()
@@ -155,7 +165,7 @@ def train_score_model(model, dataloader, hierarchical=False, dataloader_valid=No
                         diffusion_time = diffusion_time.to(device)
                         # calculate the loss
                         v_loss = compute_score_loss(theta_noisy=theta_noisy, theta=theta, target=target, x_batch=x_batch,
-                                                    diffusion_time=diffusion_time, model=model, add_summary_loss=add_summary_loss)
+                                                    diffusion_time=diffusion_time, model=model)
                     valid_loss.append(v_loss.item())
                 # update dataset if necessary
                 dataloader_valid.dataset.on_epoch_end()
