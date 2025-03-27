@@ -122,27 +122,39 @@ class MLP(nn.Module):  # copied from the bayesflow 2.0 implementation
 
 
 class LSTM(nn.Module):
-    def __init__(self, input_size: int, hidden_dim: int, num_layers: int = 1):
+    def __init__(self, input_size: int, hidden_dim: int, num_layers: int = 1, max_batch_size: int = 128):
         super().__init__()
         self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_dim, num_layers=num_layers, batch_first=True)
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
+        self.max_batch_size = max_batch_size
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if x.ndim == 4:
-            x = x.permute(0, 2, 1, 3)  # assuming time in not the second dimension yet
-            # reshape to 3d tensor
-            batch_size, n_time_steps, n_obs, n_features = x.size(0), x.size(1), x.size(2), x.size(3)
-            x_3 = x.contiguous().view(batch_size * n_obs, n_time_steps, n_features)
-            out, (h_n, c_n) = self.lstm(x_3)
-            # retrieve the last hidden state
-            h_n = h_n.contiguous().view(batch_size, n_obs, self.hidden_dim*self.num_layers)
-            x = h_n
-        else:
-            out, (h_n, c_n) = self.lstm(x)
-            # retrieve the last hidden state
-            x = h_n.contiguous().view(x.size(0), self.hidden_dim*self.num_layers)
-        return x
+        outputs = []
+        total = x.size(0)
+
+        # Process in chunks if needed
+        for i in range(0, total, self.max_batch_size):
+            chunk = x[i:i + self.max_batch_size]
+
+            if chunk.ndim == 4:
+                # Rearrange: assume time is not the second dimension yet
+                chunk = chunk.permute(0, 2, 1, 3)
+                bs, n_time_steps, n_obs, n_features = chunk.size()
+                # Reshape into 3D tensor for LSTM: combine batch and observation dimensions
+                chunk = chunk.contiguous().view(bs * n_obs, n_time_steps, n_features)
+                out, (h_n, c_n) = self.lstm(chunk)
+                # Retrieve the last hidden state and reshape back
+                h_n = h_n.contiguous().view(bs, n_obs, self.hidden_dim * self.num_layers)
+            else:
+                # Assume chunk is already 3D: [batch, time, features]
+                out, (h_n, c_n) = self.lstm(chunk)
+                h_n = h_n.contiguous().view(chunk.size(0), self.hidden_dim * self.num_layers)
+
+            outputs.append(h_n)
+
+        # Concatenate along the batch dimension
+        return torch.cat(outputs, dim=0)
 
 
 class GaussianFourierProjection(nn.Module):

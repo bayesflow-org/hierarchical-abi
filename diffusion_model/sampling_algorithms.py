@@ -664,16 +664,16 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
     """
     if not run_sampling_in_parallel:
         post_samples = []
-        for i in range(n_post_samples):
+        for i in tqdm(range(n_post_samples), disable=not verbose):
             post_samples.append(
                 probability_ode_solving(model=model, x_obs=x_obs, n_post_samples=1,
                                         conditions=conditions[:, i][:, None] if conditions is not None else None,
                                         t_end=t_end, mini_batch_arg=mini_batch_arg,
                                         run_sampling_in_parallel=True,
                                         random_seed=random_seed+i if random_seed is not None else None,
-                                        device=device, verbose=verbose)
+                                        device=device, verbose=False)
             )
-            if torch.isnan(post_samples[-1]).any():
+            if np.isnan(post_samples[-1]).any():
                 print("NaNs in theta, increase number of steps.")
                 break
         return np.concatenate(post_samples, axis=1)

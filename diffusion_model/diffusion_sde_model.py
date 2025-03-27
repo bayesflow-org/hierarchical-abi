@@ -425,8 +425,10 @@ class HierarchicalScoreModel(nn.Module):
         # during training, we looped over observations, here we expect that only one is passed
         if self.amortize_n_conditions:
             if x_emb.shape[1] > 1:
-                raise ValueError('Expected only one observation passed to the local network.')
-            x_emb = x_emb.squeeze(1)
+                batch_size, n_obs = x_emb.shape[:2]
+                x_emb = x_emb.contiguous().view(batch_size*n_obs, -1)
+            else:
+                x_emb = x_emb.squeeze(1)
         local_out = self.local_model.forward(theta=theta_local, time=time, x=x_emb,
                                              conditions=theta_global, pred_score=pred_score, clip_x=clip_x)
         return local_out
