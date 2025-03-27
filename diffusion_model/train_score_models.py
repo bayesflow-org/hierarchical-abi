@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.optim as optim
 
 from diffusion_model.diffusion_sde_model import weighting_function
@@ -58,6 +57,33 @@ def compute_score_loss(theta_noisy, target, x_batch, diffusion_time, model):
 
 ########### Training #################
 
+def compute_loss(model, batch, hierarchical, device):
+    if hierarchical:
+        theta_global_noisy, target_global, theta_local_noisy, target_local, x_batch, diffusion_time = batch
+        theta_global_noisy = theta_global_noisy.to(device)
+        target_global = target_global.to(device)
+        theta_local_noisy = theta_local_noisy.to(device)
+        target_local = target_local.to(device)
+        x_batch = x_batch.to(device)
+        diffusion_time = diffusion_time.to(device)
+        # calculate the loss
+        loss = compute_hierarchical_score_loss(theta_global_noisy=theta_global_noisy,
+                                               target_global=target_global,
+                                               theta_local_noisy=theta_local_noisy,
+                                               target_local=target_local,
+                                               x_batch=x_batch,
+                                               diffusion_time=diffusion_time, model=model)
+    else:
+        theta_noisy, target, x_batch, diffusion_time = batch
+        theta_noisy = theta_noisy.to(device)
+        target = target.to(device)
+        x_batch = x_batch.to(device)
+        diffusion_time = diffusion_time.to(device)
+        # calculate the loss
+        loss = compute_score_loss(theta_noisy=theta_noisy, target=target, x_batch=x_batch,
+                                  diffusion_time=diffusion_time, model=model)
+    return loss
+
 
 # Training loop for Score Model
 def train_score_model(model, dataloader, hierarchical=False, dataloader_valid=None,
@@ -88,31 +114,7 @@ def train_score_model(model, dataloader, hierarchical=False, dataloader_valid=No
             for batch in dataloader:
                 # initialize the gradients
                 optimizer.zero_grad()
-
-                if hierarchical:
-                    theta_global_noisy, target_global, theta_local_noisy, target_local, x_batch, diffusion_time = batch
-                    theta_global_noisy = theta_global_noisy.to(device)
-                    target_global = target_global.to(device)
-                    theta_local_noisy = theta_local_noisy.to(device)
-                    target_local = target_local.to(device)
-                    x_batch = x_batch.to(device)
-                    diffusion_time = diffusion_time.to(device)
-                    # calculate the loss
-                    loss = compute_hierarchical_score_loss(theta_global_noisy=theta_global_noisy,
-                                                           target_global=target_global,
-                                                           theta_local_noisy=theta_local_noisy,
-                                                           target_local=target_local,
-                                                           x_batch=x_batch,
-                                                           diffusion_time=diffusion_time, model=model)
-                else:
-                    theta_noisy, target, x_batch, diffusion_time = batch
-                    theta_noisy = theta_noisy.to(device)
-                    target = target.to(device)
-                    x_batch = x_batch.to(device)
-                    diffusion_time = diffusion_time.to(device)
-                    # calculate the loss
-                    loss = compute_score_loss(theta_noisy=theta_noisy, target=target, x_batch=x_batch,
-                                              diffusion_time=diffusion_time, model=model)
+                loss = compute_loss(model=model, batch=batch, hierarchical=hierarchical, device=device)
                 loss.backward()
                 # gradient clipping
                 if clip_norm is not None:
@@ -132,31 +134,10 @@ def train_score_model(model, dataloader, hierarchical=False, dataloader_valid=No
             model.eval()
             with torch.no_grad():
                 for val_batch in dataloader_valid:
-                    if hierarchical:
-                        theta_global_noisy, target_global, theta_local_noisy, target_local, x_batch, diffusion_time = val_batch
-                        theta_global_noisy = theta_global_noisy.to(device)
-                        target_global = target_global.to(device)
-                        theta_local_noisy = theta_local_noisy.to(device)
-                        target_local = target_local.to(device)
-                        x_batch = x_batch.to(device)
-                        diffusion_time = diffusion_time.to(device)
-                        # calculate the loss
-                        v_loss = compute_hierarchical_score_loss(theta_global_noisy=theta_global_noisy,
-                                                                 target_global=target_global,
-                                                                 theta_local_noisy=theta_local_noisy,
-                                                                 target_local=target_local,
-                                                                 x_batch=x_batch,
-                                                                 diffusion_time=diffusion_time, model=model)
-                    else:
-                        theta_noisy, target, x_batch, diffusion_time = val_batch
-                        theta_noisy = theta_noisy.to(device)
-                        target = target.to(device)
-                        x_batch = x_batch.to(device)
-                        diffusion_time = diffusion_time.to(device)
-                        # calculate the loss
-                        v_loss = compute_score_loss(theta_noisy=theta_noisy, target=target, x_batch=x_batch,
-                                                    diffusion_time=diffusion_time, model=model)
+                    v_loss = compute_loss(model=model, batch=val_batch, hierarchical=hierarchical, device=device)
                     valid_loss.append(v_loss.item())
+                    # update batch if necessary
+                    dataloader_valid.dataset.on_batch_end()
                 # update dataset if necessary
                 dataloader_valid.dataset.on_epoch_end()
 
