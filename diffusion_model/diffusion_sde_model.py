@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+from diffusion_model.helper_functions import count_parameters
 from diffusion_model.helper_functions import sech
 from diffusion_model.helper_networks import MLP, FiLMResidualBlock
 
@@ -38,7 +39,7 @@ class ScoreModel(nn.Module):
                  use_film=False, dropout_rate=0.05, use_spectral_norm=False,
                  name_prefix='',
                  time_embedding=None, summary_net=None, full_res_layer=False):
-        super(ScoreModel, self).__init__()
+        super().__init__()
 
         if prediction_type not in ['score', 'e', 'x', 'v']:
             raise ValueError("Invalid prediction type. Must be one of 'score', 'e', 'x', or 'v'.")
@@ -114,6 +115,9 @@ class ScoreModel(nn.Module):
             self.input_layer = nn.utils.parametrizations.spectral_norm(self.input_layer)
             if full_res_layer:
                 self.projection_layer = nn.utils.parametrizations.spectral_norm(self.projection_layer)
+
+        count_parameters(self)
+        print(self.name)
 
     def forward_global(self, theta_global, time, x, pred_score, clip_x=False):
         if x.ndim == 4:
@@ -265,7 +269,7 @@ class HierarchicalScoreModel(nn.Module):
                  use_film=False, dropout_rate=0.05, use_spectral_norm=False,
                  name_prefix='',
                  time_embedding_global=None, time_embedding_local=None, summary_net=None, full_res_layer=False):
-        super(HierarchicalScoreModel, self).__init__()
+        super().__init__()
         if prediction_type not in ['score', 'e', 'x', 'v']:
             raise ValueError("Invalid prediction type. Must be one of 'score', 'e', 'x', or 'v'.")
         if loss_type not in ['e', 'v']:
@@ -309,7 +313,7 @@ class HierarchicalScoreModel(nn.Module):
             n_blocks=n_blocks,
             sde=sde,
             prior=prior,
-            max_number_of_obs=max_number_of_obs,
+            max_number_of_obs=1,
             input_dim_condition=0,
             weighting_type=weighting_type,
             prediction_type=prediction_type,
@@ -325,12 +329,12 @@ class HierarchicalScoreModel(nn.Module):
         self.n_params_local = input_dim_theta_local
         self.local_model = ScoreModel(
             input_dim_theta=input_dim_theta_local,
-            input_dim_x=input_dim_x_after_summary,
+            input_dim_x=input_dim_x,
             hidden_dim=hidden_dim,
             n_blocks=n_blocks,
             sde=sde,
             prior=prior,
-            max_number_of_obs=max_number_of_obs,
+            max_number_of_obs=1,
             input_dim_condition=input_dim_theta_global,
             weighting_type=weighting_type,
             prediction_type=prediction_type,
@@ -343,6 +347,9 @@ class HierarchicalScoreModel(nn.Module):
             summary_net=None,
             full_res_layer=full_res_layer
         )
+
+        count_parameters(self)
+        print(self.name)
 
     def forward(self, theta_global, theta_local, time, x, pred_score, clip_x=False):  # __call__ method for the model
         """Forward pass through the global and local model. This usually only used, during training."""

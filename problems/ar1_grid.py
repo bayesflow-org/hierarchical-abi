@@ -280,21 +280,24 @@ class AR1GridProblem(Dataset):
     def __getitem__(self, idx):
         # this should return one sample from the dataset
         params_global = self._thetas_global[idx]
+        noise_global = self._noise_global[idx]
+
         if self._amortize_n_conditions:
             params_local = self._thetas_local[idx, :self._current_n_obs]
+            noise_local = self._thetas_local[idx, :self._current_n_obs]
             data = self._xs[idx, :self._current_n_obs]
+            param_local_noisy = self._alpha[idx].unsqueeze(1) * params_local + self._sigma[idx].unsqueeze(1) * noise_local
+
         else:
             params_local = self._thetas_local[idx]
+            noise_local = self._noise_local[idx]
             data = self._xs[idx]
+            param_local_noisy = self._alpha[idx] * params_local + self._sigma[idx] * noise_local
 
         if self._amortize_time:
             data = data[:, :, :self._n_time_points]
 
-        noise_global = self._noise_global[idx]
-        noise_local = self._noise_local[idx]
-
         param_global_noisy = self._alpha[idx] * params_global + self._sigma[idx] * noise_global
-        param_local_noisy = self._alpha[idx] * params_local + self._sigma[idx] * noise_local
 
         target_global = noise_global  # for e-prediction
         target_local = noise_local

@@ -121,6 +121,30 @@ class MLP(nn.Module):  # copied from the bayesflow 2.0 implementation
         return x
 
 
+class LSTM(nn.Module):
+    def __init__(self, input_size: int, hidden_dim: int, num_layers: int = 1):
+        super().__init__()
+        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_dim, num_layers=num_layers, batch_first=True)
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if x.ndim == 4:
+            x = x.permute(0, 2, 1, 3)  # assuming time in not the second dimension yet
+            # reshape to 3d tensor
+            batch_size, n_time_steps, n_obs, n_features = x.size(0), x.size(1), x.size(2), x.size(3)
+            x_3 = x.contiguous().view(batch_size * n_obs, n_time_steps, n_features)
+            out, (h_n, c_n) = self.lstm(x_3)
+            # retrieve the last hidden state
+            h_n = h_n.contiguous().view(batch_size, n_obs, self.hidden_dim*self.num_layers)
+            x = h_n
+        else:
+            out, (h_n, c_n) = self.lstm(x)
+            # retrieve the last hidden state
+            x = h_n.contiguous().view(x.size(0), self.hidden_dim*self.num_layers)
+        return x
+
+
 class GaussianFourierProjection(nn.Module):
     """Gaussian random features for encoding time steps."""
     def __init__(self, embed_dim, init_scale=30.):
@@ -175,73 +199,12 @@ class FiLMResidualBlock(nn.Module):
         x = self.norm(x)
         return self.activation(x + self.skip(h))
 
-
-class TimeDistributedGRU(nn.Module):
-    def __init__(self, module):
-        super(TimeDistributedGRU, self).__init__()
-        self.module = module
-        # check if module is GRU
-        if isinstance(module, nn.GRU):
-            pass
-        else:
-            raise ValueError("Module must be an instance of nn.GRU")
-
-    def forward(self, x):
-        # Assume input x is of shape (batch_size, n_obs, n_time_steps, n_features)
-        batch_size, n_obs, n_time_steps, n_features = x.size(0), x.size(1), x.size(2), x.size(3)
-        # Merge batch and time dimensions
-        x_reshaped = x.contiguous().view(batch_size * n_obs, n_time_steps, n_features)
-        # Apply the module
-        _, y = self.module(x_reshaped)
-        # Reshape back to (n_rnn_layers, batch_size, n_obs, hidden_dim)
-        y = y.contiguous().view(y.shape[0], batch_size, n_obs, y.shape[2])
-        return None, y  # to match output of GRU
-
-
-class TimeDistributedLSTM(nn.Module):
-    def __init__(self, module):
-        super(TimeDistributedLSTM, self).__init__()
-        self.module = module
-        # Check that the module is an instance of nn.LSTM.
-        if not isinstance(module, nn.LSTM):
-            raise ValueError("Module must be an instance of nn.LSTM")
-
-    def forward(self, x):
-        # x: (batch_size, n_obs, n_time_steps, n_features)
-        batch_size, n_obs, n_time_steps, n_features = x.size()
-        # Merge the batch and observation dimensions
-        x_reshaped = x.contiguous().view(batch_size * n_obs, n_time_steps, n_features)
-        # Apply the LSTM module; LSTM returns (output, (h_n, c_n))
-        _, (h_n, c_n) = self.module(x_reshaped)
-        # h_n and c_n have shape (n_rnn_layers, batch_size * n_obs, hidden_dim)
-        # Reshape them back to (n_rnn_layers, batch_size, n_obs, hidden_dim)
-        h_n = h_n.contiguous().view(h_n.size(0), batch_size, n_obs, h_n.size(2))
-        c_n = c_n.contiguous().view(c_n.size(0), batch_size, n_obs, c_n.size(2))
-        return None, (h_n, c_n)
-
-
-class TimeDistributedDense(nn.Module):
-    def __init__(self, module):
-        super(TimeDistributedDense, self).__init__()
-        self.module = module
-
-    def forward(self, x):
-        # Assume input x is of shape (batch_size, n_obs, n_features)
-        batch_size, n_obs, n_features = x.size(0), x.size(1), x.size(2)
-        # Merge batch and time dimensions
-        x_reshaped = x.contiguous().view(batch_size * n_obs, n_features)
-        # Apply the module
-        y = self.module(x_reshaped)
-        # Reshape back to (batch_size, n_obs, hidden_dim)
-        y = y.contiguous().view(batch_size, n_obs, y.shape[1])
-        return y
-
 #############
 # taken from: https://github.com/juho-lee/set_transformer/blob/master/
 
 class MAB(nn.Module):
     def __init__(self, dim_Q, dim_K, dim_V, num_heads, ln=False):
-        super(MAB, self).__init__()
+        super().__init__()
         self.dim_V = dim_V
         self.num_heads = num_heads
         self.fc_q = nn.Linear(dim_Q, dim_V)
@@ -270,7 +233,7 @@ class MAB(nn.Module):
 
 class SAB(nn.Module):
     def __init__(self, dim_in, dim_out, num_heads, ln=False):
-        super(SAB, self).__init__()
+        super().__init__()
         self.mab = MAB(dim_in, dim_in, dim_out, num_heads, ln=ln)
 
     def forward(self, X):
@@ -278,7 +241,7 @@ class SAB(nn.Module):
 
 class ISAB(nn.Module):
     def __init__(self, dim_in, dim_out, num_heads, num_inds, ln=False):
-        super(ISAB, self).__init__()
+        super().__init__()
         self.I = nn.Parameter(torch.Tensor(1, num_inds, dim_out))
         nn.init.xavier_uniform_(self.I)
         self.mab0 = MAB(dim_out, dim_in, dim_out, num_heads, ln=ln)
@@ -290,7 +253,7 @@ class ISAB(nn.Module):
 
 class PMA(nn.Module):
     def __init__(self, dim, num_heads, num_seeds, ln=False):
-        super(PMA, self).__init__()
+        super().__init__()
         self.S = nn.Parameter(torch.Tensor(1, num_seeds, dim))
         nn.init.xavier_uniform_(self.S)
         self.mab = MAB(dim, dim, dim, num_heads, ln=ln)
@@ -301,7 +264,7 @@ class PMA(nn.Module):
 
 class ShallowSet(nn.Module):
     def __init__(self, dim_input, dim_output, dim_hidden=128):
-        super(ShallowSet, self).__init__()
+        super().__init__()
         #self.num_outputs = num_outputs
         self.dim_output = dim_output
         self.enc = nn.Sequential(
@@ -331,7 +294,7 @@ class ShallowSet(nn.Module):
 class SetTransformer(nn.Module):
     def __init__(self, dim_input, num_outputs, dim_output,
             num_inds=32, dim_hidden=128, num_heads=4, ln=False):
-        super(SetTransformer, self).__init__()
+        super().__init__()
         self.dim_output = dim_output
         self.enc = nn.Sequential(
                 ISAB(dim_input, dim_hidden, num_heads, num_inds, ln=ln),

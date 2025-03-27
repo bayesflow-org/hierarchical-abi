@@ -1,23 +1,23 @@
 #%% md
 # # Flat Gaussian with compositional score matching
 
-import ast
+import itertools
 import os
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
 
 os.environ['KERAS_BACKEND'] = 'torch'
 from bayesflow import diagnostics
 from torch.utils.data import DataLoader
-import itertools
-import sys
 
-from diffusion_model import CompositionalScoreModel, SDE, train_score_model, adaptive_sampling
-from problems.gaussian_flat import GaussianProblem, Prior, generate_synthetic_data, \
-    sample_posterior, analytical_posterior_mean_std, posterior_contraction
+from diffusion_model import ScoreModel, SDE, train_score_model, adaptive_sampling
+from diffusion_model.helper_networks import GaussianFourierProjection
+from problems.gaussian_flat import GaussianProblem, Prior, generate_synthetic_data, sample_posterior, analytical_posterior_mean_std, posterior_contraction
 #%%
 torch_device = torch.device("cuda")
 
@@ -36,54 +36,52 @@ print('Exp:', experiment_id, 'Model:', model_id, variable_of_interest)
 
 #%%
 prior = Prior()
-#simulator_test = Simulator()
 np.random.seed(experiment_id)
-
-# test the simulator
-#prior_test = prior.sample(2)
-#sim_test = simulator_test(prior_test, n_obs=1000)
-#visualize_simulation_output(sim_test['observable'])
-#%%
 batch_size = 128
-#max_number_of_obs = 1  # larger than one means we condition the score on multiple observations
+number_of_obs = 1
 
-dataset = GaussianProblem(
-    n_data=10000,
-    prior=prior,
-    online_learning=True,
-    max_number_of_obs=max_number_of_obs
-)
-dataset_valid = GaussianProblem(
-    n_data=batch_size*2,
-    prior=prior,
-    max_number_of_obs=max_number_of_obs
-)
-
-# Create dataloader
-dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=False)
 #%%
-# Define diffusion model
 current_sde = SDE(
     kernel_type=['variance_preserving', 'sub_variance_preserving'][0],
     noise_schedule=['linear', 'cosine', 'flow_matching'][1]
 )
 
-score_model = CompositionalScoreModel(
-    input_dim_theta_global=prior.n_params_global,
-    input_dim_x=prior.D,
-    hidden_dim=128,
+dataset = GaussianProblem(
+    n_data=10000,
+    prior=prior,
+    sde=current_sde,
+    online_learning=True,
+    number_of_obs=number_of_obs
+)
+dataset_valid = GaussianProblem(
+    n_data=1000,
+    prior=prior,
+    sde=current_sde,
+)
+
+# Create dataloader
+dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=False)
+
+time_embedding = nn.Sequential(
+    GaussianFourierProjection(8),
+    nn.Linear(8,8),
+    nn.Mish()
+)
+
+score_model = ScoreModel(
+    input_dim_theta=prior.n_params_global,
+    input_dim_x=10,
+    time_embedding=time_embedding,
+    hidden_dim=256,
     n_blocks=5,
-    max_number_of_obs=max_number_of_obs,
+    max_number_of_obs=max(number_of_obs) if isinstance(number_of_obs, list) else number_of_obs,
     prediction_type=['score', 'e', 'x', 'v'][3],
     sde=current_sde,
-    time_embed_dim=32,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
-    name_prefix=f'model{model_id}_'
+    name_prefix=f'gaussian_flat{model_id}_'
 )
-#count_parameters(score_model)
-print(score_model.name)
 
 # make dir for plots
 if not os.path.exists(f"plots/{score_model.name}"):
@@ -95,14 +93,14 @@ if not os.path.exists(f"plots/{score_model.name}"):
     torch.save(score_model.state_dict(), f"models/{score_model.name}.pt")
 
     # plot loss history
-    plt.figure(figsize=(6, 3), tight_layout=True)
-    plt.plot(loss_history[:, 0], label='Train')
-    plt.plot(loss_history[:, 1], label='Valid')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
+    plt.figure(figsize=(16, 4), tight_layout=True)
+    plt.plot(loss_history[:, 0], label='Training', color="#132a70", lw=2.0, alpha=0.9)
+    plt.plot(loss_history[:, 1], label='Validation', linestyle="--", marker="o", color='black')
+    plt.grid(alpha=0.5)
+    plt.xlabel('Training epoch #')
+    plt.ylabel('Value')
     plt.legend()
     plt.savefig(f'plots/{score_model.name}/loss_training.png')
-    plt.show()
     # %%
 else:
     score_model.load_state_dict(
@@ -149,14 +147,8 @@ n_samples_data = 100
 n_post_samples = 100
 score_model.current_number_of_obs = 1
 max_steps = 10000
-#variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t'] # 'damping_factor', 'damping_factor_prior'
-#if score_model.max_number_of_obs > 1:
-#    variables_of_interest.append('n_conditions')
 
-#for variable_of_interest in variables_of_interest:
-#variable_of_interest = variables_of_interest[0]
-
-mini_batch = [100]
+mini_batch = ['10%']
 n_conditions = [1]
 cosine_shifts = [0]
 d_factors = [1]  # using the d factor depending on the mini batch size
@@ -185,8 +177,6 @@ df_path = f'plots/{score_model.name}/df_results_{variable_of_interest}.csv'
 if os.path.exists(df_path):
     # Load CSV
     df_results = pd.read_csv(df_path, index_col=0)
-    # Convert string representations back to lists
-    df_results['list_steps'] = df_results['list_steps'].apply(lambda x: ast.literal_eval(x))
 
     if variable_of_interest == 'damping_factor_prior':
         df_results['damping_factor_prior'] = df_results['damping_factor']
@@ -194,6 +184,7 @@ if os.path.exists(df_path):
         df_results['damping_factor_t'] = df_results['damping_factor']
 else:
     df_results = None
+
 #%%
 # List to store results.
 results = []
@@ -203,11 +194,13 @@ reached_max_evals = []
 for n in data_sizes:
     # Generate synthetic data with enough samples
     true_params, test_data = generate_synthetic_data(prior, n_samples=n_samples_data, data_size=n,
-                                                     normalize=False, random_seed=experiment_id)
+                                                     normalize=False, random_seed=0)
     true_params = true_params.numpy()
     # Iterate over experimental setting
     for mb, nc, cs, d_factor in itertools.product(mini_batch, n_conditions, cosine_shifts, d_factors):
         # Skip mini-batch settings that are larger than or equal to the data size.
+        if mb == '10%':
+            mb = max(int(n * 0.1), 1)
         if mb is not None and mb >= n:
             continue
         if nc > n:
@@ -239,7 +232,7 @@ for n in data_sizes:
                 'n_conditions': nc,
                 'cosine_shift': cs,
                 "n_steps": max_steps,
-                "list_steps": np.nan,
+                #"list_steps": np.nan,
                 "kl": np.nan,
                 "median": np.nan,
                 "median_rmse": np.nan,
@@ -249,7 +242,7 @@ for n in data_sizes:
             })
             df_results = pd.DataFrame(results)
             # Convert lists to strings for CSV storage
-            df_results['list_steps'] = df_results['list_steps'].apply(lambda x: str(x))
+            #df_results['list_steps'] = df_results['list_steps'].apply(lambda x: str(x))
             df_results.to_csv(df_path)
             continue
 
@@ -266,22 +259,21 @@ for n in data_sizes:
             t1_value = d_factor
             damping_factor = lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t)
             if mb is None:
-                mini_batch_arg = {'damping_factor': damping_factor, 'damping_factor_prior': damping_factor}
-            else:
-                mini_batch_arg = {'size': mb, 'damping_factor': damping_factor,
-                                  'damping_factor_prior': damping_factor}
-        elif variable_of_interest == 'damping_factor_prior':
-            damping_factor = lambda t: torch.ones_like(t) * d_factor
-            if mb is None:
-                mini_batch_arg = {'damping_factor': damping_factor, 'damping_factor_prior': damping_factor}
-            else:
-                mini_batch_arg = {'size': mb, 'damping_factor': damping_factor, 'damping_factor_prior': damping_factor}
-        else:
-            damping_factor = lambda t: torch.ones_like(t) * d_factor
-            if mb is None:
                 mini_batch_arg = {'damping_factor': damping_factor}
             else:
                 mini_batch_arg = {'size': mb, 'damping_factor': damping_factor}
+        elif variable_of_interest == 'damping_factor_prior':
+            damping_factor = lambda t: torch.ones_like(t) * d_factor
+            if mb is None:
+                mini_batch_arg = {'damping_factor_prior': damping_factor}
+            else:
+                mini_batch_arg = {'size': mb, 'damping_factor_prior': damping_factor}
+        else:
+            damping_factor = lambda t: torch.ones_like(t) * d_factor
+            if mb is None:
+                mini_batch_arg = {'damping_factor': damping_factor, 'damping_factor_prior': 1}
+            else:
+                mini_batch_arg = {'size': mb, 'damping_factor': damping_factor, 'damping_factor_prior': 1}
 
         # Run adaptive sampling.
         try:
@@ -302,7 +294,7 @@ for n in data_sizes:
                 'n_conditions': nc,
                 'cosine_shift': cs,
                 "n_steps": max_steps,
-                "list_steps": np.nan,
+                #"list_steps": np.nan,
                 "kl": np.nan,
                 "median": np.nan,
                 "median_rmse": np.nan,
@@ -312,7 +304,7 @@ for n in data_sizes:
             })
             df_results = pd.DataFrame(results)
             # Convert lists to strings for CSV storage
-            df_results['list_steps'] = df_results['list_steps'].apply(lambda x: str(x))
+            #df_results['list_steps'] = df_results['list_steps'].apply(lambda x: str(x))
             df_results.to_csv(df_path)
             continue
 
@@ -356,7 +348,7 @@ for n in data_sizes:
                 'n_conditions': nc,
                 'cosine_shift': cs,
                 "n_steps": n_steps,
-                "list_steps": np.where(np.isnan(list_steps[0]), None, list_steps[0]).tolist(),  # only for the first sample
+                #"list_steps": np.where(np.isnan(list_steps[0]), None, list_steps[0]).tolist(),  # only for the first sample
                 "kl": kl[i],
                 "median": np.median(test_samples, axis=1)[i],
                 "median_rmse": rmse,
@@ -368,11 +360,8 @@ for n in data_sizes:
         # Create a DataFrame from the results list. Save intermediate results
         df_results = pd.DataFrame(results)
         # Convert lists to strings for CSV storage
-        df_results['list_steps'] = df_results['list_steps'].apply(lambda x: str(x))
+        #df_results['list_steps'] = df_results['list_steps'].apply(lambda x: str(x))
         df_results.to_csv(df_path)
 
-# Create a DataFrame from the results list. Save intermediate results
-df_results = pd.DataFrame(results)
-# Convert lists to strings for CSV storage
-df_results['list_steps'] = df_results['list_steps'].apply(lambda x: str(x))
-df_results.to_csv(df_path)
+# Convert string representations back to lists
+#df_results['list_steps'] = df_results['list_steps'].apply(lambda x: ast.literal_eval(x))

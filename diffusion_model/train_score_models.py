@@ -24,16 +24,6 @@ def compute_hierarchical_score_loss(
         theta_global_noisy, target_global, theta_local_noisy, target_local, x_batch,
         diffusion_time, model
 ):
-
-    # perturb the theta batch
-    # snr = model.sde.get_snr(t=diffusion_time)
-    # alpha, sigma = model.sde.kernel(log_snr=snr)
-    # z_global = alpha * theta_global_batch + sigma * epsilon_global_batch
-    # if model.max_number_of_obs > 1:
-    #     # global params are not factorized to the same level as local params
-    #     z_local = alpha.unsqueeze(1) * theta_local_batch + sigma.unsqueeze(1) * epsilon_local_batch
-    # else:
-    #     z_local = alpha * theta_local_batch + sigma * epsilon_local_batch
     # predict from perturbed theta
     pred_global, pred_local = model(theta_global=theta_global_noisy, theta_local=theta_local_noisy,
                                     time=diffusion_time, x=x_batch, pred_score=False)
@@ -71,7 +61,7 @@ def compute_score_loss(theta_noisy, target, x_batch, diffusion_time, model):
 
 # Training loop for Score Model
 def train_score_model(model, dataloader, hierarchical=False, dataloader_valid=None,
-                      epochs=1000, lr=5e-4, cosine_annealing=True, add_summary_loss=False, device=None):
+                      epochs=1000, lr=5e-4, cosine_annealing=True, clip_norm=1.5, device=None):
     print(f"Training {model.prediction_type}-model for {epochs} epochs with learning rate {lr} "
           f"and {model.weighting_type} weighting.")
     model.to(device)
@@ -125,7 +115,8 @@ def train_score_model(model, dataloader, hierarchical=False, dataloader_valid=No
                                               diffusion_time=diffusion_time, model=model)
                 loss.backward()
                 # gradient clipping
-                clip_grad_norm_per_tensor(model, 1.5)  # same as in keras / bayesflow
+                if clip_norm is not None:
+                    clip_grad_norm_per_tensor(model, clip_norm)  # same as in keras / bayesflow
                 optimizer.step()
                 if scheduler is not None:
                     scheduler.step()

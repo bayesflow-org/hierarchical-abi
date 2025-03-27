@@ -9,12 +9,7 @@ from diffusion_model.helper_functions import generate_diffusion_time
 sampling_defaults = {
     'damping_factor': lambda t: torch.ones_like(t),
     'sample_same_obs': None,
-    #'type': 'mean',  # mean, median, pareto, huber_mean, small_mean
-    #'tail_fraction': 0.2,
-    #'huber_delta': 1.,
     'size': np.inf,  # for mini-batch
-    'damping_factor_prior': lambda t: torch.ones_like(t),
-    #'small_size': 10
 }
 
 
@@ -169,9 +164,12 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, mini_batch_arg
                                  device=device)
         theta_init = theta_init / np.sqrt(n_obs)
 
-        theta_init = theta_init / torch.sqrt(
-            mini_batch_dict['damping_factor_prior'](t=torch.tensor(1, dtype=torch.float32,
-                                                                   device=device)))
+        if 'damping_factor_prior' in mini_batch_dict:
+            damping_factor = torch.tensor(mini_batch_dict['damping_factor_prior'], dtype=torch.float32, device=device)
+        else:
+            damping_factor = mini_batch_dict['damping_factor'](t=torch.tensor(1, dtype=torch.float32,
+                                                                              device=device))
+        theta_init = theta_init / torch.sqrt(damping_factor)
     else:
         theta_init = torch.randn((batch_size * n_post_samples, n_obs, model.prior.n_params_local), dtype=torch.float32,
                                  device=device)
@@ -219,99 +217,6 @@ def sub_sample_observations(x, batch_size_full, n_scores_update, mini_batch_dict
     return x_sub
 
 
-def pareto_smooth_weights(weights, tail_fraction):
-    """
-    Smooth a 1D array of raw importance weights using a Pareto tail fit.
-
-    Parameters:
-        weights (np.ndarray): 1D array of raw importance weights.
-        tail_fraction (float): Fraction of weights considered as the tail (e.g. 0.2 for top 20%).
-
-    Returns:
-        np.ndarray: The smoothed importance weights.
-    """
-    # Determine threshold: weights above this quantile are in the tail.
-    threshold = np.quantile(weights, 1 - tail_fraction)
-    tail_mask = weights > threshold
-
-    # If no weights exceed the threshold, nothing to smooth.
-    if np.sum(tail_mask) == 0:
-        #print('pareto smoothing: no weights exceed the threshold')
-        return np.ones_like(weights)
-
-    # Fit a generalized Pareto distribution (GPD) to the excesses (weight - threshold)
-    tail_excess = weights[tail_mask] - threshold
-    # Force location = 0 for the excesses. Returns shape c and scale.
-    c, loc, scale = stats.genpareto.fit(tail_excess, floc=0)
-
-    # A simple smoothing: cap the extreme weights by a computed maximum value.
-    # For a GPD with c < 1, the expected maximum is threshold + scale / (1 - c).
-    # (If c >= 1, we fall back to no smoothing.)
-    if c < 1:
-        max_allowed = threshold + scale / (1 - c)
-    else:
-        max_allowed = np.max(weights)
-
-    # Replace tail weights with the minimum of their original value and the cap.
-    smoothed_weights = np.copy(weights)
-    smoothed_weights[tail_mask] = np.minimum(weights[tail_mask], max_allowed)
-    return smoothed_weights
-
-
-def pareto_smooth_sum(scores, tail_fraction):
-    """
-    Compute a Pareto-smoothed weighted sum of scores over batches.
-
-    Each row in scores (and corresponding raw_weights) is processed independently.
-    The raw_weights for each batch are smoothed using a Pareto tail fit,
-    then normalized to sum to one before computing the weighted sum.
-
-    Parameters:
-        scores (torch.tensor): Array of scores of shape (B, N) where B is the batch size.
-        tail_fraction (float): Fraction of the highest weights in each batch to smooth.
-
-    Returns:
-        np.ndarray: A 1D array of weighted sums (one per batch).
-    """
-    B, N, D = scores.shape
-    smoothed_sums = torch.zeros((scores.shape[0], scores.shape[2]), dtype=scores.dtype, device=scores.device)
-
-    for b in range(B):
-        # Extract the b-th batch
-        s = scores[b]  # shape (N, D)
-        magnitudes = torch.norm(s, p=2, dim=1).cpu().numpy()
-
-        # Apply Pareto smoothing to the raw weights in this batch.
-        smoothed_magnitudes = pareto_smooth_weights(magnitudes, tail_fraction=tail_fraction)
-        weights = torch.tensor(smoothed_magnitudes, dtype=scores.dtype, device=scores.device)
-
-        # Compute normalized directions for all vectors
-        norms = torch.norm(s, p=2, dim=1, keepdim=True) + 1e-8
-        directions = s / norms
-
-        # Apply smoothed magnitudes to original directions
-        scaled_vectors = weights.unsqueeze(1) * directions
-
-        # Sum the smoothed vectors
-        smoothed_sums[b] = torch.sum(scaled_vectors, dim=0)
-    return smoothed_sums
-
-
-def small_mean(x, size, dim):
-    sorted_x, _ = torch.sort(x, dim=dim)
-    trimmed_x = sorted_x[:, :size]  # Remove extremes
-    return trimmed_x.mean(dim=dim)
-
-
-def huber_mean(x, delta, dim):
-    abs_diff = torch.abs(x - x.mean(dim=dim, keepdim=True))
-    mask = abs_diff <= delta
-    squared_loss = 0.5 * (x ** 2)
-    linear_loss = delta * (abs_diff - 0.5 * delta)
-    loss = torch.where(mask, squared_loss, linear_loss)
-    return loss.mean(dim=dim)
-
-
 def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp, batch_size_full,
                              n_scores_update_full, mini_batch_dict):
     """
@@ -350,15 +255,12 @@ def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp
         prior_scores_indv = prior_scores.unsqueeze(1)
         # (1 - n_scores_update) * (1 - diffusion_time) * model.prior.score_global_batch(theta)
         model_sum_scores_indv = model_sum_scores_indv - prior_scores_indv
-
-        scores_mean = torch.mean(model_sum_scores_indv, dim=1)
-        damping_factor = mini_batch_dict['damping_factor'](diffusion_time)
-        model_sum_scores = damping_factor * n_scores_update_full * scores_mean
+        model_sum_scores = n_scores_update_full * torch.mean(model_sum_scores_indv, dim=1)
 
         # (1 - n_scores_update) * (1 - diffusion_time) * model.prior.score_global_batch(theta)
         # just the plus 1 is missing
-        damping_factor_prior = mini_batch_dict['damping_factor_prior'](diffusion_time)
-        model_scores = damping_factor_prior * prior_scores + model_sum_scores
+        damping_factor = mini_batch_dict['damping_factor'](diffusion_time)
+        model_scores = damping_factor * (prior_scores + model_sum_scores)
     elif conditions_exp is None and n_scores_update_full == 1:
         #theta_exp = theta.contiguous().view(-1, model.prior.n_params_global)
         model_indv_scores = model.forward_global(
@@ -611,7 +513,7 @@ def adaptive_sampling(model, x_obs,
     if not run_sampling_in_parallel:
         post_samples = []
         list_accepted_steps = []
-        for i in range(n_post_samples):
+        for i in tqdm(range(n_post_samples), disable=not verbose):
             ps, ls = adaptive_sampling(model=model, x_obs=x_obs, n_post_samples=1,
                                        conditions=conditions[:, i][:, None] if conditions is not None else None,
                                   e_abs=e_abs, e_rel=e_rel, h_init=h_init, r=r, adapt_safety=adapt_safety,
@@ -619,7 +521,7 @@ def adaptive_sampling(model, x_obs,
                                   run_sampling_in_parallel=True,
                                   random_seed=random_seed+i if random_seed is not None else None,
                                   device=device, return_steps=True,
-                                  verbose=verbose)
+                                  verbose=False)
             post_samples.append(ps)
             list_accepted_steps.append(ls)
             if len(ls) == max_evals / 2:
