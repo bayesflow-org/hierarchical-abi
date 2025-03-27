@@ -3,7 +3,7 @@ import torch
 
 from scipy.special import expit
 from torch.utils.data import Dataset
-
+from diffusion_model.helper_functions import generate_diffusion_time
 
 class Simulator:
     def __init__(self):
@@ -394,21 +394,22 @@ def generate_synthetic_data(prior, n_data, n_local_samples=1, normalize=False,
 
 
 class FLIProblem(Dataset):
-    def __init__(self, n_data, prior, online_learning=False, amortize_time=False, number_of_obs=1):
+    def __init__(self, n_data, prior, sde, number_of_obs=1,
+                 online_learning=False, rectified_flow=False):
         # Create model and dataset
         self._prior = prior
-        self._n_data = n_data
+        self._sde = sde
 
         self._number_of_obs_list = number_of_obs if isinstance(number_of_obs, list) else [number_of_obs]
+        self._amortize_n_conditions = True if isinstance(number_of_obs, list) else False
         self._max_number_of_obs = max(self._number_of_obs_list)
         self._current_n_obs = self._max_number_of_obs
 
-        self._max_number_of_time_points = 201
-        self._n_time_points = self._max_number_of_time_points
-        self._amortize_time = amortize_time
-
-        self._online_learning = online_learning
+        self._n_data = n_data
+        self.online_learning = online_learning
+        self._rectified_flow = rectified_flow
         self._generate_data()
+        self._generate_diffusion_target()
 
     def _generate_data(self):
         # Create model and dataset
@@ -424,9 +425,24 @@ class FLIProblem(Dataset):
             self._thetas_local = self._thetas_local.squeeze(1)
         # add feature dimension for RNN
         self._xs = self._xs.unsqueeze(-1)
-        # generate noise
-        self._epsilon_global = torch.randn_like(self._thetas_global, dtype=torch.float32)
-        self._epsilon_local = torch.randn_like(self._thetas_local, dtype=torch.float32)
+
+        # generate new noise only with new data
+        if self._rectified_flow:
+            self._noise_global = torch.randn_like(self._thetas_global)
+            self._noise_local = torch.randn_like(self._thetas_local)
+
+    def _generate_diffusion_target(self):
+        # Generate diffusion time and training target
+        self._diffusion_time = generate_diffusion_time(size=self._n_data, return_batch=True)
+
+        # perturb the theta batch
+        snr = self._sde.get_snr(t=self._diffusion_time)
+        self._alpha, self._sigma = self._sde.kernel(log_snr=snr)
+
+        # generate new noise in each epoch
+        if not self._rectified_flow:
+            self._noise_global = torch.randn_like(self._thetas_global)
+            self._noise_local = torch.randn_like(self._thetas_local)
 
     def __len__(self):
         # this should return the size of the dataset
@@ -434,28 +450,36 @@ class FLIProblem(Dataset):
 
     def __getitem__(self, idx):
         # this should return one sample from the dataset
-        features_global = self._thetas_global[idx]
-        if self._max_number_of_obs > 1:
-            features_local = self._thetas_local[idx, :self._current_n_obs]
-            target = self._xs[idx, :self._current_n_obs]
-        else:
-            features_local = self._thetas_local[idx]
-            target = self._xs[idx]
-        if self._amortize_time:
-            target = target[:, :, :self._n_time_points]
-        noise_global = self._epsilon_global[idx]
-        noise_local = self._epsilon_local[idx]
-        return features_global, noise_global, features_local, noise_local, target
+        params_global = self._thetas_global[idx]
+        noise_global = self._noise_global[idx]
 
-    def on_epoch_end(self):
+        if self._amortize_n_conditions:
+            params_local = self._thetas_local[idx, :self._current_n_obs]
+            noise_local = self._thetas_local[idx, :self._current_n_obs]
+            data = self._xs[idx, :self._current_n_obs]
+            param_local_noisy = self._alpha[idx].unsqueeze(1) * params_local + self._sigma[idx].unsqueeze(1) * noise_local
+
+        else:
+            params_local = self._thetas_local[idx]
+            noise_local = self._noise_local[idx]
+            data = self._xs[idx]
+            param_local_noisy = self._alpha[idx] * params_local + self._sigma[idx] * noise_local
+
+        param_global_noisy = self._alpha[idx] * params_global + self._sigma[idx] * noise_global
+
+        target_global = noise_global  # for e-prediction
+        target_local = noise_local
+        return param_global_noisy, target_global, param_local_noisy, target_local, data, self._diffusion_time[idx]
+
+    def on_epoch_end(self):  # for online learning
         # Regenerate data at the end of each epoch
-        if self._online_learning:
+        if self.online_learning:
             self._generate_data()
+        self._generate_diffusion_target()
 
     def on_batch_end(self):
         # Called at the end of each batch
-        if self._max_number_of_obs > 1:
+        if self._amortize_n_conditions:
             # sample number of observations
             self._current_n_obs = np.random.choice(self._number_of_obs_list)
-        if self._amortize_time:
-            self._n_time_points = np.random.randint(2, self._max_number_of_time_points + 1)
+
