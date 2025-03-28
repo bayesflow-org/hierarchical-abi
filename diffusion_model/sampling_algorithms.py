@@ -13,7 +13,7 @@ sampling_defaults = {
 }
 
 
-def prepare_observations(x_obs, model, n_post_samples, device):
+def prepare_observations_for_sampling(x_obs, model, n_post_samples, n_time_steps, device):
     """
     Prepare and normalize observations.
 
@@ -32,64 +32,97 @@ def prepare_observations(x_obs, model, n_post_samples, device):
     else:
         x_obs = x_obs.to(device)
     x_obs_norm = model.prior.normalize_data(x_obs)
-
     batch_size = x_obs_norm.shape[0]
-    if x_obs_norm.ndim == 4:
-        # input is (batch_size, n_time_steps, grid, grid)
-        n_time_steps = x_obs_norm.shape[1]
-        # Reshape to (batch_size, n_time_steps, n_obs)
-        x_obs_norm = x_obs_norm.contiguous().view(batch_size, n_time_steps, -1, 1)
-        # Transpose to (batch_size, n_obs, n_time_steps, 1)
-        x_obs_norm = x_obs_norm.permute(0, 2, 1, 3)
-        n_obs = x_obs_norm.shape[1]
-    elif x_obs_norm.ndim == 3:  # data is not time series
-        # input is (batch_size, n_obs, n_dim)
-        n_obs = x_obs_norm.shape[1]
-        n_time_steps = 1
-        # Reshape to (batch_size, n_obs, 1, n_dim)
-        x_obs_norm = x_obs_norm.unsqueeze(2)
-    elif x_obs_norm.ndim == 2:   # data is not time series and only one observation
-        # Reshape to (batch_size, 1, 1, n_dim)
-        x_obs_norm = x_obs_norm.unsqueeze(1).unsqueeze(1)
-        n_obs = 1
-        n_time_steps = 1
+
+    if n_time_steps > 0:
+        if x_obs_norm.ndim == 4:
+            # input is (batch_size, n_time_steps, grid, grid)
+            # Reshape to (batch_size, n_time_steps, n_obs)
+            x_obs_norm = x_obs_norm.contiguous().view(batch_size, n_time_steps, -1, 1)
+            # Transpose to (batch_size, n_obs, n_time_steps, 1)
+            x_obs_norm = x_obs_norm.permute(0, 2, 1, 3)
+            n_obs = x_obs_norm.shape[1]
+        elif x_obs_norm.ndim == 3:
+            # input is (batch_size, n_time_steps, n_obs)
+            # Reshape to (batch_size, n_time_steps, n_obs)
+            x_obs_norm = x_obs_norm.contiguous().view(batch_size, n_time_steps, -1, 1)
+            # Transpose to (batch_size, n_obs, n_time_steps, 1)
+            x_obs_norm = x_obs_norm.permute(0, 2, 1, 3)
+            n_obs = x_obs_norm.shape[1]
+        else:
+            raise ValueError('x_obs must have shape (batch_size, n_time_steps, n_features) or '
+                             '(batch_size, n_time_steps, n_features, n_features)')
     else:
-        raise ValueError('x_obs_norm must be 2 to 4 dimensional.')
+        if x_obs_norm.ndim == 3:
+            # input is (batch_size, n_obs, n_dim)
+            n_obs = x_obs_norm.shape[1]
+        elif x_obs_norm.ndim == 2:   # data is not time series and only one observation
+            # Reshape to (batch_size, 1, n_dim)
+            x_obs_norm = x_obs_norm.unsqueeze(1)
+            n_obs = 1
+        else:
+            raise ValueError('x_obs must have shape (batch_size, n_obs, n_features) or '
+                             '(batch_size, n_features)')
 
     ##########################
 
-    # Reshape observations to (batch_size*n_post_samples*n_obs, n_time_steps, n_features)
-    if model.max_number_of_obs == 1:
-        # the score is always conditioned on only one observation
-        # expand to number of posterior samples
-        x_exp = x_obs_norm.unsqueeze(1).expand(batch_size, n_post_samples, n_obs, n_time_steps, -1)
-        x_expanded = x_exp.contiguous().view(batch_size * n_post_samples * n_obs, n_time_steps, -1)
+    if n_time_steps > 0:
+        # Reshape observations to (batch_size*n_post_samples*n_obs, n_time_steps, n_features)
+        if model.max_number_of_obs == 1:
+            # the score is always conditioned on only one observation
+            # expand to number of posterior samples
+            x_exp = x_obs_norm.unsqueeze(1).expand(batch_size, n_post_samples, n_obs, n_time_steps, -1)
+            x_expanded = x_exp.contiguous().view(batch_size * n_post_samples * n_obs, n_time_steps, -1)
+        else:
+            # the score is conditioned on multiple observations
+            # factorize data into (batch_size*n_post_samples * reduced_data, current_number_of_obs, n_time_steps, n_features)
+            n_obs_reduced = n_obs // model.current_number_of_obs
+            if n_obs % model.current_number_of_obs != 0:
+                print('warning: number of observations is not a multiple of current_number_of_obs '
+                      f'dropping last {n_obs % model.current_number_of_obs} observations.')
+                n_obs = n_obs_reduced * model.current_number_of_obs
+                x_obs_norm = x_obs_norm[:, :n_obs]
+            x_exp = x_obs_norm.contiguous().view(batch_size, n_obs_reduced, model.current_number_of_obs, n_time_steps, -1)
+            # expand to number of posterior samples
+            x_expanded = x_exp.unsqueeze(1).expand(batch_size, n_post_samples, n_obs_reduced, model.current_number_of_obs,
+                                                   n_time_steps, -1)
+            x_expanded = x_expanded.contiguous().view(batch_size * n_post_samples * n_obs_reduced,
+                                            model.current_number_of_obs, n_time_steps, -1)
     else:
-        # the score is conditioned on multiple observations
-        # factorize data into (batch_size*n_post_samples * reduced_data, current_number_of_obs, n_time_steps, n_features)
-        n_obs_reduced = n_obs // model.current_number_of_obs
-        if n_obs % model.current_number_of_obs != 0:
-            print('warning: number of observations is not a multiple of current_number_of_obs '
-                  f'dropping last {n_obs % model.current_number_of_obs} observations.')
-            n_obs = n_obs_reduced * model.current_number_of_obs
-            x_obs_norm = x_obs_norm[:, :n_obs]
-        x_exp = x_obs_norm.contiguous().view(batch_size, n_obs_reduced, model.current_number_of_obs, n_time_steps, -1)
-        # expand to number of posterior samples
-        x_expanded = x_exp.unsqueeze(1).expand(batch_size, n_post_samples, n_obs_reduced, model.current_number_of_obs,
-                                               n_time_steps, -1)
-        x_expanded = x_expanded.contiguous().view(batch_size * n_post_samples * n_obs_reduced,
-                                        model.current_number_of_obs, n_time_steps, -1)
+        # Reshape observations to (batch_size*n_post_samples*n_obs, n_features)
+        if model.max_number_of_obs == 1:
+            # the score is always conditioned on only one observation
+            # expand to number of posterior samples
+            x_exp = x_obs_norm.unsqueeze(1).expand(batch_size, n_post_samples, n_obs, -1)
+            x_expanded = x_exp.contiguous().view(batch_size * n_post_samples * n_obs, -1)
+        else:
+            # the score is conditioned on multiple observations
+            # factorize data into (batch_size*n_post_samples * reduced_data, current_number_of_obs, n_features)
+            n_obs_reduced = n_obs // model.current_number_of_obs
+            if n_obs % model.current_number_of_obs != 0:
+                print('warning: number of observations is not a multiple of current_number_of_obs '
+                      f'dropping last {n_obs % model.current_number_of_obs} observations.')
+                n_obs = n_obs_reduced * model.current_number_of_obs
+                x_obs_norm = x_obs_norm[:, :n_obs]
+            x_exp = x_obs_norm.contiguous().view(batch_size, n_obs_reduced, model.current_number_of_obs, -1)
+            # expand to number of posterior samples
+            x_expanded = x_exp.unsqueeze(1).expand(batch_size, n_post_samples, n_obs_reduced,
+                                                   model.current_number_of_obs, -1)
+            x_expanded = x_expanded.contiguous().view(batch_size * n_post_samples * n_obs_reduced,
+                                                      model.current_number_of_obs, -1)
 
     return x_expanded, batch_size, n_obs
 
 
-def initialize_sampling(model, x_obs, n_post_samples, conditions, mini_batch_arg, random_seed, device):
+def initialize_sampling(model, x_obs, n_time_steps,
+                        n_post_samples, conditions, mini_batch_arg, random_seed, device):
     """
     Initialize common parameters for sampling methods.
 
     Args:
         model (ScoreModel): Score-based model with prior and SDE attributes
-        x_obs (tensor or array): Observations to be normalized and processed
+        x_obs (np.array): Batch of observations.
+        n_time_steps (int): Number of time steps in the observations.
         n_post_samples (int): Number of posterior samples to generate
         conditions (tensor or None): Conditioning parameters for local sampling
         mini_batch_arg (dict or None): Dict with arguments for the mini-batch algorithm
@@ -110,7 +143,7 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, mini_batch_arg
         torch.manual_seed(random_seed)
 
     # Preprocess observations
-    x_expanded, batch_size, n_obs = prepare_observations(x_obs=x_obs, model=model, n_post_samples=n_post_samples, device=device)
+    x_expanded, batch_size, n_obs = prepare_observations_for_sampling(x_obs, model, n_post_samples, n_time_steps, device)
 
     if n_obs % model.current_number_of_obs != 0:
         raise ValueError("'n_obs' must be a multiple of 'model.current_number_of_obs'")
@@ -174,7 +207,7 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, mini_batch_arg
         theta_init = torch.randn((batch_size * n_post_samples, n_obs, model.prior.n_params_local), dtype=torch.float32,
                                  device=device)
 
-    return batch_size, n_obs, n_scores_update, theta_init, conditions_collapsed, x_expanded, mini_batch_dict, subsample
+    return x_expanded, batch_size, n_obs, n_scores_update, theta_init, conditions_collapsed, mini_batch_dict, subsample
 
 
 def sub_sample_observations(x, batch_size_full, n_scores_update, mini_batch_dict):
@@ -218,7 +251,7 @@ def sub_sample_observations(x, batch_size_full, n_scores_update, mini_batch_dict
 
 
 def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp, batch_size_full,
-                             n_scores_update_full, mini_batch_dict):
+                             n_scores_update_full, mini_batch_dict, clip_x=True):
     """
     Compute the (global or local) compositional score.
 
@@ -244,7 +277,7 @@ def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp
             time=t_exp,
             x=x_exp,
             pred_score=True,
-            clip_x=True
+            clip_x=clip_x
         )
         # Reshape to (batch_size_full, n_obs, -1) and sum over observations
         model_sum_scores_indv = model_indv_scores.contiguous().view(batch_size_full, mini_batch_dict['size'], -1)
@@ -268,7 +301,7 @@ def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp
             time=t_exp,
             x=x_exp,
             pred_score=True,
-            clip_x=True
+            clip_x=clip_x
         )
         # apply damping
         damping_factor = mini_batch_dict['damping_factor'](diffusion_time)
@@ -282,7 +315,7 @@ def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp
             x=x_exp,
             theta_global=conditions_exp,
             pred_score=True,
-            clip_x=True
+            clip_x=clip_x
         )
         model_scores = model_scores.contiguous().view(batch_size_full, n_scores_update_full, -1)
 
@@ -304,7 +337,7 @@ def euler_maruyama_step(model, x, score, t, dt, noise=None):
     return x_next
 
 
-def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
+def euler_maruyama_sampling(model, x_obs, obs_n_time_steps, n_post_samples=1, conditions=None,
                             diffusion_steps=1000, t_end=0, mini_batch_arg=None,
                             random_seed=None, device=None, verbose=False):
     """
@@ -316,8 +349,8 @@ def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
             - Local: (batch_size, n_post_samples, n_obs, model.prior.n_params_local)
     """
     # Initialize sampling
-    batch_size, n_obs, n_scores_update, theta, conditions_exp, x_exp, mini_batch_dict, subsample = initialize_sampling(
-        model=model, x_obs=x_obs, n_post_samples=n_post_samples, conditions=conditions,
+    x_exp, batch_size, n_obs, n_scores_update, theta, conditions_exp, mini_batch_dict, subsample = initialize_sampling(
+        model=model, x_obs=x_obs, n_time_steps=obs_n_time_steps, n_post_samples=n_post_samples, conditions=conditions,
         mini_batch_arg=mini_batch_arg,
         random_seed=random_seed, device=device
     )
@@ -362,7 +395,7 @@ def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
     return theta
 
 
-def sde_sampling(model, x_obs, n_post_samples=1, conditions=None,
+def sde_sampling(model, x_obs, obs_n_time_steps, n_post_samples=1, conditions=None,
                  diffusion_steps=100, t_end=0, mini_batch_arg=None,
                  method='euler',
                  random_seed=None, device=None, verbose=False):
@@ -378,8 +411,8 @@ def sde_sampling(model, x_obs, n_post_samples=1, conditions=None,
     import brainpy.math as bm
 
     # Initialize sampling
-    batch_size, n_obs, n_scores_update, theta, conditions_exp, x_exp, mini_batch_dict, subsample = initialize_sampling(
-        model=model, x_obs=x_obs, n_post_samples=n_post_samples, conditions=conditions,
+    x_exp, batch_size, n_obs, n_scores_update, theta, conditions_exp, mini_batch_dict, subsample = initialize_sampling(
+        model=model, x_obs=x_obs, n_time_steps=obs_n_time_steps, n_post_samples=n_post_samples, conditions=conditions,
         mini_batch_arg=mini_batch_arg,
         random_seed=random_seed, device=device
     )
@@ -483,7 +516,7 @@ def sde_sampling(model, x_obs, n_post_samples=1, conditions=None,
     return theta
 
 
-def adaptive_sampling(model, x_obs,
+def adaptive_sampling(model, x_obs, obs_n_time_steps,
                       n_post_samples=1,
                       conditions=None,
                       e_abs: float = None,  # abs error tolerance should grow with the dimension
@@ -514,7 +547,7 @@ def adaptive_sampling(model, x_obs,
         post_samples = []
         list_accepted_steps = []
         for i in tqdm(range(n_post_samples), disable=not verbose):
-            ps, ls = adaptive_sampling(model=model, x_obs=x_obs, n_post_samples=1,
+            ps, ls = adaptive_sampling(model=model, x_obs=x_obs, obs_n_time_steps=obs_n_time_steps, n_post_samples=1,
                                        conditions=conditions[:, i][:, None] if conditions is not None else None,
                                   e_abs=e_abs, e_rel=e_rel, h_init=h_init, r=r, adapt_safety=adapt_safety,
                                   max_evals=max_evals, t_start=t_start, t_end=t_end, mini_batch_arg=mini_batch_arg,
@@ -536,8 +569,8 @@ def adaptive_sampling(model, x_obs,
         return post_samples
 
     # Initialize sampling
-    batch_size, n_obs, n_scores_update, theta, conditions_exp, x_exp, mini_batch_dict, subsample = initialize_sampling(
-        model=model, x_obs=x_obs, n_post_samples=n_post_samples, conditions=conditions,
+    x_exp, batch_size, n_obs, n_scores_update, theta, conditions_exp, mini_batch_dict, subsample = initialize_sampling(
+        model=model, x_obs=x_obs, n_time_steps=obs_n_time_steps, n_post_samples=n_post_samples, conditions=conditions,
         mini_batch_arg=mini_batch_arg,
         random_seed=random_seed, device=device
     )
@@ -648,7 +681,7 @@ def adaptive_sampling(model, x_obs,
     return theta
 
 
-def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
+def probability_ode_solving(model, x_obs, obs_n_time_steps, n_post_samples=1, conditions=None,
                             method='RK45',
                             t_end=0, mini_batch_arg=None, random_seed=None, run_sampling_in_parallel=True,
                             device=None, verbose=False):
@@ -666,7 +699,7 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
         post_samples = []
         for i in tqdm(range(n_post_samples), disable=not verbose):
             post_samples.append(
-                probability_ode_solving(model=model, x_obs=x_obs, n_post_samples=1,
+                probability_ode_solving(model=model, x_obs=x_obs, n_time_steps=obs_n_time_steps, n_post_samples=1,
                                         conditions=conditions[:, i][:, None] if conditions is not None else None,
                                         t_end=t_end, mini_batch_arg=mini_batch_arg,
                                         run_sampling_in_parallel=True,
@@ -679,8 +712,8 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
         return np.concatenate(post_samples, axis=1)
 
     # Initialize sampling
-    batch_size, n_obs, n_scores_update, theta, conditions_exp, x_exp, mini_batch_dict, subsample = initialize_sampling(
-        model=model, x_obs=x_obs, n_post_samples=n_post_samples, conditions=conditions,
+    x_exp, batch_size, n_obs, n_scores_update, theta, conditions_exp, mini_batch_dict, subsample = initialize_sampling(
+        model=model, x_obs=x_obs, n_time_steps=obs_n_time_steps, n_post_samples=n_post_samples, conditions=conditions,
         mini_batch_arg=mini_batch_arg,
         random_seed=random_seed, device=device
     )
@@ -742,7 +775,7 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
     return theta
 
 
-def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
+def langevin_sampling(model, x_obs, obs_n_time_steps, n_post_samples, conditions=None,
                       diffusion_steps=1000, langevin_steps=10, step_size_factor=0.3, t_end=0,
                       mini_batch_arg=None,
                       random_seed=None, device=None, verbose=False):
@@ -751,7 +784,8 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
 
     Parameters:
         model: Score-based model.
-        x_obs: Observations (assumed to be a 2D tensor or array of shape (n_obs, d)).
+        x_obs: Batch of observations.
+        obs_n_time_steps: Time steps in observation.
         n_post_samples: Number of posterior samples.
         conditions: Conditioning parameters (if None, global sampling is performed).
         diffusion_steps: Number of diffusion steps.
@@ -770,8 +804,8 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
             - Local: shape (n_post_samples, n_obs * model.prior.n_params_local)
     """
     # Initialize sampling
-    batch_size, n_obs, n_scores_update, theta, conditions_exp, x_exp, mini_batch_dict, subsample = initialize_sampling(
-        model=model, x_obs=x_obs, n_post_samples=n_post_samples, conditions=conditions,
+    x_exp, batch_size, n_obs, n_scores_update, theta, conditions_exp, mini_batch_dict, subsample = initialize_sampling(
+        model=model, x_obs=x_obs, n_time_steps=obs_n_time_steps, n_post_samples=n_post_samples, conditions=conditions,
         mini_batch_arg=mini_batch_arg,
         random_seed=random_seed, device=device
     )

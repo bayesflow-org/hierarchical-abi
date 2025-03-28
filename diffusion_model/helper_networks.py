@@ -299,7 +299,7 @@ class ShallowSet(nn.Module):
 
     def forward(self, X):
         X = self.enc(X)
-        X = X.mean(-2)
+        X = X.mean(1)
         X = self.dec(X) #.reshape(-1, self.num_outputs, self.dim_output)
         return X
 

@@ -53,7 +53,6 @@ class ScoreModel(nn.Module):
 
         self.max_number_of_obs = max_number_of_obs
         self.current_number_of_obs = max_number_of_obs
-        self.amortize_n_conditions = False if max_number_of_obs == 1 else True
 
         self.name = (f'{name_prefix}score_model_{prediction_type}_{sde.kernel_type}_{sde.noise_schedule}'
                      f'_{weighting_type}')
@@ -120,11 +119,11 @@ class ScoreModel(nn.Module):
         print(self.name)
 
     def forward_global(self, theta_global, time, x, pred_score, clip_x=False):
-        if x.ndim == 4:
-            # there is time dimension, which we do not need
-            x = x.squeeze(2)
-        if x.ndim == 3 and x.shape[1] == 1:
-            x = x.squeeze(1) # todo: remove obs
+        #if x.ndim == 4:
+        #    # there is time dimension, which we do not need
+        #    x = x.squeeze(2)
+        #if x.ndim == 3 and x.shape[1] == 1:
+        #    x = x.squeeze(1) # todo: remove obs
         return self.forward(theta=theta_global, time=time, x=x, conditions=None, pred_score=pred_score, clip_x=clip_x)
 
     def forward(self, theta, time, x, conditions=None, pred_score=False, clip_x=False):
@@ -144,18 +143,6 @@ class ScoreModel(nn.Module):
         """
         # Compute the summary of x, in the hierarchical case this is just the identity as x is already embedded
         x_emb = self.summary_net(x)
-
-        if self.amortize_n_conditions:
-            # for global, concat observations
-            if x_emb.shape[1] > 1:  # assuming the second dim are the observations
-                x_mean = torch.mean(x_emb, dim=1)
-                x_std = torch.std(x_emb, dim=1)
-            else:
-                x_mean = x_emb.squeeze(1)
-                x_std = torch.zeros_like(x_mean)
-            n_obs = torch.ones((x_emb.shape[0], 1), dtype=x_emb.dtype, device=x_emb.device) * x_emb.shape[
-                1] / self.max_number_of_obs
-            x_emb = torch.cat([x_mean, x_std, n_obs], dim=-1)
 
         # Compute a time embedding (shape: [batch, time_embed_dim])
         log_snr = self.sde.get_snr(t=time)
@@ -242,7 +229,8 @@ class HierarchicalScoreModel(nn.Module):
         Args:
             input_dim_theta_global (int): Input dimension for global theta.
             input_dim_theta_local (int): Input dimension for local theta.
-            input_dim_x (int): Input dimension for x. (e.g., output dimension of the summary network)
+            input_dim_x_global (int): Input dimension for x. (e.g., output dimension of the summary network)
+            input_dim_x_local (int): Input dimension for x. (e.g., output dimension of the summary network)
             hidden_dim (int): Hidden dimension for theta network.
             n_blocks (int): Number of residual blocks.
             sde (SDE): SDE model. Needed to calculate the kernel.
@@ -258,17 +246,21 @@ class HierarchicalScoreModel(nn.Module):
             time_embedding_global (nn.Module): Time embedding module for the global network. Default is nn.Identity.
             time_embedding_local (nn.Module): Time embedding module for the local network. Default is time_embedding_global.
             summary_net (nn.Module, None): Summary network. Default is nn.Identity.
+            global_summary_net (nn.Module, None): Summary network for the global part. It is applied after the other
+            summary net. Default is nn.Identity.
             full_res_layer (bool): Whether to connect the last layer as residual block. Default is False.
     """
     def __init__(self,
-                 input_dim_theta_global, input_dim_theta_local, input_dim_x,
+                 input_dim_theta_global, input_dim_theta_local, input_dim_x_global, input_dim_x_local,
                  hidden_dim, n_blocks,
                  sde, prior, max_number_of_obs=1,
                  weighting_type=None,
                  prediction_type='v', loss_type='e',
                  use_film=False, dropout_rate=0.05, use_spectral_norm=False,
                  name_prefix='',
-                 time_embedding_global=None, time_embedding_local=None, summary_net=None, full_res_layer=False):
+                 time_embedding_global=None, time_embedding_local=None,
+                 summary_net=None, global_summary_net=None,
+                 full_res_layer=False):
         super().__init__()
         if prediction_type not in ['score', 'e', 'x', 'v']:
             raise ValueError("Invalid prediction type. Must be one of 'score', 'e', 'x', or 'v'.")
@@ -299,16 +291,15 @@ class HierarchicalScoreModel(nn.Module):
         else:
             self.summary_net = summary_net
 
-        if self.amortize_n_conditions:
-            #self.summary_net = TimeDistributedLSTM(self.summary_net)
-            input_dim_x_after_summary = input_dim_x * 2 + 1 # mean, std, n_obs
-        else:
-            input_dim_x_after_summary = input_dim_x
+        #if self.amortize_n_conditions:
+        #    input_dim_x_after_summary = input_dim_x * 2 + 1 # mean, std, n_obs
+        #else:
+        #    input_dim_x_after_summary = input_dim_x
 
         self.n_params_global = input_dim_theta_global
         self.global_model = ScoreModel(
             input_dim_theta=input_dim_theta_global,
-            input_dim_x=input_dim_x_after_summary,
+            input_dim_x=input_dim_x_global,
             hidden_dim=hidden_dim,
             n_blocks=n_blocks,
             sde=sde,
@@ -323,13 +314,13 @@ class HierarchicalScoreModel(nn.Module):
             use_spectral_norm=use_spectral_norm,
             name_prefix=name_prefix+'global_',
             time_embedding=time_embedding_global,
-            summary_net=None,
+            summary_net=global_summary_net,
             full_res_layer=full_res_layer
         )
         self.n_params_local = input_dim_theta_local
         self.local_model = ScoreModel(
             input_dim_theta=input_dim_theta_local,
-            input_dim_x=input_dim_x,
+            input_dim_x=input_dim_x_local,
             hidden_dim=hidden_dim,
             n_blocks=n_blocks,
             sde=sde,
@@ -355,16 +346,7 @@ class HierarchicalScoreModel(nn.Module):
         """Forward pass through the global and local model. This usually only used, during training."""
         x_emb = self.summary_net(x)
         if self.amortize_n_conditions:
-            # for global, concat observations
-            if x_emb.shape[1] > 1:
-                x_mean = torch.mean(x_emb, dim=1)
-                x_std = torch.std(x_emb, dim=1)
-            else:
-                x_mean = x_emb.squeeze(1)
-                x_std = torch.zeros_like(x_mean)
-            n_obs_cond = torch.ones((x_emb.shape[0], 1), dtype=x_emb.dtype, device=x_emb.device) * x_emb.shape[1] / self.max_number_of_obs
-            x_emb_global = torch.cat([x_mean, x_std, n_obs_cond], dim=-1)
-            global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb_global,
+            global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb,
                                                    conditions=None, pred_score=pred_score, clip_x=clip_x)
 
             # Flatten the observation dimension for theta_local and x_emb.
@@ -402,21 +384,8 @@ class HierarchicalScoreModel(nn.Module):
     def forward_global(self, theta_global, time, x, pred_score, clip_x=False):
         """Forward pass through the global model. Usually we want the score, not the predicting task from training."""
         x_emb = self.summary_net(x)
-        if not self.amortize_n_conditions:
-            global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb,
-                                                   conditions=None, pred_score=pred_score, clip_x=clip_x)
-        else:
-            # for global, concat observations
-            if x_emb.shape[1] > 1:
-                x_mean = torch.mean(x_emb, dim=1)
-                x_std = torch.std(x_emb, dim=1)
-            else:
-                x_mean = x_emb.squeeze(1)
-                x_std = torch.zeros_like(x_mean)
-            n_obs = torch.ones((x_emb.shape[0], 1), dtype=x_emb.dtype, device=x_emb.device) * x_emb.shape[1] / self.max_number_of_obs
-            x_emb_global = torch.cat([x_mean, x_std, n_obs], dim=-1)
-            global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb_global,
-                                                   conditions=None, pred_score=pred_score, clip_x=clip_x)
+        global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb,
+                                               conditions=None, pred_score=pred_score, clip_x=clip_x)
         return global_out
 
     def forward_local(self, theta_local, theta_global, time, x, pred_score, clip_x=False):

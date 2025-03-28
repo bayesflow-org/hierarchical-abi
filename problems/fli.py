@@ -15,13 +15,13 @@ class Simulator:
         self.n_time_points = self.pIRF.shape[2]
         self.img_size_full = (self.pIRF.shape[0], self.pIRF.shape[1])
 
-    def __call__(self, params):
+    def __call__(self, params, with_noise=True):
         # Convert parameters to numpy arrays.
         batch_tau_L, batch_tau_L_2, batch_A_L = params['tau_L'], params['tau_L_2'], params['A_L']
 
         sims = []
         for tau_L, tau_L_2, A_L in zip(batch_tau_L, batch_tau_L_2, batch_A_L):
-            F_dec_conv = self.decay_gen_single(tau_L=tau_L, tau_L_2=tau_L_2, A_L=A_L)
+            F_dec_conv = self.decay_gen_single(tau_L=tau_L, tau_L_2=tau_L_2, A_L=A_L, with_noise=with_noise)
             sims.append(F_dec_conv)
 
         F_dec_conv = np.stack(sims)
@@ -40,7 +40,7 @@ class Simulator:
             noise = self.noise[i, j, arr]
         return noise
 
-    def decay_gen_single(self, tau_L, tau_L_2, A_L):
+    def decay_gen_single(self, tau_L, tau_L_2, A_L, with_noise):
         img = np.random.randint(0, high=1000, size=(1, 1))
         cropped_pIRF = self._random_crop(self.pIRF, crop_size=(1, 1))
 
@@ -54,7 +54,8 @@ class Simulator:
         irf_out = self._norm1D(cropped_pIRF[0,0])
         dec_conv = self._conv_dec(self._norm1D(dec), irf_out)
         dec_conv = self._norm1D(np.squeeze(dec_conv)) * img
-        dec_conv += self._sample_augmented_noise()
+        if with_noise:
+            dec_conv += self._sample_augmented_noise()
         return dec_conv
 
     @staticmethod
@@ -235,7 +236,7 @@ class FLI_Prior:
     def __call__(self, batch_size):
         return self.sample_single(batch_size)
 
-    def sample_single(self, batch_size, n_local_samples=1, transform_params=False):
+    def sample_single(self, batch_size, n_local_samples=1, transform_params=False, with_noise=True):
         """
         Sample a batch of data. The number of local samples can be specified. The data is returned as a dictionary.
         IRF and noise are randomly sampled for each pixel.
@@ -247,7 +248,7 @@ class FLI_Prior:
         for i in range(batch_size):
             global_sample = self._sample_global()
             local_sample = self._sample_local(n_local_samples=n_local_samples)
-            sim = self.simulator(local_sample)
+            sim = self.simulator(local_sample, with_noise=with_noise)
 
             if not transform_params:
                 global_params[i] = [global_sample['log_tau_G'], global_sample['log_sigma_tau_G'],

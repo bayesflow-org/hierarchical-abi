@@ -62,7 +62,7 @@ class Prior:
         self.log_beta_std_std = 1 #0.5
         self.n_params_global = 3
         self.n_params_local = 1
-        self.global_param_names = [r'$\alpha$', r'$\beta_{\mu}$', r'$\log \sigma_{\beta}$']
+        self.global_param_names = [r'$\alpha$', r'$\beta_{\mu}$', r'$\log \beta_{\sigma}$']
 
         # Build prior parameters as tensors.
         self.hyper_prior_means = torch.tensor(
@@ -214,11 +214,12 @@ class Prior:
 
 
 class AR1GridProblem(Dataset):
-    def __init__(self, n_data, prior, sde, number_of_obs=1,
+    def __init__(self, n_data, prior, sde, as_set=False, number_of_obs=1,
                  online_learning=False, amortize_time=False, rectified_flow=False):
         # Create model and dataset
         self._prior = prior
         self._sde = sde
+        self._as_set = as_set
 
         self._number_of_obs_list = number_of_obs if isinstance(number_of_obs, list) else [number_of_obs]
         self._amortize_n_conditions = True if isinstance(number_of_obs, list) else False
@@ -252,8 +253,9 @@ class AR1GridProblem(Dataset):
         else:
             # expand obs-dimension
             self._thetas_local = self._thetas_local.unsqueeze(-1)
-        # add feature dimension for RNN
-        self._xs = self._xs.unsqueeze(-1)
+        if not self._as_set:
+            # add feature dimension for RNN
+            self._xs = self._xs.unsqueeze(-1)
 
         # generate new noise only with new data
         if self._rectified_flow:
