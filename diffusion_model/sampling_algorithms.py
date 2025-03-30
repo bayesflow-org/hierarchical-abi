@@ -10,6 +10,13 @@ sampling_defaults = {
     'damping_factor': lambda t: torch.ones_like(t),
     'sample_same_obs': None,
     'size': np.inf,  # for mini-batch
+    'noisy_condition': {
+        'apply': False,
+        'noise_scale': 0.1,
+        'tau_1': 0.6,
+        'tau_2': 0.8,
+        'mixing_factor': 1.
+    }
 }
 
 
@@ -250,6 +257,35 @@ def sub_sample_observations(x, batch_size_full, n_scores_update, mini_batch_dict
     return x_sub
 
 
+def piecewise_condition_function(t, tau_1, tau_2):
+    """
+    Computes a piecewise function on tensor t:
+      - If t < tau_1, returns 1.
+      - Elif t < tau_2, returns (tau_2 - t) / (tau_2 - tau_1).
+      - Else, returns 0.
+
+    Note: With tau_1 = 1 and tau_2 = 0, the first condition (t < 1) always holds
+    for t < 1, so the second branch is never reached.
+
+    Args:
+        t (torch.Tensor): Input tensor.
+
+    Returns:
+        torch.Tensor: Tensor with the piecewise function applied elementwise.
+    """
+    # Use torch.where to apply conditions elementwise.
+    result = torch.where(
+        t <= tau_1,
+        torch.tensor(1.0, dtype=t.dtype, device=t.device),
+        torch.where(
+            t < tau_2,
+            (tau_2 - t) / (tau_2 - tau_1),
+            torch.tensor(0.0, dtype=t.dtype, device=t.device)
+        )
+    )
+    return result
+
+
 def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp, batch_size_full,
                              n_scores_update_full, mini_batch_dict, clip_x=True):
     """
@@ -269,6 +305,23 @@ def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp
     """
     # Expand diffusion_time to shape (n_post_samples*n_scores_update, 1)
     t_exp = diffusion_time.unsqueeze(1).expand(-1, mini_batch_dict['size'], -1).contiguous().view(-1, 1)
+
+    if mini_batch_dict['noisy_condition']['apply']:
+        # mean and std on clean data
+        x_mean_clean = torch.mean(x_exp, dim=1, keepdim=True)
+        x_std_clean = torch.std(x_exp, dim=1, keepdim=True)
+
+        # get noisy condition
+        cond_t = piecewise_condition_function(t_exp,
+                                              tau_1=mini_batch_dict['noisy_condition']['tau_1'],
+                                              tau_2=mini_batch_dict['noisy_condition']['tau_2'])
+        x_noisy = torch.sqrt(cond_t) * x_exp
+        x_noisy = x_noisy + mini_batch_dict['noisy_condition']['noise_scale'] * torch.sqrt(1 - cond_t) * torch.randn_like(x_exp)
+        x_rescaled = (x_noisy - torch.mean(x_noisy, dim=1, keepdim=True)) / torch.std(x_noisy, dim=1, keepdim=True)
+        # rescale noisy condition
+        x_rescaled = x_rescaled * x_std_clean + x_mean_clean
+        # final corrupted output
+        x_exp = mini_batch_dict['noisy_condition']['mixing_factor'] * x_rescaled + (1 - mini_batch_dict['noisy_condition']['mixing_factor']) * x_exp
 
     if conditions_exp is None and n_scores_update_full > 1:
         theta_exp = theta.unsqueeze(1).expand(-1, mini_batch_dict['size'], -1).contiguous().view(-1, model.prior.n_params_global)
