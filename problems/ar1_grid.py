@@ -115,11 +115,12 @@ class Prior:
 
     @staticmethod
     def transform_local_params(local_params):
+        # transform raw local parameters
         return 2*expit(local_params)-1
 
     @staticmethod
     def back_transform_local_params(local_params):
-        local_params_raw =logit((local_params + 1) / 2)
+        local_params_raw = logit((local_params + 1) / 2)
         local_params_raw[local_params_raw < -100] = -100
         local_params_raw[local_params_raw > 100] = 100
         return local_params_raw

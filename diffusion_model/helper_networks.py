@@ -122,7 +122,7 @@ class MLP(nn.Module):  # copied from the bayesflow 2.0 implementation
 
 
 class LSTM(nn.Module):
-    def __init__(self, input_size: int, hidden_dim: int, num_layers: int = 1, max_batch_size: int = 128):
+    def __init__(self, input_size: int, hidden_dim: int, num_layers: int = 1, max_batch_size: int = 512):
         super().__init__()
         self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_dim, num_layers=num_layers, batch_first=True)
         self.hidden_dim = hidden_dim

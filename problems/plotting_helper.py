@@ -10,16 +10,16 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
     Parameters:
         sim_output (np.ndarray): Simulation trajectory output.
             For a single simulation, it can be either:
-              - 2D: shape (n_time_points, grid_size)
-              - 3D: shape (n_time_points, n_grid, n_grid)
+              - 2D: shape (grid_size, n_time_points)
+              - 3D: shape (n_grid, n_grid, n_time_points)
         title_prefix (str, list): Prefix for subplot titles.
         cmap (str): Colormap for imshow when visualizing 2D grid outputs.
         same_scale (bool): Whether to use the same color scale for all subplots.
         save_path (str): Path to save the figure.
     """
     if sim_output.ndim == 2:
-        # (n_time_points, n_grid)
-        n_grid = int(np.sqrt(sim_output.shape[1]))
+        # (n_grid, n_time_points)
+        n_grid = int(np.sqrt(sim_output.shape[0]))
         sim_output = sim_output[:n_grid**2, :]
         sim_output = sim_output.reshape(n_grid, n_grid, -1)
     elif sim_output.ndim == 3:
