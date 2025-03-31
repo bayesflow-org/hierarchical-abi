@@ -38,7 +38,10 @@ print('Exp:', experiment_id, 'Model:', model_id, variable_of_interest)
 prior = Prior()
 np.random.seed(experiment_id)
 batch_size = 128
-number_of_obs = 1
+if max_number_of_obs == 1:
+    number_of_obs = 1
+else:
+    number_of_obs = [1, 5, 10, 20, 50, 100]
 
 #%%
 current_sde = SDE(
