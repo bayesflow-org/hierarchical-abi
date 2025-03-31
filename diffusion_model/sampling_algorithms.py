@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from scipy import stats
 from scipy.integrate import solve_ivp
 from tqdm import tqdm
 

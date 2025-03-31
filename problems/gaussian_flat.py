@@ -407,3 +407,81 @@ class GaussianProblem(Dataset):
             # sample number of observations
             self._current_n_obs = np.random.choice(self._number_of_obs_list)
 
+
+def kl_divergence(x, samples_q, prior):
+    try:
+        # Calculate analytical posterior
+        mu_p, std_p = analytical_posterior_mean_std(x, prior_std=prior.scale, likelihood_std=prior.simulator.scale)
+        cov_p = np.diag(std_p ** 2)
+
+        # Calculate empirical mean and covariance from samples
+        mu_q = np.mean(samples_q, axis=0)
+        cov_q = np.cov(samples_q, rowvar=False)
+
+        d = mu_p.shape[0]
+
+        # Use Cholesky decomposition for determinant and inverse computation
+        L_p = np.linalg.cholesky(cov_p)
+        L_q = np.linalg.cholesky(cov_q)
+
+        # Calculate log determinants using Cholesky factors
+        # log(det(A)) = 2 * sum(log(diag(L))) where A = L @ L.T
+        log_det_p = 2 * np.sum(np.log(np.diag(L_p)))
+        log_det_q = 2 * np.sum(np.log(np.diag(L_q)))
+
+        # Calculate difference term (mu_q - mu_p).T @ cov_q_inv @ (mu_q - mu_p)
+        # Solve L_q @ L_q.T @ x = (mu_q - mu_p) using two triangular solves
+        diff = mu_q - mu_p
+        temp = np.linalg.solve(L_q, diff)
+        quad_term = np.sum(temp ** 2)
+
+        # Calculate trace term without explicitly forming the inverse
+        # Use solve to compute cov_q_inv @ cov_p
+        trace_term = 0
+        for i in range(d):
+            # Extract i-th column of cov_p
+            col_p = cov_p[:, i]
+            # Solve L_q @ L_q.T @ x = col_p
+            temp1 = np.linalg.solve(L_q, col_p)
+            temp2 = np.linalg.solve(L_q.T, temp1)
+            trace_term += temp2[i]
+
+        return 0.5 * (log_det_q - log_det_p - d + trace_term + quad_term)
+
+    except np.linalg.LinAlgError as e:
+        # Handle potential Cholesky decomposition failures
+        print(f"LinAlg error in KL computation: {e}")
+
+        # If Cholesky fails, add a small regularization to the covariance matrix
+        # and try again with regularized matrices
+        try:
+            eps = 1e-10
+            cov_p_reg = cov_p + eps * np.eye(d)
+            cov_q_reg = cov_q + eps * np.eye(d)
+
+            L_p = np.linalg.cholesky(cov_p_reg)
+            L_q = np.linalg.cholesky(cov_q_reg)
+
+            log_det_p = 2 * np.sum(np.log(np.diag(L_p)))
+            log_det_q = 2 * np.sum(np.log(np.diag(L_q)))
+
+            diff = mu_q - mu_p
+            temp = np.linalg.solve(L_q, diff)
+            quad_term = np.sum(temp ** 2)
+
+            trace_term = 0
+            for i in range(d):
+                col_p = cov_p_reg[:, i]
+                temp1 = np.linalg.solve(L_q, col_p)
+                temp2 = np.linalg.solve(L_q.T, temp1)
+                trace_term += temp2[i]
+
+            return 0.5 * (log_det_q - log_det_p - d + trace_term + quad_term)
+
+        except np.linalg.LinAlgError:
+            print("KL computation failed even with regularization")
+            return np.nan
+
+    except Exception as e:
+        print(f"Unexpected error in KL computation: {e}")
+        return np.nan

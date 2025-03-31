@@ -102,8 +102,8 @@ def main2(var_id):
     results.to_csv(f"results_{variable_of_interest}.csv")
 
 if __name__ == "__main__":
-    #main()
-    #print("All runs completed.")
+    main()
+    print("All runs completed.")
     main2(var_id=0)
     print("Var0 joined.")
     main2(var_id=1)

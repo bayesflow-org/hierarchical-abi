@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 
 from diffusion_model import ScoreModel, SDE, train_score_model, adaptive_sampling
 from diffusion_model.helper_networks import GaussianFourierProjection
-from problems.gaussian_flat import GaussianProblem, Prior, generate_synthetic_data, sample_posterior, analytical_posterior_mean_std, posterior_contraction
+from problems.gaussian_flat import GaussianProblem, Prior, generate_synthetic_data, sample_posterior, kl_divergence, posterior_contraction
 #%%
 torch_device = torch.device("cuda")
 
@@ -121,34 +121,15 @@ score_model.eval()
 # - RMSE between the medians of true and estimated posterior samples
 # - Posterior contraction: (1 - var_empirical_posterior / var_prior) / (1 - var_true_posterior / var_prior), and using the mean variances over all parameters
 #%%
-
-def kl_divergence(x, samples_q):
-    try:
-        mu_p, std_p = analytical_posterior_mean_std(x, prior_std=prior.scale, likelihood_std=prior.simulator.scale)
-        cov_p = np.diag(std_p**2)
-
-        mu_q = np.mean(samples_q, axis=0)
-        cov_q = np.cov(samples_q, rowvar=False)
-
-        d = mu_p.shape[0]
-        cov_q_inv = np.linalg.inv(cov_q)
-
-        term1 = np.log(np.linalg.det(cov_q) / np.linalg.det(cov_p))
-        term2 = np.trace(cov_q_inv @ cov_p)
-        term3 = (mu_q - mu_p).T @ cov_q_inv @ (mu_q - mu_p)
-
-        return 0.5 * (term1 - d + term2 + term3)
-    except Exception as e:  # sometimes a linalg error occurs
-        print(e)
-        return np.nan
 #%%
 # Ensure we generate enough synthetic data samples.
 n_samples_data = 100
 n_post_samples = 100
 score_model.current_number_of_obs = 1
+obs_n_time_steps = 0
 max_steps = 10000
 
-mini_batch = ['10%']
+mini_batch = [None]
 n_conditions = [1]
 cosine_shifts = [0]
 d_factors = [1]  # using the d factor depending on the mini batch size
@@ -277,7 +258,8 @@ for n in data_sizes:
 
         # Run adaptive sampling.
         try:
-            test_samples, list_steps = adaptive_sampling(score_model, test_data, conditions=None,
+            test_samples, list_steps = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+                                                         conditions=None,
                                                          n_post_samples=n_post_samples,
                                                          mini_batch_arg=mini_batch_arg,
                                                          max_evals=max_steps*2,
