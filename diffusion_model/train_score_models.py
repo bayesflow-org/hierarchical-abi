@@ -87,7 +87,7 @@ def compute_loss(model, batch, hierarchical, device):
 
 # Training loop for Score Model
 def train_score_model(model, dataloader, hierarchical=False, dataloader_valid=None,
-                      epochs=1000, lr=5e-4, cosine_annealing=True, clip_norm=1.5, device=None):
+                      epochs=1000, lr=5e-4, cosine_annealing=True, clip_norm=None, device=None):
     print(f"Training {model.prediction_type}-model for {epochs} epochs with learning rate {lr} "
           f"and {model.weighting_type} weighting.")
     model.to(device)

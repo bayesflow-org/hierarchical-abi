@@ -5,7 +5,7 @@ import subprocess
 import numpy as np
 import pandas as pd
 
-script_name = 'gaussian_flat_score_matching.py'
+scripts = ['gaussian_flat_score_matching.py', 'ar(1)_score_matching.py']
 max_obs = [1, 100]
 
 
@@ -40,45 +40,46 @@ def setup_logger(log_filename):
 
 def main():
     # Loop through the different max_obs values and corresponding arguments.
-    for m_obs in max_obs:
-        # For m_obs==1, 30 experiments; otherwise use 10.
-        arguments = np.arange(30 if m_obs == 1 else 10)
-        for arg in arguments:
-            # Define a unique log file name for this run.
-            log_filename = f"logs/script_{m_obs}_{arg}.log"
-            logger = setup_logger(log_filename)
+    for script_name in scripts:
+        for m_obs in max_obs:
+            # For m_obs==1, 30 experiments; otherwise use 10.
+            arguments = np.arange(30 if m_obs == 1 else 10)
+            for arg in arguments:
+                # Define a unique log file name for this run.
+                log_filename = f"logs/{script_name[:-3]}_{m_obs}_{arg}.log"
+                logger = setup_logger(log_filename)
 
-            logger.info(f"Running {script_name} with argument: {m_obs}-{arg}")
-            try:
-                # Run the script and capture stdout/stderr.
-                result = subprocess.run(
-                    ["python", script_name, str(m_obs), str(arg)],
-                    check=False,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True
-                )
+                logger.info(f"Running {script_name} with argument: {m_obs}-{arg}")
+                try:
+                    # Run the script and capture stdout/stderr.
+                    result = subprocess.run(
+                        ["python", script_name, str(m_obs), str(arg)],
+                        check=False,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True
+                    )
 
-                # Log standard output if any.
-                if result.stdout:
-                    logger.debug("Standard Output:\n" + result.stdout)
-                # Log standard error if any.
-                if result.stderr:
-                    logger.error("Standard Error:\n" + result.stderr)
+                    # Log standard output if any.
+                    if result.stdout:
+                        logger.debug("Standard Output:\n" + result.stdout)
+                    # Log standard error if any.
+                    if result.stderr:
+                        logger.error("Standard Error:\n" + result.stderr)
 
-                # Log based on return code.
-                if result.returncode != 0:
-                    logger.warning(f"Script failed for argument '{m_obs}-{arg}' with return code {result.returncode}")
-                else:
-                    logger.info(f"Script succeeded for argument '{m_obs}-{arg}'")
+                    # Log based on return code.
+                    if result.returncode != 0:
+                        logger.warning(f"Script failed for argument '{m_obs}-{arg}' with return code {result.returncode}")
+                    else:
+                        logger.info(f"Script succeeded for argument '{m_obs}-{arg}'")
 
-            except Exception as e:
-                logger.exception(f"An error occurred while running script with argument '{m_obs}-{arg}': {e}")
+                except Exception as e:
+                    logger.exception(f"An error occurred while running script with argument '{m_obs}-{arg}': {e}")
 
-            # Clean up handlers to prevent duplicate logs in subsequent iterations.
-            for handler in logger.handlers[:]:
-                handler.close()
-                logger.removeHandler(handler)
+                # Clean up handlers to prevent duplicate logs in subsequent iterations.
+                for handler in logger.handlers[:]:
+                    handler.close()
+                    logger.removeHandler(handler)
 
 
 def main2(var_id):

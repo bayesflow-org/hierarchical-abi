@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 from diffusion_model.helper_functions import generate_diffusion_time
 
 
-N_TIME_POINTS = 10
+N_TIME_POINTS = 5
 
 class Simulator:
     def __init__(self, sigma_noise=0.1):

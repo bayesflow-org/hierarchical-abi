@@ -1,6 +1,20 @@
 #%% md
-# # Flat Gaussian with compositional score matching
-
+# # Hierarchical Ar(1) on a Grid Test with compositional score matching
+# 
+# In this notebook, we will test the compositional score matching on a hierarchical problem defined on a grid.
+# - The observations are on grid with `n_grid` x `n_grid` points.
+# - The global parameters are the same for all grid points with hyper-priors:
+# $$ \alpha \sim \mathcal{N}(0, 1) \quad
+#   \mu_\beta \sim \mathcal{N}(0, 1) \quad
+#   \log\text{std}_\beta \sim \mathcal{N}(-1, 1);$$
+# 
+# - The local parameters are different for each grid point
+# $$ \beta_{i,j}^\text{raw} \sim \mathcal{N}(\mu_\beta, \text{std}_\beta^2), \qquad \beta_{i,j} = 2\operatorname{sigmoid}(\beta_{i,j}^\text{raw})-1$$
+# 
+# -  In each grid point, we have a time series of `T` observations. For the time beeing, we fix $\sigma=1$.
+# $$ y_{i,j} \sim \mathcal{N}(\alpha + \beta_{i,j}y_{i,j-1}, \sigma^2), y_{i,0} \sim \mathcal{N}(0, \sigma^2)$$
+# - We observe $T=5$ time points for each grid point. We can also amortize over the time dimension.
+#%%
 import itertools
 import os
 import sys
@@ -13,11 +27,13 @@ import torch.nn as nn
 
 os.environ['KERAS_BACKEND'] = 'torch'
 from bayesflow import diagnostics
+
 from torch.utils.data import DataLoader
 
-from diffusion_model import ScoreModel, SDE, train_score_model, adaptive_sampling
+from diffusion_model import HierarchicalScoreModel, SDE, euler_maruyama_sampling, adaptive_sampling, train_score_model
 from diffusion_model.helper_networks import GaussianFourierProjection
-from problems.gaussian_flat import GaussianProblem, Prior, generate_synthetic_data, sample_posterior, kl_divergence, posterior_contraction
+from problems.ar1_grid import AR1GridProblem, Prior
+from problems import visualize_simulation_output
 #%%
 torch_device = torch.device("cuda")
 
@@ -34,53 +50,85 @@ model_id, variable_of_interest = list(itertools.product(model_ids, variables_of_
 
 print('Exp:', experiment_id, 'Model:', model_id, variable_of_interest)
 
-#%%
-prior = Prior()
-np.random.seed(experiment_id)
-batch_size = 128
-number_of_obs = 1
 
 #%%
+prior = Prior()
+
+# test the simulator
+sim_test = prior.sample(1, n_local_samples=16, get_grid=True)['data'][0]
+visualize_simulation_output(sim_test)
+#%%
+batch_size = 128
+if max_number_of_obs == 1:
+    number_of_obs = 1
+else:
+    number_of_obs = [1, 4, 8, 16, 64, 128]
 current_sde = SDE(
     kernel_type=['variance_preserving', 'sub_variance_preserving'][0],
     noise_schedule=['linear', 'cosine', 'flow_matching'][1]
 )
 
-dataset = GaussianProblem(
+dataset = AR1GridProblem(
     n_data=10000,
     prior=prior,
     sde=current_sde,
     online_learning=True,
-    number_of_obs=number_of_obs
+    number_of_obs=number_of_obs,
+    amortize_time=False,
+    as_set=True
 )
-dataset_valid = GaussianProblem(
+
+dataset_valid = AR1GridProblem(
     n_data=1000,
     prior=prior,
     sde=current_sde,
+    number_of_obs=number_of_obs,
+    as_set=True,
 )
 
 # Create dataloader
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=False)
 
-time_embedding = nn.Sequential(
-    GaussianFourierProjection(8),
-    nn.Linear(8,8),
+for test in dataloader:
+    print(test[4].shape)
+    break
+#%%
+# Define diffusion model
+global_summary_dim = 5
+obs_n_time_steps = 0
+#summary_net = LSTM(input_size=1, hidden_dim=global_summary_dim, max_batch_size=1024)
+#global_summary_net = ShallowSet(dim_input=10, dim_output=global_summary_dim, dim_hidden=128)
+
+time_dim = 8
+time_embedding_local = nn.Sequential(
+    GaussianFourierProjection(time_dim),
+    nn.Linear(time_dim, time_dim),
+    nn.Mish()
+)
+time_embedding_global = nn.Sequential(
+    GaussianFourierProjection(time_dim),
+    nn.Linear(time_dim, time_dim),
     nn.Mish()
 )
 
-score_model = ScoreModel(
-    input_dim_theta=prior.n_params_global,
-    input_dim_x=10,
-    time_embedding=time_embedding,
+score_model = HierarchicalScoreModel(
+    input_dim_theta_global=prior.n_params_global,
+    input_dim_theta_local=prior.n_params_local,
+    input_dim_x_global=global_summary_dim,
+    input_dim_x_local=global_summary_dim,
+    #summary_net=summary_net,
+    #global_summary_net=global_summary_net,
+    time_embedding_local=time_embedding_local,
+    time_embedding_global=time_embedding_global,
     hidden_dim=256,
     n_blocks=5,
-    max_number_of_obs=max(number_of_obs) if isinstance(number_of_obs, list) else number_of_obs,
+    max_number_of_obs=number_of_obs if isinstance(number_of_obs, int) else max(number_of_obs),
     prediction_type=['score', 'e', 'x', 'v'][3],
     sde=current_sde,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
-    name_prefix=f'gaussian_flat{model_id}_'
+    name_prefix='AR1_',
 )
 
 # make dir for plots
@@ -89,7 +137,7 @@ if not os.path.exists(f"plots/{score_model.name}"):
     #%%
     # train model
     loss_history = train_score_model(score_model, dataloader, dataloader_valid=dataloader_valid,
-                                     epochs=1000, device=torch_device)
+                                     epochs=500, device=torch_device)
     torch.save(score_model.state_dict(), f"models/{score_model.name}.pt")
 
     # plot loss history
@@ -109,31 +157,24 @@ else:
 score_model.eval()
 
 #%% md
-# # Step Size for different Grid Sizes
-# 
-# - we compare score model with only one condition, and with $k$-conditions
-# - we show that the scaling in the number of needed sampling steps only depends on the Bayesian Units used
-# - error reduces when using more conditions, but since network size stays the same, increases at some point again
-# - we show how mini batching effects the posterior
-# 
-# Metrics:
-# - KL Divergence between true and estimated posterior samples
-# - RMSE between the medians of true and estimated posterior samples
-# - Posterior contraction: (1 - var_empirical_posterior / var_prior) / (1 - var_true_posterior / var_prior), and using the mean variances over all parameters
-#%%
+# # Check different sampling schemes
 #%%
 # Ensure we generate enough synthetic data samples.
 n_samples_data = 100
 n_post_samples = 100
 score_model.current_number_of_obs = 1
-obs_n_time_steps = 0
 max_steps = 10000
+variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t']
+
+variables_of_interest.append('n_conditions')
+variable_of_interest = variables_of_interest[1]
+print(variable_of_interest)
 
 mini_batch = ['10%']
 n_conditions = [1]
 cosine_shifts = [0]
 d_factors = [1]  # using the d factor depending on the mini batch size
-data_sizes = np.array([1, 10, 100, 1000, 10000, 100000])
+data_sizes = np.array([4*4, 16*16, 64*64, 512*512])
 
 if variable_of_interest == 'mini_batch':
     # Set up your data sizes and mini-batch parameters.
@@ -141,15 +182,15 @@ if variable_of_interest == 'mini_batch':
     second_variable_of_interest = 'data_size'
 
 elif variable_of_interest == 'n_conditions':
-    n_conditions = [1, 5, 10, 20, 50, 100]
+    n_conditions = [1, 4, 8, 16, 64, 128]
     second_variable_of_interest = 'data_size'
 
 elif variable_of_interest == 'cosine_shift':
     cosine_shifts = [0, -1, 1, 2, 5, 10]
     second_variable_of_interest = 'data_size'
 
-elif variable_of_interest in ['damping_factor', 'damping_factor_prior', 'damping_factor_t']:
-    d_factors = [0.0001, 0.001, 0.01, 0.1, 0.5, 0.75, 0.9, 1]
+elif variable_of_interest == 'damping_factor_t':
+    d_factors = [0.0001, 0.001, 0.01, 0.05, 0.1, 0.5, 0.75, 1]
     second_variable_of_interest = 'data_size'
 else:
     raise ValueError('Unknown variable_of_interest')
@@ -158,14 +199,8 @@ df_path = f'plots/{score_model.name}/df_results_{variable_of_interest}.csv'
 if os.path.exists(df_path):
     # Load CSV
     df_results = pd.read_csv(df_path, index_col=0)
-
-    if variable_of_interest == 'damping_factor_prior':
-        df_results['damping_factor_prior'] = df_results['damping_factor']
-    elif variable_of_interest == 'damping_factor_t':
-        df_results['damping_factor_t'] = df_results['damping_factor']
 else:
     df_results = None
-
 #%%
 # List to store results.
 results = []
@@ -174,9 +209,11 @@ reached_max_evals = []
 # Iterate over data sizes.
 for n in data_sizes:
     # Generate synthetic data with enough samples
-    true_params, test_data = generate_synthetic_data(prior, n_samples=n_samples_data, data_size=n,
-                                                     normalize=False, random_seed=0)
-    true_params = true_params.numpy()
+    prior_dict = prior.sample(batch_size=n_samples_data, n_local_samples=n)
+    true_params_global, true_params_local, test_data = prior_dict['global_params'], prior_dict['local_params'], prior_dict['data']
+
+    true_params_global = true_params_global.numpy()
+    true_params_local = true_params_local.numpy()
     # Iterate over experimental setting
     for mb, nc, cs, d_factor in itertools.product(mini_batch, n_conditions, cosine_shifts, d_factors):
         # Skip mini-batch settings that are larger than or equal to the data size.
@@ -213,17 +250,15 @@ for n in data_sizes:
                 'n_conditions': nc,
                 'cosine_shift': cs,
                 "n_steps": max_steps,
-                #"list_steps": np.nan,
-                "kl": np.nan,
                 "median": np.nan,
-                "median_rmse": np.nan,
-                "c_error": np.nan,
-                "contractions": np.nan,
-                "rel_contraction": np.nan,
+                "rmse_global":  np.nan,
+                "c_error_global":  np.nan,
+                "contractions_global":  np.nan,
+                "rmse_local":  np.nan,
+                "c_error_local":  np.nan,
+                "contractions_local":  np.nan,
             })
             df_results = pd.DataFrame(results)
-            # Convert lists to strings for CSV storage
-            #df_results['list_steps'] = df_results['list_steps'].apply(lambda x: str(x))
             df_results.to_csv(df_path)
             continue
 
@@ -243,29 +278,33 @@ for n in data_sizes:
                 mini_batch_arg = {'damping_factor': damping_factor}
             else:
                 mini_batch_arg = {'size': mb, 'damping_factor': damping_factor}
-        elif variable_of_interest == 'damping_factor_prior':
-            damping_factor = lambda t: torch.ones_like(t) * d_factor
-            if mb is None:
-                mini_batch_arg = {'damping_factor_prior': damping_factor}
-            else:
-                mini_batch_arg = {'size': mb, 'damping_factor_prior': damping_factor}
         else:
             damping_factor = lambda t: torch.ones_like(t) * d_factor
             if mb is None:
-                mini_batch_arg = {'damping_factor': damping_factor, 'damping_factor_prior': 1}
+                mini_batch_arg = {'damping_factor': damping_factor}
             else:
-                mini_batch_arg = {'size': mb, 'damping_factor': damping_factor, 'damping_factor_prior': 1}
+                mini_batch_arg = {'size': mb, 'damping_factor': damping_factor}
 
         # Run adaptive sampling.
         try:
-            test_samples, list_steps = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
-                                                         conditions=None,
+            test_global_samples, list_steps = adaptive_sampling(score_model, test_data, conditions=None,
+                                                         obs_n_time_steps=obs_n_time_steps,
                                                          n_post_samples=n_post_samples,
                                                          mini_batch_arg=mini_batch_arg,
                                                          max_evals=max_steps*2,
                                                          t_end=0, random_seed=0, device=torch_device,
                                                          run_sampling_in_parallel=False,  # can actually be faster
                                                          return_steps=True)
+
+            score_model.current_number_of_obs = 1
+            score_model.sde.s_shift_cosine = 0
+            test_local_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+                                                       n_post_samples=n_post_samples,
+                                                       conditions=test_global_samples,
+                                                       diffusion_steps=100,
+                                                       device=torch_device, verbose=False)
+            test_local_samples = score_model.prior.transform_local_params(test_local_samples)[..., 0]
+
         except torch.OutOfMemoryError as e:
             print(e)
             results.append({
@@ -276,39 +315,28 @@ for n in data_sizes:
                 'n_conditions': nc,
                 'cosine_shift': cs,
                 "n_steps": max_steps,
-                #"list_steps": np.nan,
-                "kl": np.nan,
                 "median": np.nan,
-                "median_rmse": np.nan,
-                "c_error": np.nan,
-                "contractions": np.nan,
-                "rel_contraction": np.nan,
+                "rmse_global":  np.nan,
+                "c_error_global":  np.nan,
+                "contractions_global":  np.nan,
+                "rmse_local":  np.nan,
+                "c_error_local":  np.nan,
+                "contractions_local":  np.nan,
             })
             df_results = pd.DataFrame(results)
-            # Convert lists to strings for CSV storage
-            #df_results['list_steps'] = df_results['list_steps'].apply(lambda x: str(x))
             df_results.to_csv(df_path)
             continue
 
-        # Sample the true posterior.
-        true_samples = np.stack([sample_posterior(x, prior_sigma=prior.scale,
-                                                  sigma=prior.simulator.scale, n_samples=n_post_samples) for x in test_data], axis=0)
+        rmse_global = diagnostics.root_mean_squared_error(test_global_samples, true_params_global)['values'].mean()
+        c_error_global = diagnostics.calibration_error(test_global_samples, true_params_global)['values'].mean()
+        contractions_global = diagnostics.posterior_contraction(test_global_samples, true_params_global)['values'].mean()
 
-        # Compute metrics.
-        if test_samples.shape[1] > 1:
-            kl = [kl_divergence(test_data[i], test_samples[i], prior=prior) for i in range(n_samples_data)]
-        else:
-            kl = [np.nan for i in range(n_samples_data)]
-
-        rmse = diagnostics.root_mean_squared_error(test_samples, true_params)['values'].mean()
-        c_error = diagnostics.calibration_error(test_samples, true_params)['values'].mean()
-
-        contractions = diagnostics.posterior_contraction(test_samples, true_params)['values'].mean()
-        true_contraction = posterior_contraction(prior_std=prior.scale, likelihood_std=prior.simulator.scale, n_obs=n).mean()
-        rel_contraction = (contractions / true_contraction)
+        rmse_local = diagnostics.root_mean_squared_error(test_local_samples, true_params_local)['values'].mean()
+        c_error_local = diagnostics.calibration_error(test_local_samples, true_params_local)['values'].mean()
+        contractions_local = diagnostics.posterior_contraction(test_local_samples, true_params_local)['values'].mean()
 
         # Number of steps
-        if np.isnan(test_samples).any():
+        if np.isnan(test_global_samples).any():
             n_steps = np.inf
             reached_max_evals.append((n, mb, nc, cs, d_factor))
         else:
@@ -316,9 +344,6 @@ for n in data_sizes:
             if n_steps >= max_steps:
                 # others will also fail to converge
                 reached_max_evals.append((n, mb, nc, cs, d_factor))
-
-        # Print current metrics.
-        print(f"KL: {np.mean(kl)}, #Steps: {n_steps}")
 
         # Save results into a dictionary.
         for i in range(n_samples_data):  # might be less than the actual data points because inference failed
@@ -330,20 +355,16 @@ for n in data_sizes:
                 'n_conditions': nc,
                 'cosine_shift': cs,
                 "n_steps": n_steps,
-                #"list_steps": np.where(np.isnan(list_steps[0]), None, list_steps[0]).tolist(),  # only for the first sample
-                "kl": kl[i],
-                "median": np.median(test_samples, axis=1)[i],
-                "median_rmse": rmse,
-                "c_error": c_error,
-                "contractions": contractions,
-                "rel_contraction": rel_contraction
+                "median_global": np.median(test_global_samples, axis=1)[i],
+                "median_local": np.median(test_local_samples, axis=1)[i],
+                "rmse_global": rmse_global,
+                "c_error_global": c_error_global,
+                "contractions_global": contractions_global,
+                "rmse_local": rmse_local,
+                "c_error_local": c_error_local,
+                "contractions_local": contractions_local,
             })
 
         # Create a DataFrame from the results list. Save intermediate results
         df_results = pd.DataFrame(results)
-        # Convert lists to strings for CSV storage
-        #df_results['list_steps'] = df_results['list_steps'].apply(lambda x: str(x))
         df_results.to_csv(df_path)
-
-# Convert string representations back to lists
-#df_results['list_steps'] = df_results['list_steps'].apply(lambda x: ast.literal_eval(x))
