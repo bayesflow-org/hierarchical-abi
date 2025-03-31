@@ -30,15 +30,16 @@ class Simulator:
     def _sample_augmented_noise(self):
         i = np.random.choice(self.noise.shape[0])
         j = np.random.choice(self.noise.shape[1])
+        return self.noise[i, j]
 
-        # augment noise, can be forward or backward
-        if np.random.rand() > 0.8:
-            noise = self.noise[i, j]
-        else:
-            arr = np.arange(self.noise.shape[2])
-            np.random.shuffle(arr)
-            noise = self.noise[i, j, arr]
-        return noise
+        # # augment noise, can be forward or backward
+        # if np.random.rand() > 0.8:
+        #     noise = self.noise[i, j]
+        # else:
+        #     arr = np.arange(self.noise.shape[2])
+        #     np.random.shuffle(arr)
+        #     noise = self.noise[i, j, arr]
+        # return noise
 
     def decay_gen_single(self, tau_L, tau_L_2, A_L, with_noise):
         img = np.random.randint(0, high=1000, size=(1, 1))
