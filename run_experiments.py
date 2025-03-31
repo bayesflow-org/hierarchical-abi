@@ -5,8 +5,7 @@ import subprocess
 import numpy as np
 import pandas as pd
 
-#scripts = ['gaussian_flat_score_matching.py', 'ar(1)_score_matching.py']
-scripts = ['ar(1)_score_matching.py']
+scripts = ['gaussian_flat_score_matching.py', 'ar(1)_score_matching.py']
 max_obs = [1, 100]
 
 
