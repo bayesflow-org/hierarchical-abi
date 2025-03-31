@@ -37,12 +37,11 @@ from problems import visualize_simulation_output
 #%%
 torch_device = torch.device("cuda")
 
-
 # get arguments
 max_number_of_obs = int(sys.argv[1])
 experiment_id = int(sys.argv[2])
 
-variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t'] # 'damping_factor', 'damping_factor_prior'
+variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t']
 if max_number_of_obs > 1:
     variables_of_interest = ['n_conditions']
 model_ids = np.arange(10)  # train 10 models
@@ -90,15 +89,10 @@ dataset_valid = AR1GridProblem(
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=False)
 
-for test in dataloader:
-    print(test[4].shape)
-    break
 #%%
 # Define diffusion model
 global_summary_dim = 5
 obs_n_time_steps = 0
-#summary_net = LSTM(input_size=1, hidden_dim=global_summary_dim, max_batch_size=1024)
-#global_summary_net = ShallowSet(dim_input=10, dim_output=global_summary_dim, dim_hidden=128)
 
 time_dim = 8
 time_embedding_local = nn.Sequential(
@@ -117,8 +111,6 @@ score_model = HierarchicalScoreModel(
     input_dim_theta_local=prior.n_params_local,
     input_dim_x_global=global_summary_dim,
     input_dim_x_local=global_summary_dim,
-    #summary_net=summary_net,
-    #global_summary_net=global_summary_net,
     time_embedding_local=time_embedding_local,
     time_embedding_global=time_embedding_global,
     hidden_dim=256,
@@ -128,7 +120,7 @@ score_model = HierarchicalScoreModel(
     sde=current_sde,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
-    name_prefix='AR1_',
+    name_prefix=f'ar1_{model_id}_'
 )
 
 # make dir for plots
@@ -136,8 +128,8 @@ if not os.path.exists(f"plots/{score_model.name}"):
     os.makedirs(f"plots/{score_model.name}")
     #%%
     # train model
-    loss_history = train_score_model(score_model, dataloader, dataloader_valid=dataloader_valid,
-                                     epochs=500, device=torch_device)
+    loss_history = train_score_model(score_model, dataloader, dataloader_valid=dataloader_valid, hierarchical=True,
+                                     epochs=1, device=torch_device)
     torch.save(score_model.state_dict(), f"models/{score_model.name}.pt")
 
     # plot loss history
@@ -164,10 +156,6 @@ n_samples_data = 100
 n_post_samples = 100
 score_model.current_number_of_obs = 1
 max_steps = 10000
-variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t']
-
-variables_of_interest.append('n_conditions')
-variable_of_interest = variables_of_interest[1]
 print(variable_of_interest)
 
 mini_batch = ['10%']
@@ -299,9 +287,9 @@ for n in data_sizes:
             score_model.current_number_of_obs = 1
             score_model.sde.s_shift_cosine = 0
             test_local_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
-                                                       n_post_samples=n_post_samples,
+                                                       n_post_samples=test_global_samples.shape[1],
                                                        conditions=test_global_samples,
-                                                       diffusion_steps=100,
+                                                       diffusion_steps=200,
                                                        device=torch_device, verbose=False)
             test_local_samples = score_model.prior.transform_local_params(test_local_samples)[..., 0]
 
@@ -339,11 +327,13 @@ for n in data_sizes:
         if np.isnan(test_global_samples).any():
             n_steps = np.inf
             reached_max_evals.append((n, mb, nc, cs, d_factor))
+            print('nan in global samples')
         else:
             n_steps = np.mean([len(ls) for ls in list_steps])
             if n_steps >= max_steps:
                 # others will also fail to converge
                 reached_max_evals.append((n, mb, nc, cs, d_factor))
+                print('max steps reached')
 
         # Save results into a dictionary.
         for i in range(n_samples_data):  # might be less than the actual data points because inference failed
