@@ -72,18 +72,19 @@ time_embedding = nn.Sequential(
     nn.Mish()
 )
 
+max_number_of_obs = max(number_of_obs) if isinstance(number_of_obs, list) else number_of_obs
 score_model = ScoreModel(
     input_dim_theta=prior.n_params_global,
     input_dim_x=10,
     time_embedding=time_embedding,
     hidden_dim=256,
     n_blocks=5,
-    max_number_of_obs=max(number_of_obs) if isinstance(number_of_obs, list) else number_of_obs,
+    max_number_of_obs=max_number_of_obs,
     prediction_type=['score', 'e', 'x', 'v'][3],
     sde=current_sde,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
-    name_prefix=f'gaussian_flat{model_id}_'
+    name_prefix=f'gaussian_flat{model_id}_{max_number_of_obs}'
 )
 
 # make dir for plots
