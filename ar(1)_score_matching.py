@@ -39,7 +39,7 @@ torch_device = torch.device("cuda")
 
 # get arguments
 max_number_of_obs = int(sys.argv[1])
-experiment_id = int(sys.argv[2])
+experiment_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
 
 variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t']
 if max_number_of_obs > 1:
