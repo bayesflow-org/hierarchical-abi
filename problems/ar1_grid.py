@@ -1,12 +1,9 @@
-import os
-
 import numpy as np
 import torch
-from cmdstanpy import CmdStanModel
 from scipy.special import expit, logit
 from torch.utils.data import Dataset
-from diffusion_model.helper_functions import generate_diffusion_time
 
+from diffusion_model.helper_functions import generate_diffusion_time
 
 N_TIME_POINTS = 5
 
@@ -319,26 +316,3 @@ class AR1GridProblem(Dataset):
             self._current_n_obs = np.random.choice(self._number_of_obs_list)
         if self._amortize_time:
             self._n_time_points = np.random.randint(2, self._max_number_of_time_points + 1)
-
-
-stan_file = os.path.join('problems', 'ar1_grid.stan')
-stan_model = CmdStanModel(stan_file=stan_file)
-def get_stan_posterior(sim_test, sigma_noise, chains=4):
-    N, T = sim_test.shape
-
-    # Suppose data is a numpy array of shape (N, T)
-    # Prepare data for Stan
-    stan_data = {
-        'N': N,
-        'T': T,
-        'y': sim_test,
-        'sigma': sigma_noise
-    }
-
-    # Fit the model to the data
-    fit = stan_model.sample(data=stan_data, show_progress=False, chains=chains)
-
-    global_posterior = np.concatenate([fit.draws_pd("alpha"),
-                                       fit.draws_pd("mu_beta"), fit.draws_pd("log_std_beta")], axis=-1)
-    local_posterior = fit.draws_pd("beta").T
-    return global_posterior, local_posterior
