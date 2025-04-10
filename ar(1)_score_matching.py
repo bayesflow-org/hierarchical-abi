@@ -318,10 +318,12 @@ for n in data_sizes:
             df_results.to_csv(df_path)
             continue
 
+        print('global shapes', test_global_samples.shape, true_params_global.shape)
         rmse_global = diagnostics.root_mean_squared_error(test_global_samples, true_params_global)['values'].mean()
         c_error_global = diagnostics.calibration_error(test_global_samples, true_params_global)['values'].mean()
         contractions_global = diagnostics.posterior_contraction(test_global_samples, true_params_global)['values'].mean()
 
+        print('local shapes', test_local_samples.shape, true_params_local.shape)
         rmse_local = diagnostics.root_mean_squared_error(test_local_samples, true_params_local)['values'].mean()
         c_error_local = diagnostics.calibration_error(test_local_samples, true_params_local)['values'].mean()
         contractions_local = diagnostics.posterior_contraction(test_local_samples, true_params_local)['values'].mean()
