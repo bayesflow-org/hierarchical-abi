@@ -145,7 +145,9 @@ if not os.path.exists(f"models/{score_model.name}"):
     # %%
 else:
     score_model.load_state_dict(
-        torch.load(f"models/{score_model.name}.pt", weights_only=True, map_location=torch.device(torch_device)))
+        torch.load(f"models/{score_model.name}.pt", weights_only=True, map_location=torch.device(torch_device))
+    )
+    print("Model loaded")
 
 score_model.eval()
 
