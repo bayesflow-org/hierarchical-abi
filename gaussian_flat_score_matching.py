@@ -88,8 +88,8 @@ score_model = ScoreModel(
 )
 
 # make dir for plots
-if not os.path.exists(f"plots/{score_model.name}"):
-    os.makedirs(f"plots/{score_model.name}")
+if not os.path.exists(f"models/{score_model.name}"):
+    os.makedirs(f"plots/{score_model.name}", exist_ok=True)
     #%%
     # train model
     loss_history = train_score_model(score_model, dataloader, dataloader_valid=dataloader_valid,
