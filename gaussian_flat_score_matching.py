@@ -30,7 +30,7 @@ variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t'] # 'da
 if max_number_of_obs > 1:
     variables_of_interest = ['n_conditions']
 model_ids = np.arange(10)  # train 10 models
-model_id, variable_of_interest = list(itertools.product(model_ids, variables_of_interest))[experiment_id]
+variable_of_interest, model_id = list(itertools.product(variables_of_interest, model_ids))[experiment_id]
 
 print('Exp:', experiment_id, 'Model:', model_id, variable_of_interest)
 

@@ -1,0 +1,110 @@
+
+The following have been reloaded with a version change:
+  1) linux-rocky8-x86_64/gcc/12.2.0/libxml2/2.10.3-h6soa57 => linux-rocky8-x86_64/gcc/12.2.0/libxml2/2.10.3-w7ngxar
+  2) linux-rocky8-x86_64/gcc/12.2.0/xz/5.4.1-cqof5qs => linux-rocky8-x86_64/gcc/12.2.0/xz/5.4.1-c5gajon
+
+WARNING:bayesflow:When using torch backend, we need to disable autograd by default to avoid excessive memory usage. Use
+with torch.enable_grad():
+in contexts where you need gradients (e.g. custom training loops).
+/home/jonas/hierarchical-abi/.venv/lib/python3.11/site-packages/bayesflow/diagnostics/metrics/posterior_contraction.py:59: RuntimeWarning: Degrees of freedom <= 0 for slice
+  post_vars = samples["estimates"].var(axis=1, ddof=1)
+/home/jonas/hierarchical-abi/.venv/lib/python3.11/site-packages/numpy/core/_methods.py:195: RuntimeWarning: invalid value encountered in divide
+  ret = um.true_divide(
+Exp: 11 Model: 1 cosine_shift
+Kernel type: variance_preserving, noise schedule: cosine
+t_min: 0.00035210439818911254, t_max: 0.999647855758667
+alpha, sigma: (tensor(1.0000), tensor(0.0006)) (tensor(0.0006), tensor(1.0000))
+Moving prior to device: cpu
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|        time_embedding.0.scale        |     1      |
+|       time_embedding.1.weight        |     64     |
+|        time_embedding.1.bias         |     8      |
+|   blocks.res_blocks.0.dense.weight   |    7168    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    7168    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|    final_projection_linear.weight    |    2560    |
+|     final_projection_linear.bias     |     10     |
++--------------------------------------+------------+
+Total Trainable Params: 280403
+gaussian_flat1_1score_model_v_variance_preserving_cosine_likelihood_weighting
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+Moving prior to device: cuda:0
+KL: 137.036687577606, #Steps: 54.64
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: -1, Damping Factor: 1
+KL: 173.58758733583218, #Steps: 51.13
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 1, Damping Factor: 1
+KL: 123.0451926212717, #Steps: 53.26
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 2, Damping Factor: 1
+KL: 64.01098986510026, #Steps: 63.48
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 5, Damping Factor: 1
+KL: 15.434660555927518, #Steps: 37.57
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 10, Damping Factor: 1
+KL: 7.844641517275894, #Steps: 9.01
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 7.284016802050538, #Steps: 651.22
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: -1, Damping Factor: 1
+KL: 7.450765553546977, #Steps: 688.26
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 1, Damping Factor: 1
+KL: 7.140968468472209, #Steps: 596.78
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 2, Damping Factor: 1
+KL: 6.544074253705755, #Steps: 523.66
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 5, Damping Factor: 1
+KL: 6.946116152367839, #Steps: 272.57
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 10, Damping Factor: 1
+KL: 6.482304800295026, #Steps: 11.38
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 18.629461722392147, #Steps: 5144.34
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: -1, Damping Factor: 1
+KL: 18.847483438077983, #Steps: 5377.27
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 1, Damping Factor: 1
+KL: 18.401895917035358, #Steps: 4753.33
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 2, Damping Factor: 1
+KL: 17.90333567808684, #Steps: 4220.13
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 5, Damping Factor: 1
+KL: 17.59307078688391, #Steps: 2238.08
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 10, Damping Factor: 1
+KL: 17.575511461488237, #Steps: 23.99
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+Finished after 10000 steps (20000 score evals) at time 0.9988483190536499.
+Mean step size: 1.1771858867569016e-07, min: 4.268783015959343e-08, max: 2.588726033536659e-07
+maximum steps reached, not computing any more posterior samples.
+KL: nan, #Steps: 10000.0
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: -1, Damping Factor: 1
+Finished after 10000 steps (20000 score evals) at time 0.9988458156585693.
+Mean step size: 1.1794298383387615e-07, min: 4.008261100807431e-08, max: 2.607832527701248e-07
+maximum steps reached, not computing any more posterior samples.
+KL: nan, #Steps: 10000.0
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 1, Damping Factor: 1
+Finished after 10000 steps (20000 score evals) at time 0.9988484978675842.
+Mean step size: 1.1784074475179166e-07, min: 4.469399428330689e-08, max: 2.773109031295462e-07
+maximum steps reached, not computing any more posterior samples.
+KL: nan, #Steps: 10000.0
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 2, Damping Factor: 1
+Finished after 10000 steps (20000 score evals) at time 0.9988498687744141.
+Mean step size: 1.1759471474952606e-07, min: 4.392303409872511e-08, max: 2.789958557514183e-07
+maximum steps reached, not computing any more posterior samples.
+KL: nan, #Steps: 10000.0
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 5, Damping Factor: 1
+Finished after 10000 steps (20000 score evals) at time 0.9984266757965088.
+Mean step size: 1.7066288933540897e-07, min: 2.3687853456522134e-08, max: 1.6597163039477891e-06
+maximum steps reached, not computing any more posterior samples.
+KL: nan, #Steps: 10000.0
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 10, Damping Factor: 1
+KL: 60.93436103192003, #Steps: 146.43
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, -1
+smaller mini batch size already failed, skipping 1, 1
+smaller mini batch size already failed, skipping 1, 2
+smaller mini batch size already failed, skipping 1, 5
+Data Size: 100000, Mini Batch: 10000, Conditions: 1, Cosine shift: 10, Damping Factor: 1
+KL: 297.4435049109427, #Steps: 1609.23
