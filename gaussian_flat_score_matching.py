@@ -16,7 +16,7 @@ from bayesflow import diagnostics
 from torch.utils.data import DataLoader
 
 from diffusion_model import ScoreModel, SDE, train_score_model, adaptive_sampling
-from diffusion_model.helper_networks import GaussianFourierProjection
+from diffusion_model.helper_networks import GaussianFourierProjection, ShallowSet
 from problems.gaussian_flat import GaussianProblem, Prior, generate_synthetic_data, sample_posterior, kl_divergence, posterior_contraction
 #%%
 torch_device = torch.device("cuda")
@@ -60,6 +60,7 @@ dataset_valid = GaussianProblem(
     n_data=1000,
     prior=prior,
     sde=current_sde,
+    number_of_obs=number_of_obs
 )
 
 # Create dataloader
@@ -71,11 +72,14 @@ time_embedding = nn.Sequential(
     nn.Linear(8,8),
     nn.Mish()
 )
+summary_dim = 10
+summary_net = ShallowSet(dim_input=10, dim_output=summary_dim, dim_hidden=8) if isinstance(number_of_obs, list) else None
 
 max_number_of_obs = max(number_of_obs) if isinstance(number_of_obs, list) else number_of_obs
 score_model = ScoreModel(
     input_dim_theta=prior.n_params_global,
-    input_dim_x=10,
+    input_dim_x=summary_dim,
+    summary_net=summary_net,
     time_embedding=time_embedding,
     hidden_dim=256,
     n_blocks=5,

@@ -381,17 +381,15 @@ class GaussianProblem(Dataset):
 
     def __getitem__(self, idx):
         # this should return one sample from the dataset
-        if self._amortize_n_conditions:
-            params_global = self._thetas_global[idx, :self._current_n_obs]
-            data = self._xs[idx, :self._current_n_obs]
-        else:
-            params_global = self._thetas_global[idx]
-            data = self._xs[idx]
-
+        params_global = self._thetas_global[idx]
         noise_global = self._noise_global[idx]
 
-        param_global_noisy = self._alpha[idx] * params_global + self._sigma[idx] * noise_global
+        if self._amortize_n_conditions:
+            data = self._xs[idx, :self._current_n_obs]
+        else:
+            data = self._xs[idx]
 
+        param_global_noisy = self._alpha[idx] * params_global + self._sigma[idx] * noise_global
         target_global = noise_global  # for e-prediction
         return param_global_noisy, target_global, data, self._diffusion_time[idx]
 
