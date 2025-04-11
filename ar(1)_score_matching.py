@@ -278,6 +278,7 @@ for n in data_sizes:
 
         # Run adaptive sampling.
         try:
+            print('global sampling')
             test_global_samples, list_steps = adaptive_sampling(score_model, test_data, conditions=None,
                                                          obs_n_time_steps=obs_n_time_steps,
                                                          n_post_samples=n_post_samples,
@@ -289,11 +290,41 @@ for n in data_sizes:
 
             score_model.current_number_of_obs = 1
             score_model.sde.s_shift_cosine = 0
-            test_local_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
-                                                       n_post_samples=test_global_samples.shape[1],
-                                                       conditions=test_global_samples,
-                                                       diffusion_steps=200,
-                                                       device=torch_device, verbose=False)
+            print('local sampling')
+            #test_local_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+            #                                           n_post_samples=test_global_samples.shape[1],
+            #                                           conditions=test_global_samples,
+            #                                           diffusion_steps=200,
+            #                                           device=torch_device, verbose=False)
+
+            # Loop over the dataset in chunks.
+            # Define the maximum chunk size
+            chunk_size = 100
+            n_samples_local = test_data.shape[0]
+            local_samples_list = []
+            for start_idx in range(0, n_samples_local, chunk_size):
+                end_idx = min(start_idx + chunk_size, n_samples_local)
+                # Slice out the current chunk from test_data.
+                test_data_chunk = test_data[start_idx:end_idx]
+                conditions_chunk = test_global_samples[start_idx:end_idx]
+
+                # Run the sampling on the chunk.
+                local_samples_chunk = euler_maruyama_sampling(
+                    score_model,
+                    test_data_chunk,
+                    obs_n_time_steps=obs_n_time_steps,
+                    n_post_samples=test_global_samples.shape[1],
+                    conditions=conditions_chunk,
+                    diffusion_steps=200,
+                    device=torch_device,
+                    verbose=False
+                )
+
+                local_samples_list.append(local_samples_chunk)
+
+            # Concatenate all sample chunks along the batch dimension.
+            test_local_samples = torch.cat(local_samples_list, dim=0)
+
             test_local_samples = score_model.prior.transform_local_params(test_local_samples)[..., 0]
 
         except torch.OutOfMemoryError as e:
@@ -318,16 +349,6 @@ for n in data_sizes:
             df_results.to_csv(df_path)
             continue
 
-        print('global shapes', test_global_samples.shape, true_params_global.shape)
-        rmse_global = diagnostics.root_mean_squared_error(test_global_samples, true_params_global)['values'].mean()
-        c_error_global = diagnostics.calibration_error(test_global_samples, true_params_global)['values'].mean()
-        contractions_global = diagnostics.posterior_contraction(test_global_samples, true_params_global)['values'].mean()
-
-        print('local shapes', test_local_samples.shape, true_params_local.shape)
-        rmse_local = diagnostics.root_mean_squared_error(test_local_samples, true_params_local)['values'].mean()
-        c_error_local = diagnostics.calibration_error(test_local_samples, true_params_local)['values'].mean()
-        contractions_local = diagnostics.posterior_contraction(test_local_samples, true_params_local)['values'].mean()
-
         # Number of steps
         if np.isnan(test_global_samples).any():
             n_steps = np.inf
@@ -339,6 +360,22 @@ for n in data_sizes:
                 # others will also fail to converge
                 reached_max_evals.append((n, mb, nc, cs, d_factor))
                 print('max steps reached')
+
+        print('global shapes', test_global_samples.shape, true_params_global.shape)
+        rmse_global = diagnostics.root_mean_squared_error(test_global_samples, true_params_global)['values'].mean()
+        c_error_global = diagnostics.calibration_error(test_global_samples, true_params_global)['values'].mean()
+        contractions_global = diagnostics.posterior_contraction(test_global_samples, true_params_global)['values'].mean()
+
+        try:
+            print('local shapes', test_local_samples.shape, true_params_local.shape)
+            rmse_local = diagnostics.root_mean_squared_error(test_local_samples, true_params_local)['values'].mean()
+            c_error_local = diagnostics.calibration_error(test_local_samples, true_params_local)['values'].mean()
+            contractions_local = diagnostics.posterior_contraction(test_local_samples, true_params_local)['values'].mean()
+        except ValueError as e:
+            print(e)
+            rmse_local = np.nan
+            c_error_local = np.nan
+            contractions_local = np.nan
 
         # Save results into a dictionary.
         for i in range(n_samples_data):  # might be less than the actual data points because inference failed
