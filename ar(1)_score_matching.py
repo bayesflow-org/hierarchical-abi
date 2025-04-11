@@ -291,39 +291,11 @@ for n in data_sizes:
             score_model.current_number_of_obs = 1
             score_model.sde.s_shift_cosine = 0
             print('local sampling')
-            #test_local_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
-            #                                           n_post_samples=test_global_samples.shape[1],
-            #                                           conditions=test_global_samples,
-            #                                           diffusion_steps=200,
-            #                                           device=torch_device, verbose=False)
-
-            # Loop over the dataset in chunks.
-            # Define the maximum chunk size
-            chunk_size = 100
-            n_samples_local = test_data.shape[0]
-            local_samples_list = []
-            for start_idx in range(0, n_samples_local, chunk_size):
-                end_idx = min(start_idx + chunk_size, n_samples_local)
-                # Slice out the current chunk from test_data.
-                test_data_chunk = test_data[start_idx:end_idx]
-                conditions_chunk = test_global_samples[start_idx:end_idx]
-
-                # Run the sampling on the chunk.
-                local_samples_chunk = euler_maruyama_sampling(
-                    score_model,
-                    test_data_chunk,
-                    obs_n_time_steps=obs_n_time_steps,
-                    n_post_samples=test_global_samples.shape[1],
-                    conditions=conditions_chunk,
-                    diffusion_steps=200,
-                    device=torch_device,
-                    verbose=False
-                )
-
-                local_samples_list.append(local_samples_chunk)
-
-            # Concatenate all sample chunks along the batch dimension.
-            test_local_samples = torch.cat(local_samples_list, dim=0)
+            test_local_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+                                                      n_post_samples=test_global_samples.shape[1],
+                                                      conditions=test_global_samples,
+                                                      diffusion_steps=200,
+                                                      device=torch_device, verbose=False)
 
             test_local_samples = score_model.prior.transform_local_params(test_local_samples)[..., 0]
 

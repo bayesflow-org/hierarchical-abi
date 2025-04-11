@@ -286,7 +286,7 @@ def piecewise_condition_function(t, tau_1, tau_2):
 
 
 def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp, batch_size_full,
-                             n_scores_update_full, mini_batch_dict, clip_x=True):
+                             n_scores_update_full, mini_batch_dict, clip_x=True, chunk_size=1000):
     """
     Compute the (global or local) compositional score.
 
@@ -361,16 +361,25 @@ def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp
     else:
         theta_exp = theta.contiguous().view(-1, model.prior.n_params_local)
 
-        model_scores = model.forward_local(
-            theta_local=theta_exp,
-            time=t_exp,
-            x=x_exp,
-            theta_global=conditions_exp,
-            pred_score=True,
-            clip_x=clip_x
-        )
-        model_scores = model_scores.contiguous().view(batch_size_full, n_scores_update_full, -1)
+        # Define the maximum chunk size
+        n_samples_local = theta_exp.shape[0]
+        model_scores_list = []
+        for start_idx in range(0, n_samples_local, chunk_size):
+            end_idx = min(start_idx + chunk_size, n_samples_local)
+            # Run the sampling on the chunk
+            model_scores_chunk = model.forward_local(
+                theta_local=theta_exp[start_idx:end_idx],
+                time=t_exp[start_idx:end_idx],
+                x=x_exp[start_idx:end_idx],
+                theta_global=conditions_exp[start_idx:end_idx],
+                pred_score=True,
+                clip_x=clip_x
+            )
+            model_scores_list.append(model_scores_chunk)
+        # Concatenate all sample chunks along the batch dimension.
+        model_scores = torch.cat(model_scores_list, dim=0)
 
+        model_scores = model_scores.contiguous().view(batch_size_full, n_scores_update_full, -1)
     return model_scores
 
 
