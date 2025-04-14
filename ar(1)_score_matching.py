@@ -52,6 +52,7 @@ print('Exp:', experiment_id, 'Model:', model_id, variable_of_interest)
 
 #%%
 prior = Prior()
+np.random.seed(experiment_id)
 
 # test the simulator
 sim_test = prior.sample(1, n_local_samples=16, get_grid=True)['data'][0]
@@ -125,7 +126,7 @@ score_model = HierarchicalScoreModel(
 )
 
 # make dir for plots
-if not os.path.exists(f"models/{score_model.name}"):
+if not os.path.exists(f"models/{score_model.name}.pt"):
     os.makedirs(f"plots/{score_model.name}", exist_ok=True)
     #%%
     # train model
@@ -284,7 +285,7 @@ for n in data_sizes:
                                                          n_post_samples=n_post_samples,
                                                          mini_batch_arg=mini_batch_arg,
                                                          max_evals=max_steps*2,
-                                                         t_end=0, random_seed=0, device=torch_device,
+                                                         t_end=0, random_seed=experiment_id, device=torch_device,
                                                          run_sampling_in_parallel=False,  # can actually be faster
                                                          return_steps=True)
 
@@ -294,7 +295,7 @@ for n in data_sizes:
             test_local_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                       n_post_samples=test_global_samples.shape[1],
                                                       conditions=test_global_samples,
-                                                      diffusion_steps=200,
+                                                      diffusion_steps=200, random_seed=experiment_id,
                                                       device=torch_device, verbose=False)
 
             test_local_samples = score_model.prior.transform_local_params(test_local_samples)[..., 0]

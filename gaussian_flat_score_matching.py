@@ -92,7 +92,7 @@ score_model = ScoreModel(
 )
 
 # make dir for plots
-if not os.path.exists(f"models/{score_model.name}"):
+if not os.path.exists(f"models/{score_model.name}.pt"):
     os.makedirs(f"plots/{score_model.name}", exist_ok=True)
     #%%
     # train model
@@ -163,16 +163,6 @@ else:
     raise ValueError('Unknown variable_of_interest')
 
 df_path = f'plots/{score_model.name}/df_results_{variable_of_interest}.csv'
-if os.path.exists(df_path):
-    # Load CSV
-    df_results = pd.read_csv(df_path, index_col=0)
-
-    if variable_of_interest == 'damping_factor_prior':
-        df_results['damping_factor_prior'] = df_results['damping_factor']
-    elif variable_of_interest == 'damping_factor_t':
-        df_results['damping_factor_t'] = df_results['damping_factor']
-else:
-    df_results = None
 
 #%%
 # List to store results.
@@ -183,7 +173,7 @@ reached_max_evals = []
 for n in data_sizes:
     # Generate synthetic data with enough samples
     true_params, test_data = generate_synthetic_data(prior, n_samples=n_samples_data, data_size=n,
-                                                     normalize=False, random_seed=0)
+                                                     normalize=False, random_seed=experiment_id)
     true_params = true_params.numpy()
     # Iterate over experimental setting
     for mb, nc, cs, d_factor in itertools.product(mini_batch, n_conditions, cosine_shifts, d_factors):
@@ -271,7 +261,7 @@ for n in data_sizes:
                                                          n_post_samples=n_post_samples,
                                                          mini_batch_arg=mini_batch_arg,
                                                          max_evals=max_steps*2,
-                                                         t_end=0, random_seed=0, device=torch_device,
+                                                         t_end=0, random_seed=experiment_id, device=torch_device,
                                                          run_sampling_in_parallel=False,  # can actually be faster
                                                          return_steps=True)
         except torch.OutOfMemoryError as e:
