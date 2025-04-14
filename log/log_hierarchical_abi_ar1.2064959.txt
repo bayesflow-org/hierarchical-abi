@@ -1,0 +1,319 @@
+
+The following have been reloaded with a version change:
+  1) linux-rocky8-x86_64/gcc/12.2.0/libxml2/2.10.3-h6soa57 => linux-rocky8-x86_64/gcc/12.2.0/libxml2/2.10.3-w7ngxar
+  2) linux-rocky8-x86_64/gcc/12.2.0/xz/5.4.1-cqof5qs => linux-rocky8-x86_64/gcc/12.2.0/xz/5.4.1-c5gajon
+
+WARNING:bayesflow:When using torch backend, we need to disable autograd by default to avoid excessive memory usage. Use
+with torch.enable_grad():
+in contexts where you need gradients (e.g. custom training loops).
+/home/jonas/hierarchical-abi/.venv/lib/python3.11/site-packages/bayesflow/diagnostics/metrics/root_mean_squared_error.py:61: RuntimeWarning: overflow encountered in square
+  rmse = np.sqrt(np.mean((samples["estimates"] - samples["targets"][:, None, :]) ** 2, axis=0))
+/home/jonas/hierarchical-abi/.venv/lib/python3.11/site-packages/bayesflow/diagnostics/metrics/posterior_contraction.py:59: RuntimeWarning: Degrees of freedom <= 0 for slice
+  post_vars = samples["estimates"].var(axis=1, ddof=1)
+/home/jonas/hierarchical-abi/.venv/lib/python3.11/site-packages/numpy/core/_methods.py:195: RuntimeWarning: invalid value encountered in divide
+  ret = um.true_divide(
+Exp: 21 Model: 1 damping_factor_t
+Kernel type: variance_preserving, noise schedule: cosine
+t_min: 0.00035210439818911254, t_max: 0.999647855758667
+alpha, sigma: (tensor(1.0000), tensor(0.0006)) (tensor(0.0006), tensor(1.0000))
+Moving prior to device: cpu
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|        time_embedding.0.scale        |     1      |
+|       time_embedding.1.weight        |     64     |
+|        time_embedding.1.bias         |     8      |
+|   blocks.res_blocks.0.dense.weight   |    7168    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    7168    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|    final_projection_linear.weight    |    2560    |
+|     final_projection_linear.bias     |     10     |
++--------------------------------------+------------+
+Total Trainable Params: 280403
+gaussian_flat1_1score_model_v_variance_preserving_cosine_likelihood_weighting
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.0001
+Moving prior to device: cuda:0
+KL: 14.107937488125428, #Steps: 5050.73
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.001
+KL: 114.32036318747878, #Steps: 2967.49
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.01
+KL: 153.01378975037846, #Steps: 341.74
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.1
+KL: 6.228388166442025, #Steps: 15.49
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.5
+KL: 143.93721278750567, #Steps: 36.76
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.75
+KL: 142.39273595476615, #Steps: 46.55
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.9
+KL: 143.25167136696146, #Steps: 49.2
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 133.0174527310157, #Steps: 53.58
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 0.0001
+Finished after 10000 steps (20000 score evals) at time 0.42184898257255554.
+Mean step size: 0.00011563007616132382, min: 1.542100108054001e-05, max: 0.5
+maximum steps reached, not computing any more posterior samples.
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+KL: nan, #Steps: 5142.0
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 0.001
+Finished after 10000 steps (20000 score evals) at time 0.4029184579849243.
+Mean step size: 0.00011941663179604802, min: 1.5458072084584273e-05, max: 0.5
+maximum steps reached, not computing any more posterior samples.
+KL: 31.76426002449227, #Steps: 903.3333333333334
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 0.01
+KL: 7.998472463316285, #Steps: 25.56
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 0.1
+KL: 7.334124630990053, #Steps: 74.64
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 0.5
+KL: 7.447594340065342, #Steps: 194.34
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 0.75
+KL: 7.4843865483113925, #Steps: 402.67
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 0.9
+KL: 7.527138645033537, #Steps: 546.55
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 7.586292807103733, #Steps: 650.95
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 0.0001
+Finished after 10000 steps (20000 score evals) at time 0.46259769797325134.
+Mean step size: 0.00010747650433540911, min: 1.959369910764508e-06, max: 0.5
+maximum steps reached, not computing any more posterior samples.
+KL: 34.24095044747097, #Steps: 1729.9444444444443
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 0.001
+KL: 19.09997501252083, #Steps: 206.8
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 0.01
+KL: 16.784550194029183, #Steps: 515.43
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 0.1
+KL: 25.18440162561288, #Steps: 153.28
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 0.5
+KL: 24.293498856591597, #Steps: 1667.71
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 0.75
+KL: 24.197335393934527, #Steps: 3135.89
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 0.9
+KL: 24.475435152961754, #Steps: 4281.25
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 24.17201545623198, #Steps: 5143.21
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 0, Damping Factor: 0.0001
+Finished after 10000 steps (20000 score evals) at time 0.044985730201005936.
+Mean step size: 9.553963318594748e-05, min: 0.0, max: 0.5
+maximum steps reached, not computing any more posterior samples.
+KL: nan, #Steps: 10000.0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0

@@ -1,0 +1,92 @@
+
+The following have been reloaded with a version change:
+  1) linux-rocky8-x86_64/gcc/12.2.0/libxml2/2.10.3-h6soa57 => linux-rocky8-x86_64/gcc/12.2.0/libxml2/2.10.3-w7ngxar
+  2) linux-rocky8-x86_64/gcc/12.2.0/xz/5.4.1-cqof5qs => linux-rocky8-x86_64/gcc/12.2.0/xz/5.4.1-c5gajon
+
+WARNING:bayesflow:When using torch backend, we need to disable autograd by default to avoid excessive memory usage. Use
+with torch.enable_grad():
+in contexts where you need gradients (e.g. custom training loops).
+/home/jonas/hierarchical-abi/.venv/lib/python3.11/site-packages/bayesflow/diagnostics/metrics/posterior_contraction.py:59: RuntimeWarning: Degrees of freedom <= 0 for slice
+  post_vars = samples["estimates"].var(axis=1, ddof=1)
+/home/jonas/hierarchical-abi/.venv/lib/python3.11/site-packages/numpy/core/_methods.py:195: RuntimeWarning: invalid value encountered in divide
+  ret = um.true_divide(
+Exp: 22 Model: 2 damping_factor_t
+Kernel type: variance_preserving, noise schedule: cosine
+t_min: 0.00035210439818911254, t_max: 0.999647855758667
+alpha, sigma: (tensor(1.0000), tensor(0.0006)) (tensor(0.0006), tensor(1.0000))
+Moving prior to device: cpu
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|        time_embedding.0.scale        |     1      |
+|       time_embedding.1.weight        |     64     |
+|        time_embedding.1.bias         |     8      |
+|   blocks.res_blocks.0.dense.weight   |    7168    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    7168    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|    final_projection_linear.weight    |    2560    |
+|     final_projection_linear.bias     |     10     |
++--------------------------------------+------------+
+Total Trainable Params: 280403
+gaussian_flat2_1score_model_v_variance_preserving_cosine_likelihood_weighting
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.0001
+Moving prior to device: cuda:0
+KL: 13.985775538073598, #Steps: 5050.6
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.001
+KL: 124.46877132059456, #Steps: 3001.91
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.01
+KL: 148.32151602074666, #Steps: 341.02
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.1
+KL: 5.701202506200418, #Steps: 15.33
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.5
+KL: 145.09804070065942, #Steps: 39.83
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.75
+KL: 143.29250737019572, #Steps: 46.55
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.9
+KL: 138.80364669312817, #Steps: 47.35
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 130.61380857249316, #Steps: 52.33
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 0.0001
+Finished after 10000 steps (20000 score evals) at time 0.42184820771217346.
+Mean step size: 0.00011563022940244992, min: 1.5420997442561202e-05, max: 0.5
+maximum steps reached, not computing any more posterior samples.
+KL: nan, #Steps: 10000.0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
+smaller damping factor already failed, skipping 1, 0
