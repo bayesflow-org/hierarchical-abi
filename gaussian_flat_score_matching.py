@@ -157,7 +157,7 @@ elif variable_of_interest == 'cosine_shift':
     second_variable_of_interest = 'data_size'
 
 elif variable_of_interest in ['damping_factor', 'damping_factor_prior', 'damping_factor_t']:
-    d_factors = [0.0001, 0.001, 0.01, 0.1, 0.5, 0.75, 0.9, 1]
+    d_factors = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.5, 0.75, 0.9, 1]
     second_variable_of_interest = 'data_size'
 else:
     raise ValueError('Unknown variable_of_interest')
@@ -196,12 +196,12 @@ for n in data_sizes:
                         print(f'smaller mini batch size already failed, skipping {nc}, {cs}')
                         skip = True
                         break
-                elif max_reached[2] == nc and max_reached[3] == cs and max_reached[4] < d_factor:
-                    # all conditions are the same (assuming mini-batching does not change)
-                    # check if smaller damping factor already failed
-                    print(f'smaller damping factor already failed, skipping {nc}, {cs}')
-                    skip = True
-                    break
+                #elif max_reached[2] == nc and max_reached[3] == cs and max_reached[4] < d_factor:
+                #    # all conditions are the same (assuming mini-batching does not change)
+                #    # check if smaller damping factor already failed
+                #    print(f'smaller damping factor already failed, skipping {nc}, {cs}')
+                #    skip = True
+                #    break
         if skip:
             results.append({
                 "data_size": n,

@@ -33,7 +33,7 @@ from torch.utils.data import DataLoader
 from diffusion_model import HierarchicalScoreModel, SDE, euler_maruyama_sampling, adaptive_sampling, train_score_model
 from diffusion_model.helper_networks import GaussianFourierProjection
 from problems.ar1_grid import AR1GridProblem, Prior
-from problems import visualize_simulation_output
+
 #%%
 torch_device = torch.device("cuda")
 
@@ -54,9 +54,6 @@ print('Exp:', experiment_id, 'Model:', model_id, variable_of_interest)
 prior = Prior()
 np.random.seed(experiment_id)
 
-# test the simulator
-sim_test = prior.sample(1, n_local_samples=16, get_grid=True)['data'][0]
-visualize_simulation_output(sim_test)
 #%%
 batch_size = 128
 if max_number_of_obs == 1:
@@ -187,12 +184,8 @@ elif variable_of_interest == 'damping_factor_t':
 else:
     raise ValueError('Unknown variable_of_interest')
 
-df_path = f'plots/{score_model.name}/df_results_{variable_of_interest}.csv'
-if os.path.exists(df_path):
-    # Load CSV
-    df_results = pd.read_csv(df_path, index_col=0)
-else:
-    df_results = None
+df_path = f'_plots/{score_model.name}/df_results_{variable_of_interest}.csv'
+
 #%%
 # List to store results.
 results = []
@@ -227,12 +220,12 @@ for n in data_sizes:
                         print(f'smaller mini batch size already failed, skipping {nc}, {cs}')
                         skip = True
                         break
-                elif max_reached[2] == nc and max_reached[3] == cs and max_reached[4] < d_factor:
-                    # all conditions are the same (assuming mini-batching does not change)
-                    # check if smaller damping factor already failed
-                    print(f'smaller damping factor already failed, skipping {nc}, {cs}')
-                    skip = True
-                    break
+                #elif max_reached[2] == nc and max_reached[3] == cs and max_reached[4] < d_factor:
+                #    # all conditions are the same (assuming mini-batching does not change)
+                #    # check if smaller damping factor already failed
+                #    print(f'smaller damping factor already failed, skipping {nc}, {cs}')
+                #    skip = True
+                #    break
         if skip:
             results.append({
                 "data_size": n,
@@ -339,16 +332,10 @@ for n in data_sizes:
         c_error_global = diagnostics.calibration_error(test_global_samples, true_params_global)['values'].mean()
         contractions_global = diagnostics.posterior_contraction(test_global_samples, true_params_global)['values'].mean()
 
-        try:
-            print('local shapes', test_local_samples.shape, true_params_local.shape)
-            rmse_local = diagnostics.root_mean_squared_error(test_local_samples, true_params_local)['values'].mean()
-            c_error_local = diagnostics.calibration_error(test_local_samples, true_params_local)['values'].mean()
-            contractions_local = diagnostics.posterior_contraction(test_local_samples, true_params_local)['values'].mean()
-        except ValueError as e:
-            print(e)
-            rmse_local = np.nan
-            c_error_local = np.nan
-            contractions_local = np.nan
+        print('local shapes', test_local_samples.shape, true_params_local.shape)
+        rmse_local = diagnostics.root_mean_squared_error(test_local_samples, true_params_local)['values'].mean()
+        c_error_local = diagnostics.calibration_error(test_local_samples, true_params_local)['values'].mean()
+        contractions_local = diagnostics.posterior_contraction(test_local_samples, true_params_local)['values'].mean()
 
         # Save results into a dictionary.
         for i in range(n_samples_data):  # might be less than the actual data points because inference failed

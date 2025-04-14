@@ -619,7 +619,7 @@ def adaptive_sampling(model, x_obs, obs_n_time_steps,
             post_samples.append(ps)
             list_accepted_steps.append(ls)
             if len(ls) == max_evals / 2:
-                print('maximum steps reached, not computing any more posterior samples.')
+                print('maximum steps reached, increase number of steps.')
                 break
             if np.isnan(ps).any():
                 print("NaNs in theta, increase number of steps.")
