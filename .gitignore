@@ -6,3 +6,11 @@ problems/grid/
 /problems/ar1/
 /problems/ar1_grid
 .venv
+
+# Ignore Python bytecode caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore macOS metadata files
+.DS_Store
