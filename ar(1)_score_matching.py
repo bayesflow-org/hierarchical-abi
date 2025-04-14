@@ -179,12 +179,12 @@ elif variable_of_interest == 'cosine_shift':
     second_variable_of_interest = 'data_size'
 
 elif variable_of_interest == 'damping_factor_t':
-    d_factors = [0.0001, 0.001, 0.01, 0.05, 0.1, 0.5, 0.75, 1]
+    d_factors = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.5, 0.75, 0.9, 1]
     second_variable_of_interest = 'data_size'
 else:
     raise ValueError('Unknown variable_of_interest')
 
-df_path = f'_plots/{score_model.name}/df_results_{variable_of_interest}.csv'
+df_path = f'plots/{score_model.name}/df_results_{variable_of_interest}.csv'
 
 #%%
 # List to store results.
