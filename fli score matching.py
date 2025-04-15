@@ -17,7 +17,8 @@ from torch.utils.data import DataLoader
 
 from diffusion_model import HierarchicalScoreModel, SDE, adaptive_sampling, euler_maruyama_sampling, train_score_model
 from diffusion_model.helper_networks import GaussianFourierProjection
-from bayesflow.wrappers.mamba import Mamba
+#from bayesflow.wrappers.mamba import Mamba
+from bayesflow.networks import TimeSeriesNetwork
 from problems.fli import FLIProblem, FLI_Prior, generate_synthetic_data
 from problems import plot_shrinkage, visualize_simulation_output
 #%%
@@ -54,7 +55,7 @@ dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=Fals
 #%%
 # Define diffusion model
 hidden_dim_summary = 18
-summary_net = Mamba(summary_dim=hidden_dim_summary) #LSTM(input_size=1, hidden_dim=hidden_dim_summary, max_batch_size=1024)
+summary_net = TimeSeriesNetwork(summary_dim=hidden_dim_summary) #LSTM(input_size=1, hidden_dim=hidden_dim_summary, max_batch_size=1024)
 
 global_summary_dim = 18
 #global_summary_net = ShallowSet(dim_input=hidden_dim_summary, dim_output=global_summary_dim, dim_hidden=16)
