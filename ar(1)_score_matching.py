@@ -31,7 +31,7 @@ from bayesflow import diagnostics
 from torch.utils.data import DataLoader
 
 from diffusion_model import HierarchicalScoreModel, SDE, euler_maruyama_sampling, adaptive_sampling, train_score_model
-from diffusion_model.helper_networks import GaussianFourierProjection
+from diffusion_model.helper_networks import GaussianFourierProjection, ShallowSet
 from problems.ar1_grid import AR1GridProblem, Prior
 
 #%%
@@ -91,6 +91,7 @@ dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=Fals
 # Define diffusion model
 global_summary_dim = 5
 obs_n_time_steps = 0
+global_summary_net = ShallowSet(dim_input=5, dim_output=global_summary_dim, dim_hidden=16)
 
 time_dim = 8
 time_embedding_local = nn.Sequential(
@@ -109,6 +110,7 @@ score_model = HierarchicalScoreModel(
     input_dim_theta_global=prior.n_params_global,
     input_dim_theta_local=prior.n_params_local,
     input_dim_x_global=global_summary_dim,
+    global_summary_net=global_summary_net if isinstance(number_of_obs, list) else None,
     input_dim_x_local=global_summary_dim,
     time_embedding_local=time_embedding_local,
     time_embedding_global=time_embedding_global,
