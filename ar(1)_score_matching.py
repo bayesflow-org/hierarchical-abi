@@ -128,7 +128,7 @@ if not os.path.exists(f"models/{score_model.name}.pt"):
     #%%
     # train model
     loss_history = train_score_model(score_model, dataloader, dataloader_valid=dataloader_valid, hierarchical=True,
-                                     epochs=1, device=torch_device)
+                                     epochs=2000, device=torch_device)
     torch.save(score_model.state_dict(), f"models/{score_model.name}.pt")
 
     # plot loss history
