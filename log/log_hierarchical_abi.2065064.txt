@@ -22,3 +22,4 @@ in contexts where you need gradients (e.g. custom training loops).
   ret = umr_sum(x, axis, dtype, out, keepdims=keepdims, where=where)
 /home/jonas/hierarchical-abi/.venv/lib/python3.11/site-packages/bayesflow/diagnostics/metrics/posterior_contraction.py:61: RuntimeWarning: overflow encountered in divide
   contraction = np.clip(1 - (post_vars / prior_vars), 0, 1)
+slurmstepd: error: *** JOB 2065064 ON gn01 CANCELLED AT 2025-04-15T11:25:32 ***

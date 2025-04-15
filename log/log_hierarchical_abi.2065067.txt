@@ -20,3 +20,4 @@ in contexts where you need gradients (e.g. custom training loops).
   x = um.multiply(x, x, out=x)
 /home/jonas/hierarchical-abi/.venv/lib/python3.11/site-packages/numpy/core/_methods.py:187: RuntimeWarning: overflow encountered in reduce
   ret = umr_sum(x, axis, dtype, out, keepdims=keepdims, where=where)
+slurmstepd: error: *** JOB 2065067 ON gn02 CANCELLED AT 2025-04-15T11:25:32 ***

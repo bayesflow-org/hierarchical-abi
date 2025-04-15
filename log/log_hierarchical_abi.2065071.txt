@@ -14,3 +14,4 @@ in contexts where you need gradients (e.g. custom training loops).
   post_vars = samples["estimates"].var(axis=1, ddof=1)
 /home/jonas/hierarchical-abi/.venv/lib/python3.11/site-packages/numpy/core/_methods.py:195: RuntimeWarning: invalid value encountered in divide
   ret = um.true_divide(
+slurmstepd: error: *** JOB 2065071 ON gn03 CANCELLED AT 2025-04-15T11:25:32 ***
