@@ -37,7 +37,7 @@ dataset = FLIProblem(
     n_data=10000,
     prior=prior,
     sde=current_sde,
-    online_learning=False,
+    online_learning=True,
     number_of_obs=number_of_obs,
 )
 
