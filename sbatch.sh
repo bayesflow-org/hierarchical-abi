@@ -1,18 +1,19 @@
 #!/bin/bash
-#SBATCH --job-name hierarchical-abi-ar1
-#SBATCH --output log/log_hierarchical_abi_ar1.%j.txt
+#SBATCH --job-name hierarchical-abi
+#SBATCH --output log/log_hierarchical_abi.%j.txt
 #SBATCH --nodes 1
 #SBATCH --cpus-per-task 1
 #SBATCH --partition gn
 #SBATCH --gpus 1
 #SBATCH --time 3-00:00:00
 #SBATCH --array=20-29
-#SBATCH --depend=afterany:2063854
+#SBATCH --depend=afterany:2065051
 #SBATCH --mail-type=END
 #SBATCH --mail-user=jonas.arruda@uni-bonn.de
 
 TQDM_DISABLE=1
 export TQDM_DISABLE
+export KERAS_BACKEND=torch
 
 source /home/jonas/hierarchical-abi/env.sh
 
@@ -20,3 +21,4 @@ python3.11 /home/jonas/hierarchical-abi/gaussian_flat_score_matching.py 1
 #python3.11 /home/jonas/hierarchical-abi/gaussian_flat_score_matching.py 100
 #python3.11 /home/jonas/hierarchical-abi/ar\(1\)_score_matching.py 1
 #python3.11 /home/jonas/hierarchical-abi/ar\(1\)_score_matching.py 100
+#python3.11 /home/jonas/hierarchical-abi/fli\ score\ matching.py 
