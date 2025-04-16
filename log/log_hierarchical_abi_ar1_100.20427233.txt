@@ -1,0 +1,12 @@
+WARNING:bayesflow:
+When using torch backend, we need to disable autograd by default to avoid excessive memory usage. Use
+
+with torch.enable_grad():
+    ...
+
+in contexts where you need gradients (e.g. custom training loops).
+Traceback (most recent call last):
+  File "/home/jarruda_hpc/hierarchical-abi/ar(1)_score_matching.py", line 48, in <module>
+    variable_of_interest, model_id = list(itertools.product(variables_of_interest, model_ids))[experiment_id]
+                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+IndexError: list index out of range
