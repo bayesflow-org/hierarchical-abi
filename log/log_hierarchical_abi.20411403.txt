@@ -17,3 +17,551 @@ in contexts where you need gradients (e.g. custom training loops).
   ret = umr_sum(x, axis, dtype, out, keepdims=keepdims, where=where)
 /home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/bayesflow/diagnostics/metrics/posterior_contraction.py:61: RuntimeWarning: overflow encountered in divide
   contraction = np.clip(1 - (post_vars / prior_vars), 0, 1)
+Exp: 21 Model: 1 damping_factor_t
+Kernel type: variance_preserving, noise schedule: cosine
+t_min: 0.00035210439818911254, t_max: 0.999647855758667
+alpha, sigma: (tensor(1.0000), tensor(0.0006)) (tensor(0.0006), tensor(1.0000))
+Moving prior to device: cpu
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|        time_embedding.0.scale        |     1      |
+|       time_embedding.1.weight        |     64     |
+|        time_embedding.1.bias         |     8      |
+|   blocks.res_blocks.0.dense.weight   |    7168    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    7168    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|    final_projection_linear.weight    |    2560    |
+|     final_projection_linear.bias     |     10     |
++--------------------------------------+------------+
+Total Trainable Params: 280403
+gaussian_flat1_1score_model_v_variance_preserving_cosine_likelihood_weighting
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1e-05
+Moving prior to device: cuda:0
+KL: 15.263848980236586, #Steps: 5868.6
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.0001
+KL: 14.104138227246903, #Steps: 5050.73
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.001
+KL: 114.31692230754294, #Steps: 2967.46
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.01
+KL: 153.01378974580942, #Steps: 341.62
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.1
+KL: 6.209890869559027, #Steps: 15.53
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.5
+KL: 143.93721231424607, #Steps: 38.16
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.75
+KL: 142.40696133565123, #Steps: 46.44
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 0.9
+KL: 143.251674419979, #Steps: 49.44
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 133.01741101351158, #Steps: 53.67
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 1e-05
+Finished after 10000 steps (20000 score evals) at time 0.42153045535087585.
+Mean step size: 0.00011569388573152537, min: 1.5419827832374722e-05, max: 0.5
+maximum steps reached, increase number of steps.
+KL: nan, #Steps: 10000.0
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 0.0001
+Finished after 10000 steps (20000 score evals) at time 0.42184898257255554.
+Mean step size: 0.00011563007616132382, min: 1.542100108054001e-05, max: 0.5
+maximum steps reached, increase number of steps.
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+KL: nan, #Steps: 5142.0
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 0.001
+Finished after 10000 steps (20000 score evals) at time 0.4029184579849243.
+Mean step size: 0.00011941663179604802, min: 1.5458072084584273e-05, max: 0.5
+maximum steps reached, increase number of steps.
+KL: 31.437888177438786, #Steps: 904.4444444444445
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 0.01
+KL: 8.068000181798835, #Steps: 25.33
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 0.1
+KL: 7.32848530641222, #Steps: 75.65
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 0.5
+KL: 7.480347652163198, #Steps: 192.54
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 0.75
+KL: 7.468565598625588, #Steps: 402.54
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 0.9
+KL: 7.55977431483528, #Steps: 546.76
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 7.428267172790941, #Steps: 650.0
+smaller mini batch size already failed, skipping 1, 0
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 0.0001
+Finished after 10000 steps (20000 score evals) at time 0.46259769797325134.
+Mean step size: 0.00010747650433540911, min: 1.959369910764508e-06, max: 0.5
+maximum steps reached, increase number of steps.
+KL: 34.22889020164127, #Steps: 1729.6666666666667
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 0.001
+KL: 18.809142038738987, #Steps: 206.37
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 0.01
+KL: 16.345704102701028, #Steps: 515.17
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 0.1
+KL: 23.179768576143776, #Steps: 152.7
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 0.5
+KL: 24.69591164671344, #Steps: 1667.16
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 0.75
+KL: 24.736470044062656, #Steps: 3136.6
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 0.9
+KL: 24.32360200383851, #Steps: 4281.94
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 24.05395141671067, #Steps: 5144.07
+smaller mini batch size already failed, skipping 1, 0
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 0, Damping Factor: 0.0001
+Finished after 10000 steps (20000 score evals) at time 0.044985730201005936.
+Mean step size: 9.553963318594748e-05, min: 0.0, max: 0.5
+maximum steps reached, increase number of steps.
+KL: nan, #Steps: 10000.0
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 0, Damping Factor: 0.001
+Finished after 10000 steps (20000 score evals) at time 0.06233330816030502.
+Mean step size: 9.377604157708637e-05, min: 0.0, max: 0.5
+maximum steps reached, increase number of steps.
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+KL: nan, #Steps: 3498.3333333333335
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 0, Damping Factor: 0.01
+KL: 139.92063952160254, #Steps: 352.62
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 0, Damping Factor: 0.1
+KL: 137.8621483635935, #Steps: 1505.4
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 0, Damping Factor: 0.5
+Finished after 10000 steps (20000 score evals) at time 0.8805833458900452.
+Mean step size: 1.1966578549672876e-05, min: 1.6523935641998833e-07, max: 0.0003074206179007888
+maximum steps reached, increase number of steps.
+KL: nan, #Steps: 10000.0
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 0, Damping Factor: 0.75
+Finished after 10000 steps (20000 score evals) at time 0.9952359199523926.
+Mean step size: 4.7625708348809544e-07, min: 6.904107863192621e-08, max: 1.476160377933411e-06
+maximum steps reached, increase number of steps.
+KL: nan, #Steps: 10000.0
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 0, Damping Factor: 0.9
+Finished after 10000 steps (20000 score evals) at time 0.9982231855392456.
+Mean step size: 1.8007333448908833e-07, min: 5.191615315425224e-08, max: 4.4732195192409563e-07
+maximum steps reached, increase number of steps.
+KL: nan, #Steps: 10000.0
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+Finished after 10000 steps (20000 score evals) at time 0.998846709728241.
+Mean step size: 1.1786813601612782e-07, min: 4.351452176365456e-08, max: 2.5132879954981036e-07
+maximum steps reached, increase number of steps.
+KL: nan, #Steps: 10000.0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+Data Size: 100000, Mini Batch: 10000, Conditions: 1, Cosine shift: 0, Damping Factor: 0.001
+KL: 785.0831717403639, #Steps: 1695.26
+Data Size: 100000, Mini Batch: 10000, Conditions: 1, Cosine shift: 0, Damping Factor: 0.01
+Finished after 10000 steps (20000 score evals) at time 0.21494601666927338.
+Mean step size: 7.885234089731366e-05, min: 0.0, max: 0.023650383576750755
+maximum steps reached, increase number of steps.
+LinAlg error in KL computation: Matrix is not positive definite
+KL computation failed even with regularization
+KL: nan, #Steps: 3360.2727272727275
+Data Size: 100000, Mini Batch: 10000, Conditions: 1, Cosine shift: 0, Damping Factor: 0.1
+Finished after 10000 steps (20000 score evals) at time 0.20803530514240265.
+Mean step size: 8.237617141614225e-05, min: 3.2818525141919963e-07, max: 0.0007781394524499774
+maximum steps reached, increase number of steps.
+KL: nan, #Steps: 10000.0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0

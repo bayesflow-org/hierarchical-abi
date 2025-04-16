@@ -17,3 +17,4 @@ in contexts where you need gradients (e.g. custom training loops).
   x = um.multiply(x, x, out=x)
 /home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/numpy/core/_methods.py:187: RuntimeWarning: overflow encountered in reduce
   ret = umr_sum(x, axis, dtype, out, keepdims=keepdims, where=where)
+slurmstepd: error: *** JOB 20411407 ON mlgpu011 CANCELLED AT 2025-04-16T13:10:10 DUE TO TIME LIMIT ***
