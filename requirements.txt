@@ -4,3 +4,4 @@ prettytable
 brainpy~=2.6.0.post20241205
 cmdstanpy~=1.2.5
 Cython~=3.0.12
+optuna~=4.3.0

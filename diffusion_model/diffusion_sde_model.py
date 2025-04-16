@@ -119,11 +119,6 @@ class ScoreModel(nn.Module):
         print(self.name)
 
     def forward_global(self, theta_global, time, x, pred_score, clip_x=False):
-        #if x.ndim == 4:
-        #    # there is time dimension, which we do not need
-        #    x = x.squeeze(2)
-        #if x.ndim == 3 and x.shape[1] == 1:
-        #    x = x.squeeze(1) # todo: remove obs
         return self.forward(theta=theta_global, time=time, x=x, conditions=None, pred_score=pred_score, clip_x=clip_x)
 
     def forward(self, theta, time, x, conditions=None, pred_score=False, clip_x=False):
@@ -277,7 +272,7 @@ class HierarchicalScoreModel(nn.Module):
         self.amortize_n_conditions = False if max_number_of_obs == 1 else True
 
         self.name = (f'{name_prefix}hierarchical_score_model_{prediction_type}_{sde.kernel_type}_{sde.noise_schedule}'
-                     f'_{weighting_type}{"_factorized"+str(max_number_of_obs) if max_number_of_obs > 1 else ""}')
+                     f'_{weighting_type}')
         self.n_params_global = prior.n_params_global
         self.prior = prior
 
@@ -290,11 +285,6 @@ class HierarchicalScoreModel(nn.Module):
             self.summary_net = nn.Identity()
         else:
             self.summary_net = summary_net
-
-        #if self.amortize_n_conditions:
-        #    input_dim_x_after_summary = input_dim_x * 2 + 1 # mean, std, n_obs
-        #else:
-        #    input_dim_x_after_summary = input_dim_x
 
         self.n_params_global = input_dim_theta_global
         self.global_model = ScoreModel(

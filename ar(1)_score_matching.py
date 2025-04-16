@@ -41,7 +41,7 @@ torch_device = torch.device("cuda")
 max_number_of_obs = int(sys.argv[1])
 experiment_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
 
-variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t']
+variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t', 'compare_stan']
 if max_number_of_obs > 1:
     variables_of_interest = ['n_conditions']
 model_ids = np.arange(10)  # train 10 models
@@ -183,6 +183,106 @@ elif variable_of_interest == 'cosine_shift':
 elif variable_of_interest == 'damping_factor_t':
     d_factors = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.5, 0.75, 0.9, 1]
     second_variable_of_interest = 'data_size'
+
+elif variable_of_interest == 'compare_stan':
+    N = 32 * 32
+    global_posterior_stan = np.load(f'problems/ar1/global_posterior_{N}.npy')
+    local_posterior_stan = np.load(f'problems/ar1/local_posterior_{N}.npy')
+    true_global = np.load(f'problems/ar1/true_global_{N}.npy')
+    true_local = np.load(f'problems/ar1/true_local_{N}.npy')
+
+    n_grid_stan = int(np.sqrt(true_local.shape[1]))
+
+    test_data = []
+    for g, l in zip(true_global, true_local):
+        sim_dict = {'alpha': g[0],
+                    'beta': l}
+        td = prior.simulator(sim_dict)['observable']
+        test_data.append(td.reshape(1, n_grid_stan * n_grid_stan, 5))
+    test_data = np.concatenate(test_data)
+
+    n_obs = n_grid_stan * n_grid_stan
+    batch_size = test_data.shape[0]
+    n_post_samples = 100
+    score_model.current_number_of_obs = 1
+
+    global_param_names = prior.global_param_names
+    local_param_names = prior.get_local_param_names(n_grid_stan * n_grid_stan)
+    param_names_stan = ['STAN ' + p for p in global_param_names]
+
+    print(n_grid_stan * n_grid_stan, test_data.shape)
+
+    import optuna
+    def objective(trial):
+        t1_value = trial.suggest_float('t1_value', 1e-5, 1)
+        s_shift_cosine = trial.suggest_float('s_shift_cosine', 0, 5)
+
+        t0_value = 1
+        mini_batch_arg = {
+            'size': 16,
+            'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
+        }
+        score_model.sde.s_shift_cosine = s_shift_cosine
+
+        test_global_samples = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+                                                n_post_samples=100,
+                                                # max_evals=1000,
+                                                mini_batch_arg=mini_batch_arg,
+                                                run_sampling_in_parallel=False,
+                                                device=torch_device, verbose=False)
+
+        cerror = diagnostics.calibration_error(test_global_samples, true_global)['values'].mean()
+        return cerror
+
+
+    study = optuna.create_study()
+    study.optimize(objective, n_trials=100)
+
+    print(study.best_params)
+
+    t1_value = study.best_params['t1_value']
+    t0_value = 1
+    mini_batch_arg = {
+        'size': 16,
+        'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
+    }
+    score_model.sde.s_shift_cosine = study.best_params['s_shift_cosine']
+
+    posterior_global_samples_test = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+                                                      n_post_samples=100,
+                                                      mini_batch_arg=mini_batch_arg,
+                                                      run_sampling_in_parallel=False,
+                                                      device=torch_device, verbose=False)
+
+    score_model.sde.s_shift_cosine = 0
+    posterior_local_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+                                                           n_post_samples=n_post_samples,
+                                                           conditions=posterior_global_samples_test,
+                                                           diffusion_steps=100,
+                                                           device=torch_device, verbose=False)
+
+    posterior_local_samples_test = score_model.prior.transform_local_params(posterior_local_samples_test)
+
+    np.save(f'problems/ar1/posterior_global_samples_test.npy', posterior_global_samples_test)
+    np.save(f'problems/ar1/posterior_local_samples_test.npy', posterior_local_samples_test)
+
+    fig = diagnostics.recovery(posterior_global_samples_test, true_global, variable_names=global_param_names)
+    fig.savefig(f'plots/{score_model.name}/recovery_global_ours.png')
+
+    fig = diagnostics.recovery(posterior_global_samples_test, np.median(global_posterior_stan, axis=1),
+                               variable_names=global_param_names, xlabel='STAN Median Estimate')
+    fig.savefig(f'plots/{score_model.name}/recovery_global_ours_vs_STAN.png')
+
+    fig = diagnostics.calibration_ecdf(posterior_global_samples_test, true_global, difference=True,
+                                       variable_names=global_param_names)
+    fig.savefig(f'plots/{score_model.name}/ecdf_global_ours.png')
+
+    fig = diagnostics.recovery(posterior_local_samples_test.reshape(test_data.shape[0], n_post_samples, -1)[:, :, :10],
+                               np.median(local_posterior_stan[:, :, :10], axis=1), ylabel='Score Based Estimates',
+                               xlabel='STAN Median Estimate')
+    fig.savefig(f'plots/{score_model.name}/recovery_local_ours_vs_STAN.png')
+    exit()
+
 else:
     raise ValueError('Unknown variable_of_interest')
 
