@@ -1,2 +1,2 @@
 mkdir -p log
-sbatch sbatch.sh
+sbatch sbatch_marvin.sh
