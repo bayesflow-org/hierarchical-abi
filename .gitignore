@@ -9,8 +9,10 @@ problems/grid/
 
 # Ignore Python bytecode caches
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 
 # Ignore macOS metadata files
 .DS_Store
+._.DS_Store
