@@ -43,7 +43,7 @@ experiment_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
 
 variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t', 'compare_stan', 'max_results']
 if max_number_of_obs > 1:
-    variables_of_interest = ['n_conditions']
+    variables_of_interest = ['n_conditions', 'max_results']
 model_ids = np.arange(10)  # train 10 models
 variable_of_interest, model_id = list(itertools.product(variables_of_interest, model_ids))[experiment_id]
 
@@ -232,7 +232,7 @@ elif variable_of_interest == 'compare_stan':
                                                 device=torch_device, verbose=False)
 
         cerror = diagnostics.calibration_error(test_global_samples, true_global)['values'].mean()
-        return cerror
+        return cerror.cpu().numpy()
 
 
     study = optuna.create_study()
@@ -293,7 +293,7 @@ elif variable_of_interest == 'max_results':
     n_obs = n_grid * n_grid
     batch_size = test_data.shape[0]
     n_post_samples = 100
-    score_model.current_number_of_obs = 1
+    score_model.current_number_of_obs = max_number_of_obs
 
     global_param_names = prior.global_param_names
     local_param_names = prior.get_local_param_names(n_grid * n_grid)
@@ -308,7 +308,7 @@ elif variable_of_interest == 'max_results':
 
         t0_value = 1
         mini_batch_arg = {
-            'size': 16,
+            'size': 2,
             'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
         }
         score_model.sde.s_shift_cosine = s_shift_cosine
@@ -321,7 +321,7 @@ elif variable_of_interest == 'max_results':
                                                 device=torch_device, verbose=False)
 
         cerror = diagnostics.calibration_error(test_global_samples, true_global)['values'].mean()
-        return cerror
+        return cerror.cpu().numpy()
 
 
     study = optuna.create_study()
