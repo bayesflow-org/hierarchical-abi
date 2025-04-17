@@ -657,6 +657,7 @@ def adaptive_sampling(model, x_obs, obs_n_time_steps,
         model.to(device)
         model.eval()
         theta = theta.to(device)
+        theta_prev = theta_prev.to(device)
         if conditions_exp is not None:
             conditions_exp = conditions_exp.to(device)
         total_steps = 0
