@@ -279,7 +279,7 @@ elif variable_of_interest == 'compare_stan':
 
     fig = diagnostics.recovery(posterior_local_samples_test.reshape(test_data.shape[0], n_post_samples, -1)[:, :, :12],
                                np.median(local_posterior_stan[:, :, :12], axis=1), ylabel='Score Based Estimates',
-                               xlabel='STAN Median Estimate')
+                               xlabel='STAN Median Estimate', variable_names=local_param_names[:12])
     fig.savefig(f'plots/{score_model.name}/recovery_local_ours_vs_STAN.png')
     exit()
 
@@ -367,7 +367,7 @@ elif variable_of_interest == 'max_results':
 
     fig = diagnostics.recovery(posterior_local_samples_test.reshape(test_data.shape[0], n_post_samples, -1)[:, :, :12],
                                true_local.reshape(test_data.shape[0], -1)[:, :12],
-                               variable_names=local_param_names)
+                               variable_names=local_param_names[:12])
     fig.savefig(f'plots/{score_model.name}/recovery_global_ours.png')
 
     exit()
