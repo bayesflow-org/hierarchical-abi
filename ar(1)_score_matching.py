@@ -232,7 +232,7 @@ elif variable_of_interest == 'compare_stan':
                                                 device=torch_device, verbose=False)
 
         cerror = diagnostics.calibration_error(test_global_samples, true_global)['values'].mean()
-        return cerror.cpu().numpy()
+        return cerror
 
 
     study = optuna.create_study()
@@ -321,8 +321,8 @@ elif variable_of_interest == 'max_results':
                                                 run_sampling_in_parallel=False,
                                                 device=torch_device, verbose=False)
 
-        cerror = diagnostics.calibration_error(test_global_samples, true_global)['values'].mean()
-        return cerror.cpu().numpy()
+        cerror = diagnostics.calibration_error(test_global_samples, true_global.numpy())['values'].mean()
+        return cerror
 
 
     study = optuna.create_study()
