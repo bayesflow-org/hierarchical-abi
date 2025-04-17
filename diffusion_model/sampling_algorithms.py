@@ -15,7 +15,8 @@ sampling_defaults = {
         'tau_1': 0.6,
         'tau_2': 0.8,
         'mixing_factor': 1.
-    }
+    },
+    'local_chunk_size': 1000
 }
 
 
@@ -148,6 +149,11 @@ def initialize_sampling(model, x_obs, n_time_steps,
     if random_seed is not None:
         torch.manual_seed(random_seed)
 
+    global_sampling = True
+    if not conditions is None:
+        global_sampling = False
+        model.current_number_of_obs = 1  # local sampling, so only one observation per posterior sample
+
     # Preprocess observations
     x_expanded, batch_size, n_obs = prepare_observations_for_sampling(x_obs, model, n_post_samples, n_time_steps, device)
 
@@ -155,9 +161,7 @@ def initialize_sampling(model, x_obs, n_time_steps,
         raise ValueError("'n_obs' must be a multiple of 'model.current_number_of_obs'")
 
     # Preprocess conditions
-    if not conditions is None:
-        global_sampling = False
-
+    if not global_sampling:
         if not isinstance(conditions, torch.Tensor):
             conditions = torch.tensor(conditions, dtype=torch.float32, device=device)
         else:
@@ -176,7 +180,6 @@ def initialize_sampling(model, x_obs, n_time_steps,
         # collapse conditions to shape (batch_size*n_post_samples*n_obs, n_params_local)
         conditions_collapsed = conditions_exp.contiguous().view(-1, model.prior.n_params_global)
     else:
-        global_sampling = True  # global sampling or flat model without extra conditions
         conditions_collapsed = None
 
     ##########################
@@ -286,7 +289,7 @@ def piecewise_condition_function(t, tau_1, tau_2):
 
 
 def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp, batch_size_full,
-                             n_scores_update_full, mini_batch_dict, clip_x=True, chunk_size=1000):
+                             n_scores_update_full, mini_batch_dict, clip_x=True):
     """
     Compute the (global or local) compositional score.
 
@@ -314,6 +317,8 @@ def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp
         cond_t = piecewise_condition_function(t_exp,
                                               tau_1=mini_batch_dict['noisy_condition']['tau_1'],
                                               tau_2=mini_batch_dict['noisy_condition']['tau_2'])
+        if x_exp.dim() == 3:
+            cond_t = cond_t[:, None]
         x_noisy = torch.sqrt(cond_t) * x_exp
         x_noisy = x_noisy + mini_batch_dict['noisy_condition']['noise_scale'] * torch.sqrt(1 - cond_t) * torch.randn_like(x_exp)
         x_rescaled = (x_noisy - torch.mean(x_noisy, dim=1, keepdim=True)) / torch.std(x_noisy, dim=1, keepdim=True)
@@ -364,8 +369,8 @@ def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp
         # Define the maximum chunk size
         n_samples_local = theta_exp.shape[0]
         model_scores_list = []
-        for start_idx in range(0, n_samples_local, chunk_size):
-            end_idx = min(start_idx + chunk_size, n_samples_local)
+        for start_idx in range(0, n_samples_local, mini_batch_dict['local_chunk_size']):
+            end_idx = min(start_idx + mini_batch_dict['local_chunk_size'], n_samples_local)
             # Run the sampling on the chunk
             model_scores_chunk = model.forward_local(
                 theta_local=theta_exp[start_idx:end_idx],

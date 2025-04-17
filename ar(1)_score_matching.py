@@ -49,6 +49,9 @@ variable_of_interest, model_id = list(itertools.product(variables_of_interest, m
 
 print('Exp:', experiment_id, 'Model:', model_id, variable_of_interest)
 
+if variable_of_interest == 'max_results' and max_number_of_obs > 1:
+    model_id = 3
+
 
 #%%
 prior = Prior()
@@ -204,7 +207,7 @@ elif variable_of_interest == 'compare_stan':
     n_obs = n_grid_stan * n_grid_stan
     batch_size = test_data.shape[0]
     n_post_samples = 100
-    score_model.current_number_of_obs = 1
+    score_model.current_number_of_obs = max_number_of_obs
 
     global_param_names = prior.global_param_names
     local_param_names = prior.get_local_param_names(n_grid_stan * n_grid_stan)
@@ -216,11 +219,20 @@ elif variable_of_interest == 'compare_stan':
     def objective(trial):
         t1_value = trial.suggest_float('t1_value', 1e-5, 1)
         s_shift_cosine = trial.suggest_float('s_shift_cosine', 0, 5)
+        tau1 = trial.suggest_float('tau_1', 0.4, 0.9)
+        tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.4), 1)
 
         t0_value = 1
         mini_batch_arg = {
             'size': 16,
             'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
+            'noisy_condition': {
+                'apply': True,
+                'noise_scale': 1.,
+                'tau_1': tau1,
+                'tau_2': tau2,
+                'mixing_factor': 1.
+            }
         }
         score_model.sde.s_shift_cosine = s_shift_cosine
 
@@ -306,11 +318,20 @@ elif variable_of_interest == 'max_results':
     def objective(trial):
         t1_value = trial.suggest_float('t1_value', 1e-7, 1)
         s_shift_cosine = trial.suggest_float('s_shift_cosine', 0, 10)
+        tau1 = trial.suggest_float('tau_1', 0.4, 0.9)
+        tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.4), 1)
 
         t0_value = 1
         mini_batch_arg = {
-            'size': 2,
+            'size': 16,
             'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
+            'noisy_condition': {
+                'apply': True,
+                'noise_scale': 1.,
+                'tau_1': tau1,
+                'tau_2': tau2,
+                'mixing_factor': 1.
+            }
         }
         score_model.sde.s_shift_cosine = s_shift_cosine
 
@@ -325,18 +346,20 @@ elif variable_of_interest == 'max_results':
         return cerror
 
 
-    study = optuna.create_study()
-    study.optimize(objective, n_trials=100)
+    #study = optuna.create_study()
+    #study.optimize(objective, n_trials=100)
 
-    print(study.best_params)
+    study_best_params = {'t1_value': 0.05292396491085144, 's_shift_cosine': 7.198028764594237} # study.best_params
 
-    t1_value = study.best_params['t1_value']
+    print(study_best_params)
+
+    t1_value = study_best_params['t1_value']
     t0_value = 1
     mini_batch_arg = {
         'size': 16,
         'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
     }
-    score_model.sde.s_shift_cosine = study.best_params['s_shift_cosine']
+    score_model.sde.s_shift_cosine = study_best_params['s_shift_cosine']
 
     posterior_global_samples_test = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                       n_post_samples=100,
