@@ -255,7 +255,7 @@ elif variable_of_interest == 'compare_stan':
         return rmse + c_error
 
     study = optuna.create_study()
-    study.optimize(objective, n_trials=20)
+    study.optimize(objective, n_trials=50)
 
     print(study.best_params)
 
@@ -268,7 +268,7 @@ elif variable_of_interest == 'compare_stan':
             'apply': True,
             'noise_scale': 1.,
             'tau_1': study.best_params['tau_1'],
-            'tau_2': min(study.best_params['tau_1'] + study.best_params['tau_2'], 1),
+            'tau_2': min(study.best_params['tau_1'] + study.best_params['delta_tau_2'], 1),
             'mixing_factor': 1.
         }
     }
@@ -362,7 +362,7 @@ elif variable_of_interest == 'max_results':
         test_global_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                            n_post_samples=n_post_samples,
                                                            mini_batch_arg=mini_batch_arg,
-                                                           diffusion_steps=300,
+                                                           diffusion_steps=500,
                                                            device=torch_device, verbose=False)
 
         c_error = diagnostics.calibration_error(test_global_samples, true_global.numpy())['values'].mean()
@@ -382,7 +382,7 @@ elif variable_of_interest == 'max_results':
             'apply': True,
             'noise_scale': 1.,
             'tau_1': study.best_params['tau_1'],
-            'tau_2': min(study.best_params['tau_1'] + study.best_params['tau_2'], 1),
+            'tau_2': min(study.best_params['tau_1'] + study.best_params['delta_tau_2'], 1),
             'mixing_factor': 1.
         }
     }
@@ -396,7 +396,7 @@ elif variable_of_interest == 'max_results':
     posterior_global_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                             n_post_samples=n_post_samples,
                                                             mini_batch_arg=mini_batch_arg,
-                                                            diffusion_steps=300,
+                                                            diffusion_steps=500,
                                                             device=torch_device, verbose=False)
 
     score_model.sde.s_shift_cosine = 0
