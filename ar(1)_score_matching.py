@@ -293,7 +293,7 @@ elif variable_of_interest == 'compare_stan':
                                                            diffusion_steps=300,
                                                            device=torch_device, verbose=False)
 
-    posterior_local_samples_test = score_model.prior.transform_local_params(posterior_local_samples_test).numpy()
+    posterior_local_samples_test = score_model.prior.transform_local_params(posterior_local_samples_test)
 
     np.save(f'problems/ar1/posterior_global_samples_test32grid.npy', posterior_global_samples_test)
     np.save(f'problems/ar1/posterior_local_samples_test32grid.npy', posterior_local_samples_test)
@@ -407,7 +407,7 @@ elif variable_of_interest == 'max_results':
                                                            diffusion_steps=300,
                                                            device=torch_device, verbose=False)
 
-    posterior_local_samples_test = score_model.prior.transform_local_params(posterior_local_samples_test).numpy()
+    posterior_local_samples_test = score_model.prior.transform_local_params(posterior_local_samples_test)
 
     np.save(f'problems/ar1/posterior_global_samples_test512grid.npy', posterior_global_samples_test)
     np.save(f'problems/ar1/posterior_local_samples_test512grid.npy', posterior_local_samples_test)
