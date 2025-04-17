@@ -34,10 +34,10 @@ current_sde = SDE(
 )
 
 dataset = FLIProblem(
-    n_data=10000,
+    n_data=20000,
     prior=prior,
     sde=current_sde,
-    online_learning=True,
+    online_learning=False,
     number_of_obs=number_of_obs,
 )
 
