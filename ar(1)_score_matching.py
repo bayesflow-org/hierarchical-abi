@@ -238,15 +238,21 @@ elif variable_of_interest == 'compare_stan':
         }
         score_model.sde.s_shift_cosine = s_shift_cosine
 
-        test_global_samples = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
-                                                n_post_samples=100,
-                                                # max_evals=1000,
-                                                mini_batch_arg=mini_batch_arg,
-                                                run_sampling_in_parallel=False,
-                                                device=torch_device, verbose=False)
+        # test_global_samples = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+        #                                         n_post_samples=100,
+        #                                         mini_batch_arg=mini_batch_arg,
+        #                                         run_sampling_in_parallel=False,
+        #                                         device=torch_device, verbose=False)
 
-        cerror = diagnostics.calibration_error(test_global_samples, true_global)['values'].mean()
-        return cerror
+        test_global_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+                                                           n_post_samples=n_post_samples,
+                                                           mini_batch_arg=mini_batch_arg,
+                                                           diffusion_steps=300,
+                                                           device=torch_device, verbose=False)
+
+        c_error = diagnostics.calibration_error(test_global_samples, true_global.numpy())['values'].mean()
+        rmse = diagnostics.root_mean_squared_error(test_global_samples, true_global.numpy())['values'].mean()
+        return rmse + c_error
 
     study = optuna.create_study()
     study.optimize(objective, n_trials=20)
@@ -268,11 +274,16 @@ elif variable_of_interest == 'compare_stan':
     }
     score_model.sde.s_shift_cosine = study.best_params['s_shift_cosine']
 
-    posterior_global_samples_test = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
-                                                      n_post_samples=100,
-                                                      mini_batch_arg=mini_batch_arg,
-                                                      run_sampling_in_parallel=False,
-                                                      device=torch_device, verbose=False)
+    # posterior_global_samples_test = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+    #                                                   n_post_samples=100,
+    #                                                   mini_batch_arg=mini_batch_arg,
+    #                                                   run_sampling_in_parallel=False,
+    #                                                   device=torch_device, verbose=False)
+    posterior_global_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+                                                  n_post_samples=n_post_samples,
+                                                  mini_batch_arg=mini_batch_arg,
+                                                  diffusion_steps=300,
+                                                  device=torch_device, verbose=False)
 
     score_model.sde.s_shift_cosine = 0
     score_model.current_number_of_obs = 1
@@ -342,14 +353,21 @@ elif variable_of_interest == 'max_results':
         }
         score_model.sde.s_shift_cosine = s_shift_cosine
 
-        test_global_samples = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
-                                                n_post_samples=100,
-                                                mini_batch_arg=mini_batch_arg,
-                                                run_sampling_in_parallel=False,
-                                                device=torch_device, verbose=False)
+        # test_global_samples = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+        #                                         n_post_samples=100,
+        #                                         mini_batch_arg=mini_batch_arg,
+        #                                         run_sampling_in_parallel=False,
+        #                                         device=torch_device, verbose=False)
 
-        cerror = diagnostics.calibration_error(test_global_samples, true_global.numpy())['values'].mean()
-        return cerror
+        test_global_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+                                                           n_post_samples=n_post_samples,
+                                                           mini_batch_arg=mini_batch_arg,
+                                                           diffusion_steps=300,
+                                                           device=torch_device, verbose=False)
+
+        c_error = diagnostics.calibration_error(test_global_samples, true_global.numpy())['values'].mean()
+        rmse = diagnostics.root_mean_squared_error(test_global_samples, true_global.numpy())['values'].mean()
+        return rmse + c_error
 
     study = optuna.create_study()
     study.optimize(objective, n_trials=20)
@@ -370,11 +388,16 @@ elif variable_of_interest == 'max_results':
     }
     score_model.sde.s_shift_cosine = study.best_params['s_shift_cosine']
 
-    posterior_global_samples_test = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
-                                                      n_post_samples=100,
-                                                      mini_batch_arg=mini_batch_arg,
-                                                      run_sampling_in_parallel=False,
-                                                      device=torch_device, verbose=False)
+    # posterior_global_samples_test = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+    #                                                   n_post_samples=100,
+    #                                                   mini_batch_arg=mini_batch_arg,
+    #                                                   run_sampling_in_parallel=False,
+    #                                                   device=torch_device, verbose=False)
+    posterior_global_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+                                                            n_post_samples=n_post_samples,
+                                                            mini_batch_arg=mini_batch_arg,
+                                                            diffusion_steps=300,
+                                                            device=torch_device, verbose=False)
 
     score_model.sde.s_shift_cosine = 0
     score_model.current_number_of_obs = 1
