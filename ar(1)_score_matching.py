@@ -255,13 +255,14 @@ elif variable_of_interest == 'compare_stan':
                                                       device=torch_device, verbose=False)
 
     score_model.sde.s_shift_cosine = 0
+    score_model.current_number_of_obs = 1
     posterior_local_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                            n_post_samples=n_post_samples,
                                                            conditions=posterior_global_samples_test,
                                                            diffusion_steps=100,
                                                            device=torch_device, verbose=False)
 
-    posterior_local_samples_test = score_model.prior.transform_local_params(posterior_local_samples_test)
+    posterior_local_samples_test = score_model.prior.transform_local_params(posterior_local_samples_test).numpy()
 
     np.save(f'problems/ar1/posterior_global_samples_test.npy', posterior_global_samples_test)
     np.save(f'problems/ar1/posterior_local_samples_test.npy', posterior_local_samples_test)
@@ -344,13 +345,14 @@ elif variable_of_interest == 'max_results':
                                                       device=torch_device, verbose=False)
 
     score_model.sde.s_shift_cosine = 0
+    score_model.current_number_of_obs = 1
     posterior_local_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                            n_post_samples=n_post_samples,
                                                            conditions=posterior_global_samples_test,
                                                            diffusion_steps=100,
                                                            device=torch_device, verbose=False)
 
-    posterior_local_samples_test = score_model.prior.transform_local_params(posterior_local_samples_test)
+    posterior_local_samples_test = score_model.prior.transform_local_params(posterior_local_samples_test).numpy()
 
     np.save(f'problems/ar1/posterior_global_samples_test512grid.npy', posterior_global_samples_test)
     np.save(f'problems/ar1/posterior_local_samples_test512grid.npy', posterior_local_samples_test)
