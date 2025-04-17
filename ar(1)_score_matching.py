@@ -43,12 +43,14 @@ experiment_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
 
 variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t', 'compare_stan', 'max_results']
 if max_number_of_obs > 1:
-    variables_of_interest = ['n_conditions', 'max_results']
+    variables_of_interest = ['n_conditions', 'compare_stan', 'max_results']
 model_ids = np.arange(10)  # train 10 models
 variable_of_interest, model_id = list(itertools.product(variables_of_interest, model_ids))[experiment_id]
 
 print('Exp:', experiment_id, 'Model:', model_id, variable_of_interest)
 
+if variable_of_interest == 'compare_stan' and max_number_of_obs > 1:
+    model_id = 3
 if variable_of_interest == 'max_results' and max_number_of_obs > 1:
     model_id = 3
 
