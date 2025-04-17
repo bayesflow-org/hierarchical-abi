@@ -9,3 +9,5 @@ in contexts where you need gradients (e.g. custom training loops).
   post_vars = samples["estimates"].var(axis=1, ddof=1)
 /home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/numpy/core/_methods.py:195: RuntimeWarning: invalid value encountered in divide
   ret = um.true_divide(
+/var/spool/slurmd/job20421581/slurm_script: line 23: 403875 Killed                  python3.11 /home/jarruda_hpc/hierarchical-abi/ar\(1\)_score_matching.py 1
+slurmstepd: error: Detected 1 oom_kill event in StepId=20421581.batch. Some of the step tasks have been OOM Killed.
