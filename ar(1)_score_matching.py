@@ -250,8 +250,8 @@ elif variable_of_interest == 'compare_stan':
                                                            diffusion_steps=300,
                                                            device=torch_device, verbose=False)
 
-        c_error = diagnostics.calibration_error(test_global_samples, true_global.numpy())['values'].mean()
-        rmse = diagnostics.root_mean_squared_error(test_global_samples, true_global.numpy())['values'].mean()
+        c_error = diagnostics.calibration_error(test_global_samples, true_global)['values'].mean()
+        rmse = diagnostics.root_mean_squared_error(test_global_samples, true_global)['values'].mean()
         return rmse + c_error
 
     study = optuna.create_study()
