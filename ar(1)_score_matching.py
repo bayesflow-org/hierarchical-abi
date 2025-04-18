@@ -171,7 +171,8 @@ mini_batch = ['10%']
 n_conditions = [1]
 cosine_shifts = [0]
 d_factors = [1]  # using the d factor depending on the mini batch size
-data_sizes = np.array([4*4, 16*16, 64*64, 512*512])
+#data_sizes = np.array([4*4, 16*16, 64*64, 512*512])
+data_sizes = np.array([4*4, 16*16, 64*64, 128*128, 256*256])
 
 if variable_of_interest == 'mini_batch':
     # Set up your data sizes and mini-batch parameters.
