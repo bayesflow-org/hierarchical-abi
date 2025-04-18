@@ -1,13 +1,13 @@
 #!/bin/bash
-#SBATCH --job-name hierarchical-ar1-100
-#SBATCH --output log/log_hierarchical_abi_ar1_100.%j.txt
+#SBATCH --job-name hierarchical-fli
+#SBATCH --output log/log_hierarchical_abi_fli.%j.txt
 #SBATCH --nodes 1
 #SBATCH --cpus-per-task 1
-#SBATCH --mem-per-cpu 50GB
+#SBATCH --mem-per-cpu 75GB
 #SBATCH --partition mlgpu_medium
 #SBATCH --gpus 1
 #SBATCH --time 1-00:00:00
-#SBATCH --array=0-9
+#SBATCH --array=20-20
 #SBATCH --depend=afterany:2041138
 #SBATCH --mail-type=END
 #SBATCH --mail-user=jonas.arruda@uni-bonn.de
@@ -21,5 +21,5 @@ source /home/jarruda_hpc/hierarchical-abi/env_marvin.sh
 #python3.11 /home/jarruda_hpc/hierarchical-abi/gaussian_flat_score_matching.py 1
 #python3.11 /home/jarruda_hpc/hierarchical-abi/gaussian_flat_score_matching.py 100
 #python3.11 /home/jarruda_hpc/hierarchical-abi/ar\(1\)_score_matching.py 1
-python3.11 /home/jarruda_hpc/hierarchical-abi/ar\(1\)_score_matching.py 100
-#python3.11 /home/jarruda_hpc/hierarchical-abi/fli\ score\ matching.py 
+#python3.11 /home/jarruda_hpc/hierarchical-abi/ar\(1\)_score_matching.py 100
+python3.11 /home/jarruda_hpc/hierarchical-abi/fli\ score\ matching.py 

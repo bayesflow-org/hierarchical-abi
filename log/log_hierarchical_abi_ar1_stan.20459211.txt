@@ -5,3 +5,4 @@ with torch.enable_grad():
     ...
 
 in contexts where you need gradients (e.g. custom training loops).
+[I 2025-04-18 14:02:39,475] A new study created in memory with name: no-name-03fb6933-4095-4fa6-ad7f-2cb49602a4d7

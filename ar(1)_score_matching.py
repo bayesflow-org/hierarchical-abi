@@ -334,7 +334,7 @@ elif variable_of_interest == 'max_results':
     print(n_grid * n_grid, test_data.shape)
 
     def objective(trial):
-        t1_value = trial.suggest_float('t1_value', 1e-7, 1)
+        t1_value = trial.suggest_float('t1_value', 0.0000001, 0.01)
         s_shift_cosine = trial.suggest_float('s_shift_cosine', 0, 10)
         tau1 = trial.suggest_float('tau_1', 0.4, 0.9)
         tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.4), 1)
@@ -362,7 +362,7 @@ elif variable_of_interest == 'max_results':
         test_global_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                            n_post_samples=n_post_samples,
                                                            mini_batch_arg=mini_batch_arg,
-                                                           diffusion_steps=500,
+                                                           diffusion_steps=1000,
                                                            device=torch_device, verbose=False)
 
         c_error = diagnostics.calibration_error(test_global_samples, true_global.numpy())['values'].mean()
@@ -396,7 +396,7 @@ elif variable_of_interest == 'max_results':
     posterior_global_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                             n_post_samples=n_post_samples,
                                                             mini_batch_arg=mini_batch_arg,
-                                                            diffusion_steps=500,
+                                                            diffusion_steps=1000,
                                                             device=torch_device, verbose=False)
 
     score_model.sde.s_shift_cosine = 0

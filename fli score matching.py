@@ -47,7 +47,7 @@ dataset_valid = FLIProblem(
     sde=current_sde,
     number_of_obs=number_of_obs
 )
-
+print('data generated')
 # Create dataloader
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=False)
@@ -94,23 +94,27 @@ score_model = HierarchicalScoreModel(
 if not os.path.exists(f"plots/{score_model.name}"):
     os.makedirs(f"plots/{score_model.name}")
 #%%
-# train model
-loss_history = train_score_model(score_model, dataloader, dataloader_valid=dataloader_valid, hierarchical=True,
-                                              epochs=3000, device=torch_device)
-score_model.eval()
-torch.save(score_model.state_dict(), f"models/{score_model.name}.pt")
+if not os.path.exists(f"models/{score_model.name}.pt"):
+    # train model
+    loss_history = train_score_model(score_model, dataloader, dataloader_valid=dataloader_valid, hierarchical=True,
+                                                  epochs=2000, device=torch_device)
+    score_model.eval()
+    torch.save(score_model.state_dict(), f"models/{score_model.name}.pt")
 
-# plot loss history
-plt.figure(figsize=(16, 4), tight_layout=True)
-plt.plot(loss_history[:, 0], label='Training', color="#132a70", lw=2.0, alpha=0.9)
-plt.plot(loss_history[:, 1], label='Validation', linestyle="--", marker="o", color='black')
-plt.grid(alpha=0.5)
-plt.xlabel('Training epoch #')
-plt.ylabel('Value')
-plt.legend()
-plt.savefig(f'plots/{score_model.name}/loss_training.png')
+    # plot loss history
+    plt.figure(figsize=(16, 4), tight_layout=True)
+    plt.plot(loss_history[:, 0], label='Training', color="#132a70", lw=2.0, alpha=0.9)
+    plt.plot(loss_history[:, 1], label='Validation', linestyle="--", marker="o", color='black')
+    plt.grid(alpha=0.5)
+    plt.xlabel('Training epoch #')
+    plt.ylabel('Value')
+    plt.legend()
+    plt.savefig(f'plots/{score_model.name}/loss_training.png')
+    exit()
 #%%
-score_model.load_state_dict(torch.load(f"models/{score_model.name}.pt", weights_only=True))
+score_model.load_state_dict(
+    torch.load(f"models/{score_model.name}.pt", weights_only=True, map_location=torch.device(torch_device))
+)
 score_model.eval()
 #%% md
 # # Validation
