@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import keras
 
 from diffusion_model.helper_functions import count_parameters
 from diffusion_model.helper_functions import sech
@@ -41,8 +42,8 @@ class ScoreModel(nn.Module):
                  time_embedding=None, summary_net=None, full_res_layer=False):
         super().__init__()
 
-        if prediction_type not in ['score', 'e', 'x', 'v']:
-            raise ValueError("Invalid prediction type. Must be one of 'score', 'e', 'x', or 'v'.")
+        if prediction_type not in ['score', 'e', 'x', 'v', 'F']:
+            raise ValueError("Invalid prediction type. Must be one of 'score', 'e', 'x', 'v' or 'F'.")
         if loss_type not in ['e', 'v']:
             raise ValueError("Invalid loss type. Must be one of 'e', 'v'.")
         self.prediction_type = prediction_type
@@ -174,7 +175,7 @@ class ScoreModel(nn.Module):
         return self.convert_to_output(pred=h, z=theta, log_snr=log_snr, clip_x=clip_x)
 
 
-    def convert_to_x(self, pred, z, alpha, sigma, clip_x):
+    def convert_to_x(self, pred, z, alpha, sigma, log_snr, clip_x):
         if self.prediction_type == 'v':
             # convert v into x
             if self.sde.kernel_type == 'variance_preserving':
@@ -191,6 +192,11 @@ class ScoreModel(nn.Module):
             x = pred
         elif self.prediction_type == 'score':
             x = (z + sigma ** 2 * pred) / alpha
+        elif self.prediction_type == 'F':  # EDM
+            sigma_data = 0.5
+            x1 = (sigma_data ** 2 * alpha) / (torch.exp(-log_snr) + sigma_data ** 2)
+            x2 = torch.exp(-log_snr / 2) * sigma_data / torch.sqrt(torch.exp(-log_snr) + sigma_data ** 2)
+            x = x1 * z + x2 * pred
         else:
             raise ValueError("Invalid prediction type. Must be one of 'score', 'e', 'x', or 'v'.")
         if clip_x:
@@ -200,11 +206,11 @@ class ScoreModel(nn.Module):
     def convert_to_output(self, pred, z, log_snr, clip_x):
         if self.loss_type == 'v':
             alpha, sigma = self.sde.kernel(log_snr=log_snr)
-            x_pred = self.convert_to_x(pred=pred, z=z, alpha=alpha, sigma=sigma, clip_x=clip_x)
+            x_pred = self.convert_to_x(pred=pred, z=z, alpha=alpha, sigma=sigma, log_snr=log_snr, clip_x=clip_x)
             out = (alpha * z - x_pred) / sigma
         elif self.loss_type == 'e':
             alpha, sigma = self.sde.kernel(log_snr=log_snr)
-            x_pred = self.convert_to_x(pred=pred, z=z, alpha=alpha, sigma=sigma, clip_x=clip_x)
+            x_pred = self.convert_to_x(pred=pred, z=z, alpha=alpha, sigma=sigma, log_snr=log_snr, clip_x=clip_x)
             out = (z - x_pred * alpha) / sigma
         else:
             raise ValueError('Unknown loss type')
@@ -212,7 +218,7 @@ class ScoreModel(nn.Module):
 
     def convert_to_score(self, pred, z, log_snr, clip_x):
         alpha, sigma = self.sde.kernel(log_snr=log_snr)
-        x_pred = self.convert_to_x(pred=pred, z=z, alpha=alpha, sigma=sigma, clip_x=clip_x)
+        x_pred = self.convert_to_x(pred=pred, z=z, alpha=alpha, sigma=sigma, log_snr=log_snr, clip_x=clip_x)
         score = (alpha * x_pred - z) / torch.square(sigma)
         return score
 
@@ -399,11 +405,14 @@ class SDE:
                  log_snr_min=-15, log_snr_max=15, s_shift_cosine=0.):
         if kernel_type not in ['variance_preserving', 'sub_variance_preserving']:
             raise ValueError("Invalid kernel type.")
-        if noise_schedule not in ['linear', 'cosine', 'flow_matching']:
+        if noise_schedule not in ['linear', 'cosine', 'flow_matching', 'edm-training', 'edm-sampling']:
             raise ValueError("Invalid noise schedule.")
 
         if noise_schedule == 'flow_matching' and kernel_type == 'variance_preserving':
             raise ValueError("Variance-preserving kernel is not compatible with 'flow_matching' noise schedule.")
+
+        if noise_schedule == 'edm-training':
+            print('Remember to switch the noise schedule for sampling!')
 
         self.kernel_type = kernel_type
         self.noise_schedule = noise_schedule
@@ -412,8 +421,21 @@ class SDE:
         # needed for schedule
         self._log_snr_min = log_snr_min
         self._log_snr_max = log_snr_max
-        self.t_min = self.get_t_from_snr(torch.tensor(self._log_snr_max))
-        self.t_max = self.get_t_from_snr(torch.tensor(self._log_snr_min))
+
+        # for edm: lambda \in [− log σ^2_max, − log σ^2_min]
+        self.sigma_max = torch.tensor(80)
+        self.sigma_min = torch.tensor(0.002)
+        self.p_mean = -1.2
+        self.p_std = 1.2
+        if noise_schedule in ['edm-training', 'edm-sampling']:
+            self._log_snr_min = -2 * torch.log(self.sigma_max)
+            self._log_snr_max = -2 * torch.log(self.sigma_min)
+            self.t_min = self.get_t_from_snr(self._log_snr_max)
+            self.t_max = self.get_t_from_snr(self._log_snr_min)
+            print(f"Using EDM noise schedule with log_snr_min: {self._log_snr_min}, log_snr_max: {self._log_snr_max}")
+        else:
+            self.t_min = self.get_t_from_snr(torch.tensor(self._log_snr_max))
+            self.t_max = self.get_t_from_snr(torch.tensor(self._log_snr_min))
 
         print(f"Kernel type: {self.kernel_type}, noise schedule: {self.noise_schedule}")
         print(f"t_min: {self.t_min}, t_max: {self.t_max}")
@@ -463,6 +485,17 @@ class SDE:
             return -2 * torch.log(torch.tan(torch.pi * t_trunc / 2)) + 2 * self.s_shift_cosine
         if self.noise_schedule == 'flow_matching':  # this usually used with sub_variance_preserving
             return 2 * torch.log((1 - t_trunc) / t_trunc)
+        if self.noise_schedule == 'edm-training':
+            # training
+            dist = torch.distributions.Normal(loc=-2*self.p_mean, scale=2*self.p_std)
+            snr = -dist.icdf(t_trunc)
+            snr = snr.clamp(min=self._log_snr_min, max=self._log_snr_max)
+            return snr
+        if self.noise_schedule == 'edm-sampling':
+            # sampling
+            rho = 7
+            snr = -2 * rho * torch.log(self.sigma_max ** (1/rho) + (1 - t_trunc) * (self.sigma_min ** (1/rho) - self.sigma_max ** (1/rho)))
+            return snr
         raise ValueError("Invalid 'noise_schedule'.")
 
     def get_t_from_snr(self, snr):  # not truncated
@@ -479,6 +512,16 @@ class SDE:
             # SNR = 2 * log((1-t)/t)
             # => t = 1 / (1 + exp(snr/2))
             return 1 / (1 + torch.exp(snr / 2))
+        if self.noise_schedule == 'edm-training':
+            # SNR = -dist.icdf(t_trunc)
+            # => t = dist.cdf(-snr)
+            dist = torch.distributions.Normal(loc=-2*self.p_mean, scale=2*self.p_std)
+            return dist.cdf(-snr)
+        if self.noise_schedule == 'edm-sampling':
+            # SNR = -2 * rho * log(sigma_max ** (1/rho) + (1 - t) * (sigma_min ** (1/rho) - sigma_max ** (1/rho)))
+            # => t = 1 - ((torch.exp(-snr/(2*rho)) - sigma_max ** (1/rho)) / (sigma_min ** (1/rho) - sigma_max ** (1/rho)))
+            rho = 7
+            return 1 - ((torch.exp(-snr/(2*rho)) - self.sigma_max ** (1/rho)) / (self.sigma_min ** (1/rho) - self.sigma_max ** (1/rho)))
         raise ValueError("Invalid 'noise_schedule'.")
 
     def _get_snr_derivative(self, t):  # t is not truncated
@@ -500,16 +543,26 @@ class SDE:
         elif self.noise_schedule == 'flow_matching':
             # d/dx snr(x) = -2/(x*(1-x))
             dsnr_dx = - 2 / (t_trunc * (1 - t_trunc))
+        elif self.noise_schedule == 'edm-training':
+            raise ValueError("EDM-training noise schedule should be used for training only.")
+        elif self.noise_schedule == 'edm-sampling':
+            # SNR = -2*rho*log(s_max + (1 - x)*(s_min - s_max))
+            rho = 7
+            s_max = self.sigma_max ** (1 / rho)
+            s_min = self.sigma_min ** (1 / rho)
+            # u = s_max + (1 - x)*(s_min - s_max)
+            u = s_max + (1 - t_trunc) * (s_min - s_max)
+            # d/dx snr = 2*rho*(s_min - s_max) / u
+            dsnr_dx = 2 * rho * (s_min - s_max) / u
         else:
             raise ValueError("Invalid 'noise_schedule'.")
 
         # Chain rule: d/dt snr(t) = d/dx snr(x) * (t_max - t_min)
         dsnr_dt = dsnr_dx * (self.t_max - self.t_min)
 
-        # Using the chain rule on f(t) = log(1 + e^(-snr(t))):
-        # f'(t) = - (e^{-snr(t)} / (1 + e^{-snr(t)})) * dsnr_dt
+        # f(t) = log(1 + e^{-snr(t)})  =>  f'(t) = - (e^{-snr}/(1+e^{-snr})) * dsnr_dt
         factor = torch.exp(-snr) / (1 + torch.exp(-snr))
-        return - factor * dsnr_dt
+        return -factor * dsnr_dt
 
     def _beta_integral(self, t):  # t is not truncated
         """Song et al. (2021) defined this as integral over the beta, here we express is equivalently via the snr"""
@@ -659,5 +712,8 @@ def weighting_function(t, sde, weighting_type, prediction_type='error'):
     if weighting_type == 'min-snr':
         gamma = 5
         return sech(log_snr / 2) * torch.minimum(torch.ones_like(log_snr), gamma * torch.exp(-log_snr))
+
+    if weighting_type == 'edm':
+        return torch.exp(-log_snr) + 0.5**2
 
     raise ValueError("Invalid weighting...")

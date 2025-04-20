@@ -19,10 +19,10 @@ from diffusion_model import HierarchicalScoreModel, SDE, adaptive_sampling, eule
 from diffusion_model.helper_networks import GaussianFourierProjection
 try:
     import mamba_ssm
-    from bayesflow.wrappers.mamba import Mamba as CustomSummaryNetwork
+    from diffusion_model.bayesflow_summary_nets import Mamba as CustomSummaryNetwork
 except ImportError:
     print('Mamba not available, using TimeSeriesNetwork instead')
-    from bayesflow.networks import TimeSeriesNetwork as CustomSummaryNetwork
+    from diffusion_model.bayesflow_summary_nets import TimeSeriesNetwork as CustomSummaryNetwork
 from problems.fli import FLIProblem, FLI_Prior, generate_synthetic_data
 from problems import plot_shrinkage, visualize_simulation_output
 #%%
@@ -59,7 +59,7 @@ dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=Fals
 #%%
 # Define diffusion model
 hidden_dim_summary = 18
-summary_net = CustomSummaryNetwork(summary_dim=hidden_dim_summary)
+summary_net = CustomSummaryNetwork(input_dim=1, summary_dim=hidden_dim_summary)
 summary_net.to(torch_device)
 
 global_summary_dim = 18
@@ -115,7 +115,7 @@ if not os.path.exists(f"models/{score_model.name}.pt"):
     plt.ylabel('Value')
     plt.legend()
     plt.savefig(f'plots/{score_model.name}/loss_training.png')
-    exit()
+
 #%%
 score_model.load_state_dict(
     torch.load(f"models/{score_model.name}.pt", weights_only=True, map_location=torch.device(torch_device))
