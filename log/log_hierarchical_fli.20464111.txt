@@ -1,0 +1,110 @@
+WARNING:bayesflow:
+When using torch backend, we need to disable autograd by default to avoid excessive memory usage. Use
+
+with torch.enable_grad():
+    ...
+
+in contexts where you need gradients (e.g. custom training loops).
+Mamba not available, using TimeSeriesNetwork instead
+Kernel type: variance_preserving, noise schedule: cosine
+t_min: 0.00035210439818911254, t_max: 0.999647855758667
+alpha, sigma: (tensor(1.0000), tensor(0.0006)) (tensor(0.0006), tensor(1.0000))
+Moving prior to device: cpu
+data generated
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|        time_embedding.0.scale        |     1      |
+|       time_embedding.1.weight        |     64     |
+|        time_embedding.1.bias         |     8      |
+|   blocks.res_blocks.0.dense.weight   |   16384    |
+|    blocks.res_blocks.0.dense.bias    |    512     |
+| blocks.res_blocks.0.projector.weight |   16384    |
+|   blocks.res_blocks.1.dense.weight   |   262144   |
+|    blocks.res_blocks.1.dense.bias    |    512     |
+|   blocks.res_blocks.2.dense.weight   |   262144   |
+|    blocks.res_blocks.2.dense.bias    |    512     |
+|   blocks.res_blocks.3.dense.weight   |   262144   |
+|    blocks.res_blocks.3.dense.bias    |    512     |
+|   blocks.res_blocks.4.dense.weight   |   262144   |
+|    blocks.res_blocks.4.dense.bias    |    512     |
+|   blocks.res_blocks.5.dense.weight   |   262144   |
+|    blocks.res_blocks.5.dense.bias    |    512     |
+|    final_projection_linear.weight    |    3072    |
+|     final_projection_linear.bias     |     6      |
++--------------------------------------+------------+
+Total Trainable Params: 1349711
+FLI_global_score_model_v_variance_preserving_cosine_likelihood_weighting
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|        time_embedding.0.scale        |     1      |
+|       time_embedding.1.weight        |     64     |
+|        time_embedding.1.bias         |     8      |
+|   blocks.res_blocks.0.dense.weight   |   17920    |
+|    blocks.res_blocks.0.dense.bias    |    512     |
+| blocks.res_blocks.0.projector.weight |   17920    |
+|   blocks.res_blocks.1.dense.weight   |   262144   |
+|    blocks.res_blocks.1.dense.bias    |    512     |
+|   blocks.res_blocks.2.dense.weight   |   262144   |
+|    blocks.res_blocks.2.dense.bias    |    512     |
+|   blocks.res_blocks.3.dense.weight   |   262144   |
+|    blocks.res_blocks.3.dense.bias    |    512     |
+|   blocks.res_blocks.4.dense.weight   |   262144   |
+|    blocks.res_blocks.4.dense.bias    |    512     |
+|   blocks.res_blocks.5.dense.weight   |   262144   |
+|    blocks.res_blocks.5.dense.bias    |    512     |
+|    final_projection_linear.weight    |    1536    |
+|     final_projection_linear.bias     |     3      |
++--------------------------------------+------------+
+Total Trainable Params: 1351244
+FLI_local_score_model_v_variance_preserving_cosine_likelihood_weighting
++---------------------------------------------------+------------+
+|                      Modules                      | Parameters |
++---------------------------------------------------+------------+
+|        global_model.time_embedding.0.scale        |     1      |
+|        global_model.time_embedding.1.weight       |     64     |
+|         global_model.time_embedding.1.bias        |     8      |
+|   global_model.blocks.res_blocks.0.dense.weight   |   16384    |
+|    global_model.blocks.res_blocks.0.dense.bias    |    512     |
+| global_model.blocks.res_blocks.0.projector.weight |   16384    |
+|   global_model.blocks.res_blocks.1.dense.weight   |   262144   |
+|    global_model.blocks.res_blocks.1.dense.bias    |    512     |
+|   global_model.blocks.res_blocks.2.dense.weight   |   262144   |
+|    global_model.blocks.res_blocks.2.dense.bias    |    512     |
+|   global_model.blocks.res_blocks.3.dense.weight   |   262144   |
+|    global_model.blocks.res_blocks.3.dense.bias    |    512     |
+|   global_model.blocks.res_blocks.4.dense.weight   |   262144   |
+|    global_model.blocks.res_blocks.4.dense.bias    |    512     |
+|   global_model.blocks.res_blocks.5.dense.weight   |   262144   |
+|    global_model.blocks.res_blocks.5.dense.bias    |    512     |
+|    global_model.final_projection_linear.weight    |    3072    |
+|     global_model.final_projection_linear.bias     |     6      |
+|         local_model.time_embedding.0.scale        |     1      |
+|        local_model.time_embedding.1.weight        |     64     |
+|         local_model.time_embedding.1.bias         |     8      |
+|    local_model.blocks.res_blocks.0.dense.weight   |   17920    |
+|     local_model.blocks.res_blocks.0.dense.bias    |    512     |
+|  local_model.blocks.res_blocks.0.projector.weight |   17920    |
+|    local_model.blocks.res_blocks.1.dense.weight   |   262144   |
+|     local_model.blocks.res_blocks.1.dense.bias    |    512     |
+|    local_model.blocks.res_blocks.2.dense.weight   |   262144   |
+|     local_model.blocks.res_blocks.2.dense.bias    |    512     |
+|    local_model.blocks.res_blocks.3.dense.weight   |   262144   |
+|     local_model.blocks.res_blocks.3.dense.bias    |    512     |
+|    local_model.blocks.res_blocks.4.dense.weight   |   262144   |
+|     local_model.blocks.res_blocks.4.dense.bias    |    512     |
+|    local_model.blocks.res_blocks.5.dense.weight   |   262144   |
+|     local_model.blocks.res_blocks.5.dense.bias    |    512     |
+|     local_model.final_projection_linear.weight    |    1536    |
+|      local_model.final_projection_linear.bias     |     3      |
++---------------------------------------------------+------------+
+Total Trainable Params: 2700955
+FLI_hierarchical_score_model_v_variance_preserving_cosine_likelihood_weighting
+Traceback (most recent call last):
+  File "/home/jarruda_hpc/hierarchical-abi/fli score matching.py", line 120, in <module>
+    score_model.load_state_dict(
+  File "/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/torch/nn/modules/module.py", line 2581, in load_state_dict
+    raise RuntimeError(
+RuntimeError: Error(s) in loading state_dict for HierarchicalScoreModel:
+	Unexpected key(s) in state_dict: "summary_net._torch_params.seed_generator_2/seed_generator_state", "summary_net._torch_params.seed_generator_3/seed_generator_state", "summary_net._torch_params.seed_generator_4/seed_generator_state", "summary_net._torch_params.seed_generator_5/seed_generator_state", "summary_net.recurrent._torch_params.seed_generator_2/seed_generator_state", "summary_net.recurrent._torch_params.seed_generator_3/seed_generator_state", "summary_net.recurrent._torch_params.seed_generator_4/seed_generator_state", "summary_net.recurrent._torch_params.seed_generator_5/seed_generator_state", "summary_net.recurrent.skip_conv._torch_params.time_series_network/skip_recurrent_net/conv1d_1/bias", "summary_net.recurrent.skip_conv._torch_params.time_series_network/skip_recurrent_net/conv1d_1/kernel", "summary_net.recurrent.recurrent._torch_params.seed_generator_2/seed_generator_state", "summary_net.recurrent.recurrent._torch_params.seed_generator_3/seed_generator_state", "summary_net.recurrent.recurrent._torch_params.time_series_network/skip_recurrent_net/bidirectional/backward_gru/gru_cell/bias", "summary_net.recurrent.recurrent._torch_params.time_series_network/skip_recurrent_net/bidirectional/backward_gru/gru_cell/kernel", "summary_net.recurrent.recurrent._torch_params.time_series_network/skip_recurrent_net/bidirectional/backward_gru/gru_cell/recurrent_kernel", "summary_net.recurrent.recurrent._torch_params.time_series_network/skip_recurrent_net/bidirectional/forward_gru/gru_cell/bias", "summary_net.recurrent.recurrent._torch_params.time_series_network/skip_recurrent_net/bidirectional/forward_gru/gru_cell/kernel", "summary_net.recurrent.recurrent._torch_params.time_series_network/skip_recurrent_net/bidirectional/forward_gru/gru_cell/recurrent_kernel", "summary_net.recurrent.recurrent.forward_layer._torch_params.seed_generator_2/seed_generator_state", "summary_net.recurrent.recurrent.forward_layer._torch_params.time_series_network/skip_recurrent_net/bidirectional/forward_gru/gru_cell/bias", "summary_net.recurrent.recurrent.forward_layer._torch_params.time_series_network/skip_recurrent_net/bidirectional/forward_gru/gru_cell/kernel", "summary_net.recurrent.recurrent.forward_layer._torch_params.time_series_network/skip_recurrent_net/bidirectional/forward_gru/gru_cell/recurrent_kernel", "summary_net.recurrent.recurrent.forward_layer.cell._torch_params.seed_generator_2/seed_generator_state", "summary_net.recurrent.recurrent.forward_layer.cell._torch_params.time_series_network/skip_recurrent_net/bidirectional/forward_gru/gru_cell/bias", "summary_net.recurrent.recurrent.forward_layer.cell._torch_params.time_series_network/skip_recurrent_net/bidirectional/forward_gru/gru_cell/kernel", "summary_net.recurrent.recurrent.forward_layer.cell._torch_params.time_series_network/skip_recurrent_net/bidirectional/forward_gru/gru_cell/recurrent_kernel", "summary_net.recurrent.recurrent.backward_layer._torch_params.seed_generator_3/seed_generator_state", "summary_net.recurrent.recurrent.backward_layer._torch_params.time_series_network/skip_recurrent_net/bidirectional/backward_gru/gru_cell/bias", "summary_net.recurrent.recurrent.backward_layer._torch_params.time_series_network/skip_recurrent_net/bidirectional/backward_gru/gru_cell/kernel", "summary_net.recurrent.recurrent.backward_layer._torch_params.time_series_network/skip_recurrent_net/bidirectional/backward_gru/gru_cell/recurrent_kernel", "summary_net.recurrent.recurrent.backward_layer.cell._torch_params.seed_generator_3/seed_generator_state", "summary_net.recurrent.recurrent.backward_layer.cell._torch_params.time_series_network/skip_recurrent_net/bidirectional/backward_gru/gru_cell/bias", "summary_net.recurrent.recurrent.backward_layer.cell._torch_params.time_series_network/skip_recurrent_net/bidirectional/backward_gru/gru_cell/kernel", "summary_net.recurrent.recurrent.backward_layer.cell._torch_params.time_series_network/skip_recurrent_net/bidirectional/backward_gru/gru_cell/recurrent_kernel", "summary_net.recurrent.skip_recurrent._torch_params.seed_generator_4/seed_generator_state", "summary_net.recurrent.skip_recurrent._torch_params.seed_generator_5/seed_generator_state", "summary_net.recurrent.skip_recurrent._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/backward_gru_1/gru_cell/bias", "summary_net.recurrent.skip_recurrent._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/backward_gru_1/gru_cell/kernel", "summary_net.recurrent.skip_recurrent._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/backward_gru_1/gru_cell/recurrent_kernel", "summary_net.recurrent.skip_recurrent._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/forward_gru_1/gru_cell/bias", "summary_net.recurrent.skip_recurrent._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/forward_gru_1/gru_cell/kernel", "summary_net.recurrent.skip_recurrent._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/forward_gru_1/gru_cell/recurrent_kernel", "summary_net.recurrent.skip_recurrent.forward_layer._torch_params.seed_generator_4/seed_generator_state", "summary_net.recurrent.skip_recurrent.forward_layer._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/forward_gru_1/gru_cell/bias", "summary_net.recurrent.skip_recurrent.forward_layer._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/forward_gru_1/gru_cell/kernel", "summary_net.recurrent.skip_recurrent.forward_layer._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/forward_gru_1/gru_cell/recurrent_kernel", "summary_net.recurrent.skip_recurrent.forward_layer.cell._torch_params.seed_generator_4/seed_generator_state", "summary_net.recurrent.skip_recurrent.forward_layer.cell._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/forward_gru_1/gru_cell/bias", "summary_net.recurrent.skip_recurrent.forward_layer.cell._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/forward_gru_1/gru_cell/kernel", "summary_net.recurrent.skip_recurrent.forward_layer.cell._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/forward_gru_1/gru_cell/recurrent_kernel", "summary_net.recurrent.skip_recurrent.backward_layer._torch_params.seed_generator_5/seed_generator_state", "summary_net.recurrent.skip_recurrent.backward_layer._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/backward_gru_1/gru_cell/bias", "summary_net.recurrent.skip_recurrent.backward_layer._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/backward_gru_1/gru_cell/kernel", "summary_net.recurrent.skip_recurrent.backward_layer._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/backward_gru_1/gru_cell/recurrent_kernel", "summary_net.recurrent.skip_recurrent.backward_layer.cell._torch_params.seed_generator_5/seed_generator_state", "summary_net.recurrent.skip_recurrent.backward_layer.cell._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/backward_gru_1/gru_cell/bias", "summary_net.recurrent.skip_recurrent.backward_layer.cell._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/backward_gru_1/gru_cell/kernel", "summary_net.recurrent.skip_recurrent.backward_layer.cell._torch_params.time_series_network/skip_recurrent_net/bidirectional_1/backward_gru_1/gru_cell/recurrent_kernel", "summary_net.output_projector._torch_params.time_series_network/dense/bias", "summary_net.output_projector._torch_params.time_series_network/dense/kernel". 

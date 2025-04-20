@@ -6,3 +6,232 @@ with torch.enable_grad():
 
 in contexts where you need gradients (e.g. custom training loops).
 [I 2025-04-18 14:02:39,475] A new study created in memory with name: no-name-03fb6933-4095-4fa6-ad7f-2cb49602a4d7
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/bayesflow/diagnostics/metrics/root_mean_squared_error.py:61: RuntimeWarning: overflow encountered in square
+  rmse = np.sqrt(np.mean((samples["estimates"] - samples["targets"][:, None, :]) ** 2, axis=0))
+[W 2025-04-18 14:29:57,680] Trial 0 failed with parameters: {'t1_value': 0.0011920429913560963, 's_shift_cosine': 1.396985452895504, 'tau_1': 0.4110157753904576, 'delta_tau_2': 0.11654912052885491} because of the following error: The value nan is not acceptable.
+[W 2025-04-18 14:29:57,681] Trial 0 failed with value VariableArray(nan).
+[I 2025-04-18 14:57:39,336] Trial 1 finished with value: 0.607387060094298 and parameters: {'t1_value': 0.005560860248167859, 's_shift_cosine': 5.130524781567784, 'tau_1': 0.7849475781474667, 'delta_tau_2': 0.2750862928742077}. Best is trial 1 with value: 0.607387060094298.
+[I 2025-04-18 15:25:20,293] Trial 2 finished with value: 0.6256774289357034 and parameters: {'t1_value': 0.009430882849855117, 's_shift_cosine': 7.595510941075093, 'tau_1': 0.5978732556723008, 'delta_tau_2': 0.3377512757132617}. Best is trial 1 with value: 0.607387060094298.
+[I 2025-04-18 15:52:59,633] Trial 3 finished with value: 0.36508508964588765 and parameters: {'t1_value': 0.005309933284503052, 's_shift_cosine': 8.239142693956195, 'tau_1': 0.7454376590353237, 'delta_tau_2': 0.2101391818124564}. Best is trial 3 with value: 0.36508508964588765.
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/numpy/lib/function_base.py:4658: RuntimeWarning: invalid value encountered in subtract
+  subtract(b, diff_b_a * (1 - t), out=lerp_interpolation, where=t >= 0.5,
+[W 2025-04-18 16:20:38,730] Trial 4 failed with parameters: {'t1_value': 0.007712854687874961, 's_shift_cosine': 3.2713447021287556, 'tau_1': 0.8472820713166571, 'delta_tau_2': 0.004210404373921684} because of the following error: The value nan is not acceptable.
+[W 2025-04-18 16:20:38,730] Trial 4 failed with value VariableArray(nan).
+[W 2025-04-18 16:47:46,334] Trial 5 failed with parameters: {'t1_value': 0.008723837059883352, 's_shift_cosine': 1.4147294719066283, 'tau_1': 0.6908093289566095, 'delta_tau_2': 0.3079034497679806} because of the following error: The value nan is not acceptable.
+[W 2025-04-18 16:47:46,335] Trial 5 failed with value VariableArray(nan).
+[I 2025-04-18 17:15:25,625] Trial 6 finished with value: 0.4688468090693156 and parameters: {'t1_value': 0.007559527337335664, 's_shift_cosine': 4.241815675706517, 'tau_1': 0.4174070596986163, 'delta_tau_2': 0.35642014322343074}. Best is trial 3 with value: 0.36508508964588765.
+[I 2025-04-18 17:43:05,136] Trial 7 finished with value: 0.6606113531505853 and parameters: {'t1_value': 0.009704089429333146, 's_shift_cosine': 6.013977119804452, 'tau_1': 0.6597297384630956, 'delta_tau_2': 0.08282076190028663}. Best is trial 3 with value: 0.36508508964588765.
+[W 2025-04-18 18:09:28,775] Trial 8 failed with parameters: {'t1_value': 0.00037123506888049704, 's_shift_cosine': 0.624607718694431, 'tau_1': 0.6819021803861856, 'delta_tau_2': 0.12845145993068408} because of the following error: The value nan is not acceptable.
+[W 2025-04-18 18:09:28,776] Trial 8 failed with value VariableArray(nan).
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/numpy/lib/function_base.py:4657: RuntimeWarning: invalid value encountered in add
+  lerp_interpolation = asanyarray(add(a, diff_b_a * t, out=out))
+[W 2025-04-18 18:36:12,471] Trial 9 failed with parameters: {'t1_value': 0.004940301274310537, 's_shift_cosine': 0.7985557835941004, 'tau_1': 0.6885336381825793, 'delta_tau_2': 0.29992219131887504} because of the following error: The value nan is not acceptable.
+[W 2025-04-18 18:36:12,471] Trial 9 failed with value VariableArray(nan).
+[I 2025-04-18 19:03:49,690] Trial 10 finished with value: 0.617335779353192 and parameters: {'t1_value': 0.006094230857621866, 's_shift_cosine': 5.161784218480298, 'tau_1': 0.5217183254531306, 'delta_tau_2': 0.08724965203735957}. Best is trial 3 with value: 0.36508508964588765.
+[I 2025-04-18 19:31:27,102] Trial 11 finished with value: 1.0185197298568591 and parameters: {'t1_value': 0.001834854358494729, 's_shift_cosine': 6.78169437358573, 'tau_1': 0.8612719859023718, 'delta_tau_2': 0.20976883688795805}. Best is trial 3 with value: 0.36508508964588765.
+[I 2025-04-18 19:59:04,565] Trial 12 finished with value: 0.985101013811011 and parameters: {'t1_value': 0.00041086574009501723, 's_shift_cosine': 5.156082743805981, 'tau_1': 0.831707557569451, 'delta_tau_2': 0.18935607307682845}. Best is trial 3 with value: 0.36508508964588765.
+[I 2025-04-18 20:26:42,074] Trial 13 finished with value: 0.598854027400937 and parameters: {'t1_value': 0.00875749032822565, 's_shift_cosine': 5.4351959204045786, 'tau_1': 0.4825790497442488, 'delta_tau_2': 0.2286023147725349}. Best is trial 3 with value: 0.36508508964588765.
+[W 2025-04-18 20:53:21,447] Trial 14 failed with parameters: {'t1_value': 0.008695660611111275, 's_shift_cosine': 0.8741934235188975, 'tau_1': 0.48906966366918386, 'delta_tau_2': 0.28759081353236976} because of the following error: The value nan is not acceptable.
+[W 2025-04-18 20:53:21,448] Trial 14 failed with value VariableArray(nan).
+[W 2025-04-18 21:19:48,946] Trial 15 failed with parameters: {'t1_value': 0.009327416114849808, 's_shift_cosine': 0.7024235780491461, 'tau_1': 0.8858764625901263, 'delta_tau_2': 0.2838052981960778} because of the following error: The value nan is not acceptable.
+[W 2025-04-18 21:19:48,947] Trial 15 failed with value VariableArray(nan).
+[I 2025-04-18 21:47:25,804] Trial 16 finished with value: 0.3756716112923204 and parameters: {'t1_value': 0.0044730822835446675, 's_shift_cosine': 9.208455539430831, 'tau_1': 0.8893877823903216, 'delta_tau_2': 0.21375543975261857}. Best is trial 3 with value: 0.36508508964588765.
+[W 2025-04-18 22:14:36,037] Trial 17 failed with parameters: {'t1_value': 0.003629143076939975, 's_shift_cosine': 1.3819646271961683, 'tau_1': 0.714310592957722, 'delta_tau_2': 0.019343023299882856} because of the following error: The value nan is not acceptable.
+[W 2025-04-18 22:14:36,038] Trial 17 failed with value VariableArray(nan).
+[W 2025-04-18 22:41:37,170] Trial 18 failed with parameters: {'t1_value': 0.0036695869610548684, 's_shift_cosine': 1.6855078064454165, 'tau_1': 0.7192587311618243, 'delta_tau_2': 0.0321509377880822} because of the following error: The value nan is not acceptable.
+[W 2025-04-18 22:41:37,171] Trial 18 failed with value VariableArray(nan).
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/numpy/lib/function_base.py:4655: RuntimeWarning: invalid value encountered in subtract
+  diff_b_a = subtract(b, a)
+[W 2025-04-18 23:07:29,183] Trial 19 failed with parameters: {'t1_value': 0.003129925353414106, 's_shift_cosine': 0.048771825916452016, 'tau_1': 0.726942296995421, 'delta_tau_2': 0.009301258281948749} because of the following error: The value nan is not acceptable.
+[W 2025-04-18 23:07:29,183] Trial 19 failed with value VariableArray(nan).
+Exp: 20 Model: 0 max_results
+Kernel type: variance_preserving, noise schedule: cosine
+t_min: 0.00035210439818911254, t_max: 0.999647855758667
+alpha, sigma: (tensor(1.0000), tensor(0.0006)) (tensor(0.0006), tensor(1.0000))
+Moving prior to device: cpu
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|        time_embedding.0.scale        |     1      |
+|       time_embedding.1.weight        |     64     |
+|        time_embedding.1.bias         |     8      |
+|       summary_net.enc.0.weight       |     80     |
+|        summary_net.enc.0.bias        |     16     |
+|       summary_net.enc.2.weight       |    256     |
+|        summary_net.enc.2.bias        |     16     |
+|       summary_net.enc.4.weight       |    256     |
+|        summary_net.enc.4.bias        |     16     |
+|       summary_net.enc.6.weight       |    256     |
+|        summary_net.enc.6.bias        |     16     |
+|       summary_net.dec.0.weight       |    256     |
+|        summary_net.dec.0.bias        |     16     |
+|       summary_net.dec.2.weight       |    256     |
+|        summary_net.dec.2.bias        |     16     |
+|       summary_net.dec.4.weight       |    256     |
+|        summary_net.dec.4.bias        |     16     |
+|       summary_net.dec.6.weight       |     80     |
+|        summary_net.dec.6.bias        |     5      |
+|   blocks.res_blocks.0.dense.weight   |    4096    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    4096    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|    final_projection_linear.weight    |    768     |
+|     final_projection_linear.bias     |     3      |
++--------------------------------------+------------+
+Total Trainable Params: 274273
+ar1_3_128global_score_model_v_variance_preserving_cosine_likelihood_weighting
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|        time_embedding.0.scale        |     1      |
+|       time_embedding.1.weight        |     64     |
+|        time_embedding.1.bias         |     8      |
+|   blocks.res_blocks.0.dense.weight   |    4352    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    4352    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|    final_projection_linear.weight    |    256     |
+|     final_projection_linear.bias     |     1      |
++--------------------------------------+------------+
+Total Trainable Params: 272458
+ar1_3_128local_score_model_v_variance_preserving_cosine_likelihood_weighting
++---------------------------------------------------+------------+
+|                      Modules                      | Parameters |
++---------------------------------------------------+------------+
+|        global_model.time_embedding.0.scale        |     1      |
+|        global_model.time_embedding.1.weight       |     64     |
+|         global_model.time_embedding.1.bias        |     8      |
+|       global_model.summary_net.enc.0.weight       |     80     |
+|        global_model.summary_net.enc.0.bias        |     16     |
+|       global_model.summary_net.enc.2.weight       |    256     |
+|        global_model.summary_net.enc.2.bias        |     16     |
+|       global_model.summary_net.enc.4.weight       |    256     |
+|        global_model.summary_net.enc.4.bias        |     16     |
+|       global_model.summary_net.enc.6.weight       |    256     |
+|        global_model.summary_net.enc.6.bias        |     16     |
+|       global_model.summary_net.dec.0.weight       |    256     |
+|        global_model.summary_net.dec.0.bias        |     16     |
+|       global_model.summary_net.dec.2.weight       |    256     |
+|        global_model.summary_net.dec.2.bias        |     16     |
+|       global_model.summary_net.dec.4.weight       |    256     |
+|        global_model.summary_net.dec.4.bias        |     16     |
+|       global_model.summary_net.dec.6.weight       |     80     |
+|        global_model.summary_net.dec.6.bias        |     5      |
+|   global_model.blocks.res_blocks.0.dense.weight   |    4096    |
+|    global_model.blocks.res_blocks.0.dense.bias    |    256     |
+| global_model.blocks.res_blocks.0.projector.weight |    4096    |
+|   global_model.blocks.res_blocks.1.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.1.dense.bias    |    256     |
+|   global_model.blocks.res_blocks.2.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.2.dense.bias    |    256     |
+|   global_model.blocks.res_blocks.3.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.3.dense.bias    |    256     |
+|   global_model.blocks.res_blocks.4.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.4.dense.bias    |    256     |
+|    global_model.final_projection_linear.weight    |    768     |
+|     global_model.final_projection_linear.bias     |     3      |
+|         local_model.time_embedding.0.scale        |     1      |
+|        local_model.time_embedding.1.weight        |     64     |
+|         local_model.time_embedding.1.bias         |     8      |
+|    local_model.blocks.res_blocks.0.dense.weight   |    4352    |
+|     local_model.blocks.res_blocks.0.dense.bias    |    256     |
+|  local_model.blocks.res_blocks.0.projector.weight |    4352    |
+|    local_model.blocks.res_blocks.1.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.1.dense.bias    |    256     |
+|    local_model.blocks.res_blocks.2.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.2.dense.bias    |    256     |
+|    local_model.blocks.res_blocks.3.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.3.dense.bias    |    256     |
+|    local_model.blocks.res_blocks.4.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.4.dense.bias    |    256     |
+|     local_model.final_projection_linear.weight    |    256     |
+|      local_model.final_projection_linear.bias     |     1      |
++---------------------------------------------------+------------+
+Total Trainable Params: 546731
+ar1_3_128hierarchical_score_model_v_variance_preserving_cosine_likelihood_weighting
+Model loaded
+max_results
+262144 torch.Size([100, 262144, 5])
+Moving prior to device: cuda:0
+NaNs in theta at time 0.01600000075995922 with step size: tensor(0.0010, device='cuda:0')
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+NaNs in theta at time 0.0010000000474974513 with step size: tensor(0.0010, device='cuda:0')
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+NaNs in theta at time 0.020000001415610313 with step size: tensor(0.0010, device='cuda:0')
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+NaNs in theta at time 0.04700000211596489 with step size: tensor(0.0010, device='cuda:0')
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+NaNs in theta at time 0.03500000014901161 with step size: tensor(0.0010, device='cuda:0')
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+NaNs in theta at time 0.036000002175569534 with step size: tensor(0.0010, device='cuda:0')
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+NaNs in theta at time 0.0430000014603138 with step size: tensor(0.0010, device='cuda:0')
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+NaNs in theta at time 0.017000000923871994 with step size: tensor(0.0010, device='cuda:0')
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+NaNs in theta at time 0.023000001907348633 with step size: tensor(0.0010, device='cuda:0')
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+NaNs in theta at time 0.06599999964237213 with step size: tensor(0.0010, device='cuda:0')
+{'t1_value': 0.005309933284503052, 's_shift_cosine': 8.239142693956195, 'tau_1': 0.7454376590353237, 'delta_tau_2': 0.2101391818124564}
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Traceback (most recent call last):
+  File "/home/jarruda_hpc/hierarchical-abi/ar(1)_score_matching.py", line 415, in <module>
+    
+  File "/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/bayesflow/diagnostics/plots/recovery.py", line 93, in recovery
+    plot_data = prepare_plot_data(
+                ^^^^^^^^^^^^^^^^^^
+  File "/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/bayesflow/utils/plot_utils.py", line 56, in prepare_plot_data
+    plot_data = dicts_to_arrays(
+                ^^^^^^^^^^^^^^^^
+  File "/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/bayesflow/utils/dict_utils.py", line 300, in dicts_to_arrays
+    targets = make_variable_array(
+              ^^^^^^^^^^^^^^^^^^^^
+  File "/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/bayesflow/utils/dict_utils.py", line 223, in make_variable_array
+    raise TypeError(f"Only dicts and tensors are supported as arguments, but your estimates are of type {type(x)}")
+TypeError: Only dicts and tensors are supported as arguments, but your estimates are of type <class 'torch.Tensor'>
