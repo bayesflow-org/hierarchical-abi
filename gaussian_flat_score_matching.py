@@ -25,6 +25,7 @@ torch_device = torch.device("cuda")
 # get arguments
 max_number_of_obs = int(sys.argv[1])
 experiment_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
+noise_schedule = ['cosine', 'linear', 'edm-training', 'edm-sampling'][0]
 
 variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t'] # 'damping_factor', 'damping_factor_prior'
 if max_number_of_obs > 1:
@@ -46,7 +47,7 @@ else:
 #%%
 current_sde = SDE(
     kernel_type=['variance_preserving', 'sub_variance_preserving'][0],
-    noise_schedule=['linear', 'cosine', 'flow_matching'][1]
+    noise_schedule=noise_schedule #['linear', 'cosine', 'flow_matching', 'edm-training', 'edm-sampling'][1]
 )
 
 dataset = GaussianProblem(
@@ -84,9 +85,11 @@ score_model = ScoreModel(
     hidden_dim=256,
     n_blocks=5,
     max_number_of_obs=max_number_of_obs,
-    prediction_type=['score', 'e', 'x', 'v'][3],
+    #prediction_type=['score', 'e', 'x', 'v', 'F'][3],
+    prediction_type='v' if not 'edm' in noise_schedule else 'F',
     sde=current_sde,
-    weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
+    #weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid', 'edm'][1],
+    weighting_type='likelihood_weighting' if not 'edm' in noise_schedule else 'edm',
     prior=prior,
     name_prefix=f'gaussian_flat{model_id}_{max_number_of_obs}'
 )
@@ -109,6 +112,7 @@ if not os.path.exists(f"models/{score_model.name}.pt"):
     plt.ylabel('Value')
     plt.legend()
     plt.savefig(f'plots/{score_model.name}/loss_training.png')
+    exit()
     # %%
 else:
     score_model.load_state_dict(

@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import keras
 
 from diffusion_model.helper_functions import count_parameters
 from diffusion_model.helper_functions import sech
@@ -427,6 +426,7 @@ class SDE:
         self.sigma_min = torch.tensor(0.002)
         self.p_mean = -1.2
         self.p_std = 1.2
+        self.rho = 7
         if noise_schedule in ['edm-training', 'edm-sampling']:
             self._log_snr_min = -2 * torch.log(self.sigma_max)
             self._log_snr_max = -2 * torch.log(self.sigma_min)
@@ -493,8 +493,7 @@ class SDE:
             return snr
         if self.noise_schedule == 'edm-sampling':
             # sampling
-            rho = 7
-            snr = -2 * rho * torch.log(self.sigma_max ** (1/rho) + (1 - t_trunc) * (self.sigma_min ** (1/rho) - self.sigma_max ** (1/rho)))
+            snr = -2 * self.rho * torch.log(self.sigma_max ** (1/self.rho) + (1 - t_trunc) * (self.sigma_min ** (1/self.rho) - self.sigma_max ** (1/self.rho)))
             return snr
         raise ValueError("Invalid 'noise_schedule'.")
 
@@ -520,8 +519,7 @@ class SDE:
         if self.noise_schedule == 'edm-sampling':
             # SNR = -2 * rho * log(sigma_max ** (1/rho) + (1 - t) * (sigma_min ** (1/rho) - sigma_max ** (1/rho)))
             # => t = 1 - ((torch.exp(-snr/(2*rho)) - sigma_max ** (1/rho)) / (sigma_min ** (1/rho) - sigma_max ** (1/rho)))
-            rho = 7
-            return 1 - ((torch.exp(-snr/(2*rho)) - self.sigma_max ** (1/rho)) / (self.sigma_min ** (1/rho) - self.sigma_max ** (1/rho)))
+            return 1 - ((torch.exp(-snr/(2*self.rho)) - self.sigma_max ** (1/self.rho)) / (self.sigma_min ** (1/self.rho) - self.sigma_max ** (1/self.rho)))
         raise ValueError("Invalid 'noise_schedule'.")
 
     def _get_snr_derivative(self, t):  # t is not truncated
@@ -547,13 +545,12 @@ class SDE:
             raise ValueError("EDM-training noise schedule should be used for training only.")
         elif self.noise_schedule == 'edm-sampling':
             # SNR = -2*rho*log(s_max + (1 - x)*(s_min - s_max))
-            rho = 7
-            s_max = self.sigma_max ** (1 / rho)
-            s_min = self.sigma_min ** (1 / rho)
+            s_max = self.sigma_max ** (1 / self.rho)
+            s_min = self.sigma_min ** (1 / self.rho)
             # u = s_max + (1 - x)*(s_min - s_max)
             u = s_max + (1 - t_trunc) * (s_min - s_max)
             # d/dx snr = 2*rho*(s_min - s_max) / u
-            dsnr_dx = 2 * rho * (s_min - s_max) / u
+            dsnr_dx = 2 * self.rho * (s_min - s_max) / u
         else:
             raise ValueError("Invalid 'noise_schedule'.")
 
