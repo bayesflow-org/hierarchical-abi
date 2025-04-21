@@ -14,24 +14,25 @@ def clip_grad_norm_per_tensor(model, max_norm=1.5):
 
 
 def weighted_mse_loss(prediction, target, weight):
-    return torch.mean(weight * torch.mean(torch.square(prediction - target), dim=-1))
+    mse_per_sample = torch.mean(torch.square(prediction - target), dim=-1)
+    if mse_per_sample.ndim == 1:
+        return torch.mean(weight.reshape(-1) * mse_per_sample)
+    return torch.mean(weight * mse_per_sample)
 
 
 ############ HIERARCHICAL COMPOSITIONAL SCORE MODEL TRAINING ############
 
 def compute_hierarchical_score_loss(
-        theta_global_noisy, target_global, theta_local_noisy, target_local, x_batch,
-        diffusion_time, model
+        theta_global_noisy, target_global, theta_local_noisy, target_local, x_batch, diffusion_time, model
 ):
     # predict from perturbed theta
     pred_global, pred_local = model(theta_global=theta_global_noisy, theta_local=theta_local_noisy,
                                     time=diffusion_time, x=x_batch, pred_score=False)
-
-    weight = weighting_function(diffusion_time, sde=model.sde, weighting_type=model.weighting_type,
-                                          prediction_type=model.prediction_type)
     # calculate the loss
-    loss_global = weighted_mse_loss(pred_global, target_global, weight)
-    loss_local = weighted_mse_loss(pred_local, target_local, weight)
+    weights = weighting_function(diffusion_time, sde=model.sde, weighting_type=model.weighting_type,
+                                 prediction_type=model.prediction_type)
+    loss_global = weighted_mse_loss(prediction=pred_global, target=target_global, weight=weights)
+    loss_local = weighted_mse_loss(prediction=pred_local, target=target_local, weight=weights)
     return loss_global + loss_local
 
 
@@ -41,17 +42,10 @@ def compute_score_loss(theta_noisy, target, x_batch, diffusion_time, model):
     # predict from perturbed theta
     pred = model(theta=theta_noisy, time=diffusion_time, x=x_batch, pred_score=False)
 
-    weight = weighting_function(diffusion_time, sde=model.sde, weighting_type=model.weighting_type,
-                                          prediction_type=model.prediction_type).flatten()
     # calculate the loss
-    loss_global = weighted_mse_loss(pred, target, weight)
-
-    #if add_summary_loss and not isinstance(model.summary_net, nn.Identity):
-    #    # add extra loss for the summary net
-    #    dim_theta = pred.shape[-1]
-    #    pred_summary = model.summary_net(x_batch)[..., :dim_theta]
-    #    loss_summary = weighted_mse_loss(pred_summary, theta, weight)
-    #    loss_global += loss_summary
+    weights = weighting_function(diffusion_time, sde=model.sde, weighting_type=model.weighting_type,
+                                 prediction_type=model.prediction_type)
+    loss_global = weighted_mse_loss(prediction=pred, target=target, weight=weights)
     return loss_global
 
 
