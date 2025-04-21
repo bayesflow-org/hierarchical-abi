@@ -16,7 +16,7 @@ from bayesflow import diagnostics
 from torch.utils.data import DataLoader
 
 from diffusion_model import HierarchicalScoreModel, SDE, adaptive_sampling, euler_maruyama_sampling, train_score_model
-from diffusion_model.helper_networks import GaussianFourierProjection
+from diffusion_model.helper_networks import GaussianFourierProjection, GRUEncoder
 try:
     import mamba_ssm
     from diffusion_model.bayesflow_summary_nets import Mamba as CustomSummaryNetwork
@@ -58,11 +58,11 @@ dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=Fals
 
 #%%
 # Define diffusion model
-hidden_dim_summary = 18
-summary_net = CustomSummaryNetwork(input_dim=1, summary_dim=hidden_dim_summary)
+hidden_dim_summary = 32 # 18
+summary_net = GRUEncoder(input_size=1, summary_dim=hidden_dim_summary) #CustomSummaryNetwork(input_dim=1, summary_dim=hidden_dim_summary)
 summary_net.to(torch_device)
 
-global_summary_dim = 18
+global_summary_dim = 32 #18
 #global_summary_net = ShallowSet(dim_input=hidden_dim_summary, dim_output=global_summary_dim, dim_hidden=16)
 
 time_embedding_local = nn.Sequential(
@@ -92,7 +92,7 @@ score_model = HierarchicalScoreModel(
     sde=current_sde,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
-    name_prefix='FLI_'
+    name_prefix='FLI_GRU_'
 )
 
 # make dir for plots

@@ -157,6 +157,25 @@ class LSTM(nn.Module):
         return torch.cat(outputs, dim=0)
 
 
+class GRUEncoder(nn.Module):
+    def __init__(self, input_size, summary_dim=32, hidden_size=256):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.rnn = nn.GRU(input_size=input_size, hidden_size=hidden_size, num_layers=2, bidirectional=True, batch_first=True,
+                          dropout=0.05)
+        self.projector = nn.Linear(hidden_size * 2, summary_dim)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        _, h_n = self.rnn(x)
+
+        fwd = h_n[-2]
+        bwd = h_n[-1]
+
+        embedding = self.projector(torch.cat((fwd, bwd), dim=-1))
+
+        return embedding #, h_n
+
+
 class GaussianFourierProjection(nn.Module):
     """Gaussian random features for encoding time steps."""
     def __init__(self, embed_dim, init_scale=30.):
