@@ -16,7 +16,7 @@ sampling_defaults = {
         'tau_2': 0.8,
         'mixing_factor': 1.
     },
-    'local_chunk_size': 1000
+    'sampling_chunk_size': 2048  # to prevent out of memory errors
 }
 
 
@@ -119,7 +119,7 @@ def prepare_observations_for_sampling(x_obs, model, n_post_samples, n_time_steps
     return x_expanded, batch_size, n_obs
 
 
-def initialize_sampling(model, x_obs, n_time_steps, n_post_samples, conditions, mini_batch_arg, random_seed):
+def initialize_sampling(model, x_obs, n_time_steps, n_post_samples, conditions, sampling_arg, random_seed):
     """
     Initialize common parameters for sampling methods.
 
@@ -129,7 +129,7 @@ def initialize_sampling(model, x_obs, n_time_steps, n_post_samples, conditions, 
         n_time_steps (int): Number of time steps in the observations.
         n_post_samples (int): Number of posterior samples to generate
         conditions (tensor or None): Conditioning parameters for local sampling
-        mini_batch_arg (dict or None): Dict with arguments for the mini-batch algorithm
+        sampling_arg (dict or None): Dict with arguments for the mini-batch algorithm
         random_seed (int or None): Random seed for reproducibility
 
     Returns:
@@ -139,7 +139,7 @@ def initialize_sampling(model, x_obs, n_time_steps, n_post_samples, conditions, 
             - theta_init (tensor): Initial parameter samples
             - conditions_exp (tensor or None): Expanded conditions
             - x_expanded (tensor): Expanded observations
-            - mini_batch_dict (dict): Mini-batch parameters
+            - sampling_arg_dict (dict): Mini-batch parameters
             - subsample (bool): Whether to subsample or not
     """
     if random_seed is not None:
@@ -185,11 +185,11 @@ def initialize_sampling(model, x_obs, n_time_steps, n_post_samples, conditions, 
         n_scores_update = n_obs
 
     ###### Prepare Mini-Batching
-    mini_batch_dict = sampling_defaults.copy()
-    if mini_batch_arg is not None:
-        mini_batch_dict.update(mini_batch_arg)
-    mini_batch_dict['size'] = min(n_scores_update, mini_batch_dict['size'])
-    if mini_batch_dict['size'] < n_scores_update:
+    sampling_arg_dict = sampling_defaults.copy()
+    if sampling_arg is not None:
+        sampling_arg_dict.update(sampling_arg)
+    sampling_arg_dict['size'] = min(n_scores_update, sampling_arg_dict['size'])
+    if sampling_arg_dict['size'] < n_scores_update:
         subsample = True
     else:
         subsample = False
@@ -199,54 +199,54 @@ def initialize_sampling(model, x_obs, n_time_steps, n_post_samples, conditions, 
         theta_init = torch.randn((batch_size * n_post_samples, model.prior.n_params_global), dtype=torch.float32)
         theta_init = theta_init / np.sqrt(n_obs)
 
-        if 'damping_factor_prior' in mini_batch_dict:
-            damping_factor = torch.tensor(mini_batch_dict['damping_factor_prior'], dtype=torch.float32)
+        if 'damping_factor_prior' in sampling_arg_dict:
+            damping_factor = torch.tensor(sampling_arg_dict['damping_factor_prior'], dtype=torch.float32)
         else:
-            damping_factor = mini_batch_dict['damping_factor'](t=torch.tensor(1, dtype=torch.float32))
+            damping_factor = sampling_arg_dict['damping_factor'](t=torch.tensor(1, dtype=torch.float32))
         theta_init = theta_init / torch.sqrt(damping_factor)
     else:
         theta_init = torch.randn((batch_size * n_post_samples, n_obs, model.prior.n_params_local), dtype=torch.float32)
 
-    return x_expanded, batch_size, n_obs, n_scores_update, theta_init, conditions_collapsed, mini_batch_dict, subsample
+    return x_expanded, batch_size, n_obs, n_scores_update, theta_init, conditions_collapsed, sampling_arg_dict, subsample
 
 
-def sub_sample_observations(x, batch_size_full, n_scores_update, mini_batch_dict):
+def sub_sample_observations(x, batch_size_full, n_scores_update, sampling_arg_dict):
     """
     Subsample observations for the score update by computing correct indices directly.
 
       - x shape: (batch_shape * n_scores_update, ...)
-      - For each posterior sample, randomly subsample mini_batch_dict['size'] observations.
-      - Final output shape: (batch_shape * mini_batch_dict['size'], ...)
+      - For each posterior sample, randomly subsample sampling_arg_dict['size'] observations.
+      - Final output shape: (batch_shape * sampling_arg_dict['size'], ...)
 
     Parameters:
         x (Tensor): Normalized and expanded observations with shape (n_obs*posterior_samples, n_obs_time_steps, d) or
             (n_obs*posterior_samples, current_number_of_obs, n_obs_time_steps, d)
         batch_size_full (int): Batch size * Number of posterior samples.
         n_scores_update (int): Total number of observations (or groups, if factorized) per posterior sample.
-        mini_batch_dict (dict): Dictionary with keys 'size' and 'sample_same_obs'.
+        sampling_arg_dict (dict): Dictionary with keys 'size' and 'sample_same_obs'.
 
     Returns:
         Tensor: Sub-sampled observations (n_post_samples * mini_batch_size, n_obs_time_steps, d)
     """
-    if mini_batch_dict['sample_same_obs'] is not None:
+    if sampling_arg_dict['sample_same_obs'] is not None:
         # sample the same observations in each batch
-        torch.manual_seed(mini_batch_dict['sample_same_obs'])
+        torch.manual_seed(sampling_arg_dict['sample_same_obs'])
 
     # x has shape: (batch_size * n_post_samples * n_scores_update, ...)
     # For each posterior sample i, the observations occupy a contiguous block of size n_scores_update.
     # Generate random indices in [0, n_scores_update) for each sample.
     rand_idx = torch.argsort(torch.rand(batch_size_full, n_scores_update, dtype=x.dtype, device=x.device),
-                             dim=1)[:, :mini_batch_dict['size']]
+                             dim=1)[:, :sampling_arg_dict['size']]
 
     # Compute the offset for each posterior sample.
     sample_offset = torch.arange(batch_size_full, device=x.device) * n_scores_update  # shape: (batch_size * n_post_samples,)
-    sample_offset = sample_offset.unsqueeze(1).expand(-1, mini_batch_dict['size'])  # shape: (batch_size * n_post_samples, mini_batch_dict['size'])
+    sample_offset = sample_offset.unsqueeze(1).expand(-1, sampling_arg_dict['size'])  # shape: (batch_size * n_post_samples, sampling_arg_dict['size'])
 
     # Compute final indices into T.
-    final_idx = (sample_offset + rand_idx).reshape(-1)  # shape: (batch_size * n_post_samples * mini_batch_dict['size'],)
+    final_idx = (sample_offset + rand_idx).reshape(-1)  # shape: (batch_size * n_post_samples * sampling_arg_dict['size'],)
 
     # Index into T along the first dimension.
-    x_sub = x[final_idx]  # shape: (batch_size * n_post_samples * mini_batch_dict['size'], ....)
+    x_sub = x[final_idx]  # shape: (batch_size * n_post_samples * sampling_arg_dict['size'], ....)
     return x_sub
 
 
@@ -280,7 +280,7 @@ def piecewise_condition_function(t, tau_1, tau_2):
 
 
 def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp, batch_size_full,
-                             n_scores_update_full, mini_batch_dict, clip_x=True):
+                             n_scores_update_full, sampling_arg_dict, clip_x=True):
     """
     Compute the (global or local) compositional score.
 
@@ -297,38 +297,56 @@ def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp
         model_scores: Computed score tensor.
     """
     # Expand diffusion_time to shape (n_post_samples*n_scores_update, 1)
-    t_exp = diffusion_time.unsqueeze(1).expand(-1, mini_batch_dict['size'], -1).contiguous().view(-1, 1)
+    t_exp = diffusion_time.unsqueeze(1).expand(-1, sampling_arg_dict['size'], -1).contiguous().view(-1, 1)
 
-    if mini_batch_dict['noisy_condition']['apply']:
+    if sampling_arg_dict['noisy_condition']['apply']:
         # mean and std on clean data
         x_mean_clean = torch.mean(x_exp, dim=1, keepdim=True)
         x_std_clean = torch.std(x_exp, dim=1, keepdim=True)
 
         # get noisy condition
         cond_t = piecewise_condition_function(t_exp,
-                                              tau_1=mini_batch_dict['noisy_condition']['tau_1'],
-                                              tau_2=mini_batch_dict['noisy_condition']['tau_2'])
+                                              tau_1=sampling_arg_dict['noisy_condition']['tau_1'],
+                                              tau_2=sampling_arg_dict['noisy_condition']['tau_2'])
         if x_exp.dim() == 3:
             cond_t = cond_t[:, None]
         x_noisy = torch.sqrt(cond_t) * x_exp
-        x_noisy = x_noisy + mini_batch_dict['noisy_condition']['noise_scale'] * torch.sqrt(1 - cond_t) * torch.randn_like(x_exp)
+        x_noisy = x_noisy + sampling_arg_dict['noisy_condition']['noise_scale'] * torch.sqrt(1 - cond_t) * torch.randn_like(x_exp)
         x_rescaled = (x_noisy - torch.mean(x_noisy, dim=1, keepdim=True)) / torch.std(x_noisy, dim=1, keepdim=True)
         # rescale noisy condition
         x_rescaled = x_rescaled * x_std_clean + x_mean_clean
         # final corrupted output
-        x_exp = mini_batch_dict['noisy_condition']['mixing_factor'] * x_rescaled + (1 - mini_batch_dict['noisy_condition']['mixing_factor']) * x_exp
+        x_exp = sampling_arg_dict['noisy_condition']['mixing_factor'] * x_rescaled + (1 - sampling_arg_dict['noisy_condition']['mixing_factor']) * x_exp
 
     if conditions_exp is None and n_scores_update_full > 1:
-        theta_exp = theta.unsqueeze(1).expand(-1, mini_batch_dict['size'], -1).contiguous().view(-1, model.prior.n_params_global)
-        model_indv_scores = model.forward_global(
-            theta_global=theta_exp,
-            time=t_exp,
-            x=x_exp,
-            pred_score=True,
-            clip_x=clip_x
-        )
+        theta_exp = theta.unsqueeze(1).expand(-1, sampling_arg_dict['size'], -1).contiguous().view(-1, model.prior.n_params_global)
+
+        # pass chunks through the model
+        n_samples_global = theta_exp.shape[0]
+        model_scores_list = []
+        for start_idx in range(0, n_samples_global, sampling_arg_dict['sampling_chunk_size']):
+            end_idx = min(start_idx + sampling_arg_dict['sampling_chunk_size'], n_samples_global)
+            # Run the sampling on the chunk
+            model_scores_chunk = model.forward_global(
+                theta_global=theta_exp[start_idx:end_idx],
+                time=t_exp[start_idx:end_idx],
+                x=x_exp[start_idx:end_idx],
+                pred_score=True,
+                clip_x=clip_x
+            )
+            model_scores_list.append(model_scores_chunk)
+        # Concatenate all sample chunks along the batch dimension.
+        model_indv_scores = torch.cat(model_scores_list, dim=0)
+
+        # model_indv_scores = model.forward_global(
+        #     theta_global=theta_exp,
+        #     time=t_exp,
+        #     x=x_exp,
+        #     pred_score=True,
+        #     clip_x=clip_x
+        # )
         # Reshape to (batch_size_full, n_obs, -1) and sum over observations
-        model_sum_scores_indv = model_indv_scores.contiguous().view(batch_size_full, mini_batch_dict['size'], -1)
+        model_sum_scores_indv = model_indv_scores.contiguous().view(batch_size_full, sampling_arg_dict['size'], -1)
 
         # add prior to the individual score, this is more stable than adding it to the sum
         prior_scores = (1 - diffusion_time) * model.prior.score_global_batch(theta)
@@ -340,28 +358,45 @@ def eval_compositional_score(model, theta, diffusion_time, x_exp, conditions_exp
 
         # (1 - n_scores_update) * (1 - diffusion_time) * model.prior.score_global_batch(theta)
         # just the plus 1 is missing
-        damping_factor = mini_batch_dict['damping_factor'](diffusion_time)
+        damping_factor = sampling_arg_dict['damping_factor'](diffusion_time)
         model_scores = damping_factor * (prior_scores + model_sum_scores)
     elif conditions_exp is None and n_scores_update_full == 1:
-        #theta_exp = theta.contiguous().view(-1, model.prior.n_params_global)
-        model_indv_scores = model.forward_global(
-            theta_global=theta,
-            time=t_exp,
-            x=x_exp,
-            pred_score=True,
-            clip_x=clip_x
-        )
+
+        # pass chunks through the model
+        n_samples_global = theta.shape[0]
+        model_scores_list = []
+        for start_idx in range(0, n_samples_global, sampling_arg_dict['sampling_chunk_size']):
+            end_idx = min(start_idx + sampling_arg_dict['sampling_chunk_size'], n_samples_global)
+            # Run the sampling on the chunk
+            model_scores_chunk = model.forward_global(
+                theta_global=theta[start_idx:end_idx],
+                time=t_exp[start_idx:end_idx],
+                x=x_exp[start_idx:end_idx],
+                pred_score=True,
+                clip_x=clip_x
+            )
+            model_scores_list.append(model_scores_chunk)
+        # Concatenate all sample chunks along the batch dimension.
+        model_indv_scores = torch.cat(model_scores_list, dim=0)
+
+        # model_indv_scores = model.forward_global(
+        #     theta_global=theta,
+        #     time=t_exp,
+        #     x=x_exp,
+        #     pred_score=True,
+        #     clip_x=clip_x
+        # )
         # apply damping
-        damping_factor = mini_batch_dict['damping_factor'](diffusion_time)
+        damping_factor = sampling_arg_dict['damping_factor'](diffusion_time)
         model_scores = damping_factor * model_indv_scores
     else:
         theta_exp = theta.contiguous().view(-1, model.prior.n_params_local)
 
-        # Define the maximum chunk size
+        # pass chunks through the model
         n_samples_local = theta_exp.shape[0]
         model_scores_list = []
-        for start_idx in range(0, n_samples_local, mini_batch_dict['local_chunk_size']):
-            end_idx = min(start_idx + mini_batch_dict['local_chunk_size'], n_samples_local)
+        for start_idx in range(0, n_samples_local, sampling_arg_dict['sampling_chunk_size']):
+            end_idx = min(start_idx + sampling_arg_dict['sampling_chunk_size'], n_samples_local)
             # Run the sampling on the chunk
             model_scores_chunk = model.forward_local(
                 theta_local=theta_exp[start_idx:end_idx],
@@ -395,7 +430,7 @@ def euler_maruyama_step(model, x, score, t, dt, noise=None):
 
 
 def euler_maruyama_sampling(model, x_obs, obs_n_time_steps, n_post_samples=1, conditions=None,
-                            diffusion_steps=1000, t_end=0, mini_batch_arg=None,
+                            diffusion_steps=1000, t_end=0, sampling_arg=None,
                             random_seed=None, device=None, verbose=False):
     """
     Generate posterior samples using Euler-Maruyama sampling. Expects un-normalized observations.
@@ -406,9 +441,9 @@ def euler_maruyama_sampling(model, x_obs, obs_n_time_steps, n_post_samples=1, co
             - Local: (batch_size, n_post_samples, n_obs, model.prior.n_params_local)
     """
     # Initialize sampling
-    x_exp, batch_size, n_obs, n_scores_update, theta, conditions_exp, mini_batch_dict, subsample = initialize_sampling(
+    x_exp, batch_size, n_obs, n_scores_update, theta, conditions_exp, sampling_arg_dict, subsample = initialize_sampling(
         model=model, x_obs=x_obs, n_time_steps=obs_n_time_steps, n_post_samples=n_post_samples, conditions=conditions,
-        mini_batch_arg=mini_batch_arg,
+        sampling_arg=sampling_arg,
         random_seed=random_seed
     )
     diffusion_time = generate_diffusion_time(size=diffusion_steps+1, epsilon=t_end, device=device)
@@ -430,7 +465,7 @@ def euler_maruyama_sampling(model, x_obs, obs_n_time_steps, n_post_samples=1, co
                 sub_x_expanded = sub_sample_observations(
                     x=x_exp, batch_size_full=batch_size_full,
                     n_scores_update=n_scores_update,
-                    mini_batch_dict=mini_batch_dict
+                    sampling_arg_dict=sampling_arg_dict
                 )
             else:
                 sub_x_expanded = x_exp
@@ -439,7 +474,7 @@ def euler_maruyama_sampling(model, x_obs, obs_n_time_steps, n_post_samples=1, co
             scores = eval_compositional_score(model=model, theta=theta, diffusion_time=t_tensor,
                                               x_exp=sub_x_expanded, conditions_exp=conditions_exp,
                                               batch_size_full=batch_size_full, n_scores_update_full=n_scores_update,
-                                              mini_batch_dict=mini_batch_dict)
+                                              sampling_arg_dict=sampling_arg_dict)
             theta = euler_maruyama_step(model, theta, score=scores, t=diffusion_time[t],
                                         dt=diffusion_time[t] - diffusion_time[t - 1])
             if torch.isnan(theta).any():
@@ -457,7 +492,7 @@ def euler_maruyama_sampling(model, x_obs, obs_n_time_steps, n_post_samples=1, co
 
 
 def sde_sampling(model, x_obs, obs_n_time_steps, n_post_samples=1, conditions=None,
-                 diffusion_steps=100, t_end=0, mini_batch_arg=None,
+                 diffusion_steps=100, t_end=0, sampling_arg=None,
                  method='euler',
                  random_seed=None, device=None, verbose=False):
     """
@@ -472,9 +507,9 @@ def sde_sampling(model, x_obs, obs_n_time_steps, n_post_samples=1, conditions=No
     import brainpy.math as bm
 
     # Initialize sampling
-    x_exp, batch_size, n_obs, n_scores_update, theta, conditions_exp, mini_batch_dict, subsample = initialize_sampling(
+    x_exp, batch_size, n_obs, n_scores_update, theta, conditions_exp, sampling_arg_dict, subsample = initialize_sampling(
         model=model, x_obs=x_obs, n_time_steps=obs_n_time_steps, n_post_samples=n_post_samples, conditions=conditions,
-        mini_batch_arg=mini_batch_arg,
+        sampling_arg=sampling_arg,
         random_seed=random_seed
     )
     batch_size_full = batch_size * n_post_samples
@@ -502,7 +537,7 @@ def sde_sampling(model, x_obs, obs_n_time_steps, n_post_samples=1, conditions=No
             scores = eval_compositional_score(model=model, theta=theta_torch, diffusion_time=t_tensor,
                                               x_exp=data, conditions_exp=conditions_exp,
                                               batch_size_full=batch_size_full, n_scores_update_full=n_scores_update,
-                                              mini_batch_dict=mini_batch_dict)
+                                              sampling_arg_dict=sampling_arg_dict)
 
             f, g = model.sde.get_f_g(t=t_tensor, x=theta_torch)
             drift = f - torch.square(g) * scores
@@ -536,7 +571,7 @@ def sde_sampling(model, x_obs, obs_n_time_steps, n_post_samples=1, conditions=No
             # create a tensor for each time step
             sub_x_expanded = [sub_sample_observations(x=x_exp, batch_size_full=batch_size_full,
                                                       n_scores_update=n_scores_update,
-                                                      mini_batch_dict=mini_batch_dict).cpu() for _ in range(diffusion_steps)]
+                                                      sampling_arg_dict=sampling_arg_dict).cpu() for _ in range(diffusion_steps)]
             sub_x_expanded = np.stack(sub_x_expanded, axis=0)
         else:
             sub_x_expanded = x_exp
@@ -590,7 +625,7 @@ def adaptive_sampling(model, x_obs, obs_n_time_steps,
                       max_evals: int = 10000,
                       t_start: float = 1.0,
                       t_end: float = 0.,
-                      mini_batch_arg=None,
+                      sampling_arg=None,
                       run_sampling_in_parallel=True,
                       random_seed=None,
                       device=None,
@@ -613,7 +648,7 @@ def adaptive_sampling(model, x_obs, obs_n_time_steps,
             ps, ls = adaptive_sampling(model=model, x_obs=x_obs, obs_n_time_steps=obs_n_time_steps, n_post_samples=1,
                                        conditions=conditions[:, i][:, None] if conditions is not None else None,
                                   e_abs=e_abs, e_rel=e_rel, h_init=h_init, r=r, adapt_safety=adapt_safety,
-                                  max_evals=max_evals, t_start=t_start, t_end=t_end, mini_batch_arg=mini_batch_arg,
+                                  max_evals=max_evals, t_start=t_start, t_end=t_end, sampling_arg=sampling_arg,
                                   run_sampling_in_parallel=True,
                                   random_seed=random_seed+i if random_seed is not None else None,
                                   device=device, return_steps=True,
@@ -632,9 +667,9 @@ def adaptive_sampling(model, x_obs, obs_n_time_steps,
         return post_samples
 
     # Initialize sampling
-    x_exp, batch_size, n_obs, n_scores_update, theta, conditions_exp, mini_batch_dict, subsample = initialize_sampling(
+    x_exp, batch_size, n_obs, n_scores_update, theta, conditions_exp, sampling_arg_dict, subsample = initialize_sampling(
         model=model, x_obs=x_obs, n_time_steps=obs_n_time_steps, n_post_samples=n_post_samples, conditions=conditions,
-        mini_batch_arg=mini_batch_arg,
+        sampling_arg=sampling_arg,
         random_seed=random_seed
     )
     batch_size_full = batch_size * n_post_samples
@@ -671,7 +706,7 @@ def adaptive_sampling(model, x_obs, obs_n_time_steps,
                 sub_x_expanded = sub_sample_observations(
                     x=x_exp, batch_size_full=batch_size_full,
                     n_scores_update=n_scores_update,
-                    mini_batch_dict=mini_batch_dict
+                    sampling_arg_dict=sampling_arg_dict
                 )
             else:
                 sub_x_expanded = x_exp
@@ -681,7 +716,7 @@ def adaptive_sampling(model, x_obs, obs_n_time_steps,
             scores = eval_compositional_score(model=model, theta=theta, diffusion_time=t_tensor,
                                               x_exp=sub_x_expanded, conditions_exp=conditions_exp,
                                               batch_size_full=batch_size_full, n_scores_update_full=n_scores_update,
-                                              mini_batch_dict=mini_batch_dict)
+                                              sampling_arg_dict=sampling_arg_dict)
             if conditions is None:
                 theta_eul = euler_maruyama_step(model, theta, score=scores, t=t_tensor, dt=h, noise=z)
             else:
@@ -692,7 +727,7 @@ def adaptive_sampling(model, x_obs, obs_n_time_steps,
             scores_mid = eval_compositional_score(model=model, theta=theta_eul, diffusion_time=t_mid,
                                               x_exp=sub_x_expanded, conditions_exp=conditions_exp,
                                               batch_size_full=batch_size_full, n_scores_update_full=n_scores_update,
-                                              mini_batch_dict=mini_batch_dict)
+                                              sampling_arg_dict=sampling_arg_dict)
             if conditions is None:
                 theta_eul_mid = euler_maruyama_step(model, theta_eul, score=scores_mid, t=t_mid, dt=h, noise=z)
             else:
@@ -751,7 +786,7 @@ def adaptive_sampling(model, x_obs, obs_n_time_steps,
 
 def probability_ode_solving(model, x_obs, obs_n_time_steps, n_post_samples=1, conditions=None,
                             method='RK45',
-                            t_end=0, mini_batch_arg=None, random_seed=None, run_sampling_in_parallel=True,
+                            t_end=0, sampling_arg=None, random_seed=None, run_sampling_in_parallel=True,
                             device=None, verbose=False):
     """
     Solve the probability ODE (Song et al., 2021) to generate posterior samples. Expects un-normalized observations.
@@ -769,7 +804,7 @@ def probability_ode_solving(model, x_obs, obs_n_time_steps, n_post_samples=1, co
             post_samples.append(
                 probability_ode_solving(model=model, x_obs=x_obs, obs_n_time_steps=obs_n_time_steps, n_post_samples=1,
                                         conditions=conditions[:, i][:, None] if conditions is not None else None,
-                                        t_end=t_end, mini_batch_arg=mini_batch_arg,
+                                        t_end=t_end, sampling_arg=sampling_arg,
                                         run_sampling_in_parallel=True,
                                         random_seed=random_seed+i if random_seed is not None else None,
                                         device=device, verbose=False)
@@ -780,9 +815,9 @@ def probability_ode_solving(model, x_obs, obs_n_time_steps, n_post_samples=1, co
         return np.concatenate(post_samples, axis=1)
 
     # Initialize sampling
-    x_exp, batch_size, n_obs, n_scores_update, theta, conditions_exp, mini_batch_dict, subsample = initialize_sampling(
+    x_exp, batch_size, n_obs, n_scores_update, theta, conditions_exp, sampling_arg_dict, subsample = initialize_sampling(
         model=model, x_obs=x_obs, n_time_steps=obs_n_time_steps, n_post_samples=n_post_samples, conditions=conditions,
-        mini_batch_arg=mini_batch_arg,
+        sampling_arg=sampling_arg,
         random_seed=random_seed
     )
     batch_size_full = batch_size * n_post_samples
@@ -800,7 +835,7 @@ def probability_ode_solving(model, x_obs, obs_n_time_steps, n_post_samples=1, co
                 sub_x_expanded = sub_sample_observations(
                     x=x_exp, batch_size_full=batch_size_full,
                     n_scores_update=n_scores_update,
-                    mini_batch_dict=mini_batch_dict
+                    sampling_arg_dict=sampling_arg_dict
                 )
             else:
                 sub_x_expanded = x_exp
@@ -815,7 +850,7 @@ def probability_ode_solving(model, x_obs, obs_n_time_steps, n_post_samples=1, co
             scores = eval_compositional_score(model=model, theta=x_torch, diffusion_time=t_tensor,
                                               x_exp=sub_x_expanded, conditions_exp=conditions_exp,
                                               batch_size_full=batch_size_full, n_scores_update_full=n_scores_update,
-                                              mini_batch_dict=mini_batch_dict)
+                                              sampling_arg_dict=sampling_arg_dict)
             t_exp = t_tensor if conditions_exp is None else t_tensor.unsqueeze(1).expand(-1, n_obs, -1)
             f, g = model.sde.get_f_g(x=x_torch, t=t_exp)
             drift = f - 0.5 * torch.square(g) * scores
@@ -849,7 +884,7 @@ def probability_ode_solving(model, x_obs, obs_n_time_steps, n_post_samples=1, co
 
 def langevin_sampling(model, x_obs, obs_n_time_steps, n_post_samples, conditions=None,
                       diffusion_steps=1000, langevin_steps=10, step_size_factor=0.3, t_end=0,
-                      mini_batch_arg=None,
+                      sampling_arg=None,
                       random_seed=None, device=None, verbose=False):
     """
     Annealed Langevin Dynamics sampling. Expects un-normalized observations. Based on Song et al., 2020.
@@ -864,7 +899,7 @@ def langevin_sampling(model, x_obs, obs_n_time_steps, n_post_samples, conditions
         langevin_steps: Number of inner Langevin steps per diffusion time.
         step_size_factor: Factor to scale the step size by.
         t_end: End time for diffusion
-        mini_batch_arg: Dict with number of observations to use for the score update.
+        sampling_arg: Dict with number of observations to use for the score update.
             If None, all observations are used. Default: None.
         random_seed: Optional random seed for reproducibility.
         device: Computation device.
@@ -876,9 +911,9 @@ def langevin_sampling(model, x_obs, obs_n_time_steps, n_post_samples, conditions
             - Local: shape (n_post_samples, n_obs * model.prior.n_params_local)
     """
     # Initialize sampling
-    x_exp, batch_size, n_obs, n_scores_update, theta, conditions_exp, mini_batch_dict, subsample = initialize_sampling(
+    x_exp, batch_size, n_obs, n_scores_update, theta, conditions_exp, sampling_arg_dict, subsample = initialize_sampling(
         model=model, x_obs=x_obs, n_time_steps=obs_n_time_steps, n_post_samples=n_post_samples, conditions=conditions,
-        mini_batch_arg=mini_batch_arg,
+        sampling_arg=sampling_arg,
         random_seed=random_seed
     )
     batch_size_full = batch_size * n_post_samples
@@ -910,7 +945,7 @@ def langevin_sampling(model, x_obs, obs_n_time_steps, n_post_samples, conditions
                     sub_x_expanded = sub_sample_observations(
                         x=x_exp, batch_size_full=batch_size_full,
                         n_scores_update=n_scores_update,
-                        mini_batch_dict=mini_batch_dict
+                        sampling_arg_dict=sampling_arg_dict
                     )
                 else:
                     sub_x_expanded = x_exp
@@ -920,7 +955,7 @@ def langevin_sampling(model, x_obs, obs_n_time_steps, n_post_samples, conditions
                 scores = eval_compositional_score(model=model, theta=theta, diffusion_time=t_tensor,
                                                   x_exp=sub_x_expanded, conditions_exp=conditions_exp,
                                                   batch_size_full=batch_size_full, n_scores_update_full=n_scores_update,
-                                                  mini_batch_dict=mini_batch_dict)
+                                                  sampling_arg_dict=sampling_arg_dict)
                 # Langevin update step
                 theta = theta + (step_size / 2) * scores + torch.sqrt(step_size) * eps
 

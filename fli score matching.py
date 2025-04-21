@@ -150,14 +150,14 @@ t0_value, t1_value
 #score_model.sde.s_shift_cosine = 4
 # posterior_global_samples_valid = adaptive_sampling(score_model, valid_data, obs_n_time_steps=201,
 #                                                    n_post_samples=n_post_samples,
-#                                                    #mini_batch_arg=mini_batch_arg,
+#                                                    #sampling_arg=mini_batch_arg,
 #                                                    run_sampling_in_parallel=False,
 #                                                    device=torch_device, verbose=True)
 
 posterior_global_samples_valid = adaptive_sampling(score_model, valid_data,
                                                    obs_n_time_steps=201,
                                                    n_post_samples=n_post_samples,
-                                                   mini_batch_arg=mini_batch_arg,
+                                                   sampling_arg=mini_batch_arg,
                                                    device=torch_device, verbose=True)
 #%%
 fig = diagnostics.recovery(posterior_global_samples_valid, np.array(valid_prior_global), variable_names=global_param_names)

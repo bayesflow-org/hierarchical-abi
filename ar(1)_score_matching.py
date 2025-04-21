@@ -276,12 +276,12 @@ elif variable_of_interest == 'compare_stan':
 
     # posterior_global_samples_test = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
     #                                                   n_post_samples=100,
-    #                                                   mini_batch_arg=mini_batch_arg,
+    #                                                   sampling_arg=mini_batch_arg,
     #                                                   run_sampling_in_parallel=False,
     #                                                   device=torch_device, verbose=False)
     posterior_global_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                   n_post_samples=n_post_samples,
-                                                  mini_batch_arg=mini_batch_arg,
+                                                  sampling_arg=mini_batch_arg,
                                                   diffusion_steps=300,
                                                   device=torch_device, verbose=False)
 
@@ -355,13 +355,13 @@ elif variable_of_interest == 'max_results':
 
         # test_global_samples = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
         #                                         n_post_samples=100,
-        #                                         mini_batch_arg=mini_batch_arg,
+        #                                         sampling_arg=mini_batch_arg,
         #                                         run_sampling_in_parallel=False,
         #                                         device=torch_device, verbose=False)
 
         test_global_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                            n_post_samples=n_post_samples,
-                                                           mini_batch_arg=mini_batch_arg,
+                                                           sampling_arg=mini_batch_arg,
                                                            diffusion_steps=1000,
                                                            device=torch_device, verbose=False)
 
@@ -395,7 +395,7 @@ elif variable_of_interest == 'max_results':
     #                                                   device=torch_device, verbose=False)
     posterior_global_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                             n_post_samples=n_post_samples,
-                                                            mini_batch_arg=mini_batch_arg,
+                                                            sampling_arg=mini_batch_arg,
                                                             diffusion_steps=1000,
                                                             device=torch_device, verbose=False)
 
@@ -524,7 +524,7 @@ for n in data_sizes:
             test_global_samples, list_steps = adaptive_sampling(score_model, test_data, conditions=None,
                                                          obs_n_time_steps=obs_n_time_steps,
                                                          n_post_samples=n_post_samples,
-                                                         mini_batch_arg=mini_batch_arg,
+                                                         sampling_arg=mini_batch_arg,
                                                          max_evals=max_steps*2,
                                                          t_end=0, random_seed=experiment_id, device=torch_device,
                                                          run_sampling_in_parallel=False,  # can actually be faster

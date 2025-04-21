@@ -263,7 +263,7 @@ for n in data_sizes:
             test_samples, list_steps = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                          conditions=None,
                                                          n_post_samples=n_post_samples,
-                                                         mini_batch_arg=mini_batch_arg,
+                                                         sampling_arg=mini_batch_arg,
                                                          max_evals=max_steps*2,
                                                          t_end=0, random_seed=experiment_id, device=torch_device,
                                                          run_sampling_in_parallel=False,  # can actually be faster
