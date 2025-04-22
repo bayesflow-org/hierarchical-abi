@@ -55,6 +55,9 @@ class Simulator:
         dec_conv = self._conv_dec(self._norm1D(dec), irf_out)
         dec_conv = self._norm1D(np.squeeze(dec_conv)) * img
         dec_conv += self._sample_noise()
+
+        # truncated from below
+        dec_conv = np.maximum(dec_conv, 0)
         return dec_conv
 
     @staticmethod
@@ -99,6 +102,9 @@ class Simulator:
         dec_conv = self._conv_dec(self._norm1D(dec), irf_out)
         dec_conv = self._norm1D(np.squeeze(dec_conv)) * img[i, j]
         dec_conv += self.noise[i, j, :]
+
+        # truncated from below
+        dec_conv = np.maximum(dec_conv, 0)
         return dec_conv
 
     @staticmethod

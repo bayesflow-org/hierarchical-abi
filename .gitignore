@@ -1,9 +1,5 @@
 .idea
-problems/FLI/IRF.npy
-problems/FLI/system_noise.npy
-problems/FLI/irf_micro.npy
-problems/FLI/noise_micro.npy
-problems/FLI/final_Data.npy
+problems/FLI/
 problems/grid/
 /problems/gaussian_grid
 /problems/ar1/
