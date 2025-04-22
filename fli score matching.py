@@ -124,7 +124,7 @@ score_model.eval()
 #%% md
 # # Validation
 #%%
-n_local_samples = 16
+n_local_samples = 1
 valid_prior_global, valid_prior_local, valid_data = generate_synthetic_data(prior=prior, n_data=100,
                                                                             n_local_samples=n_local_samples,
                                                                             random_seed=0)
