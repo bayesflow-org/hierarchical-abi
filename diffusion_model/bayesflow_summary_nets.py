@@ -116,6 +116,7 @@ class TimeSeriesNetwork(nn.Module):
         skip_steps: int = 4,
     ):
         super().__init__()
+        self.name = "TimeSeriesNetwork"
 
         # ensure tuples
         if not isinstance(filters, (list, tuple)):
@@ -356,6 +357,7 @@ class Mamba(nn.Module):
         """
 
         super().__init__(**keras_kwargs(kwargs))
+        self.name = "Mamba"
 
         if device != "cuda":
             raise NotImplementedError("MambaSSM only supports cuda as `device`.")

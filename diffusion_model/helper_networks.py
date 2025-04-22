@@ -164,6 +164,7 @@ class GRUEncoder(nn.Module):
         self.rnn = nn.GRU(input_size=input_size, hidden_size=hidden_size, num_layers=2, bidirectional=True, batch_first=True,
                           dropout=0.05)
         self.projector = nn.Linear(hidden_size * 2, summary_dim)
+        self.name = "GRUEncoder"
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         _, h_n = self.rnn(x)

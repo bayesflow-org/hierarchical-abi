@@ -39,10 +39,10 @@ current_sde = SDE(
 )
 
 dataset = FLIProblem(
-    n_data=20000,
+    n_data=10000,
     prior=prior,
     sde=current_sde,
-    online_learning=False,
+    online_learning=True,
     number_of_obs=number_of_obs,
 )
 
@@ -60,8 +60,8 @@ dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=Fals
 #%%
 # Define diffusion model
 hidden_dim_summary = 32 # 18
-summary_net = GRUEncoder(input_size=1, summary_dim=hidden_dim_summary) #CustomSummaryNetwork(input_dim=1, summary_dim=hidden_dim_summary)
-summary_net.to(torch_device)
+#summary_net = GRUEncoder(input_size=1, summary_dim=hidden_dim_summary)
+summary_net = CustomSummaryNetwork(input_dim=1, summary_dim=hidden_dim_summary)
 
 global_summary_dim = 32 #18
 #global_summary_net = ShallowSet(dim_input=hidden_dim_summary, dim_output=global_summary_dim, dim_hidden=16)
@@ -93,7 +93,7 @@ score_model = HierarchicalScoreModel(
     sde=current_sde,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
-    name_prefix='FLI_GRU_'
+    name_prefix=f'FLI_{summary_net.name}_'
 )
 
 # make dir for plots
@@ -103,7 +103,7 @@ if not os.path.exists(f"plots/{score_model.name}"):
 if not os.path.exists(f"models/{score_model.name}.pt"):
     # train model
     loss_history = train_score_model(score_model, dataloader, dataloader_valid=dataloader_valid, hierarchical=True,
-                                                  epochs=3000, device=torch_device)
+                                                  epochs=5000, device=torch_device)
     score_model.eval()
     torch.save(score_model.state_dict(), f"models/{score_model.name}.pt")
 
@@ -139,7 +139,7 @@ print(valid_data.shape, score_model.current_number_of_obs)
 mini_batch_size = 10
 t1_value = 0.01
 t0_value = 1
-mini_batch_arg = {
+sampling_arg = {
     #'size': mini_batch_size,
     #'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
 }
@@ -151,16 +151,16 @@ t0_value, t1_value
 #score_model.sde.s_shift_cosine = 4
 # posterior_global_samples_valid = adaptive_sampling(score_model, valid_data, obs_n_time_steps=obs_n_time_steps,
 #                                                    n_post_samples=n_post_samples,
-#                                                    #sampling_arg=mini_batch_arg,
+#                                                    #sampling_arg=sampling_arg,
 #                                                    run_sampling_in_parallel=False,
 #                                                    device=torch_device, verbose=True)
 
 posterior_global_samples_valid = euler_maruyama_sampling(score_model, valid_data,
                                                    obs_n_time_steps=obs_n_time_steps,
                                                    n_post_samples=n_post_samples,
-                                                   sampling_arg=mini_batch_arg,
+                                                   sampling_arg=sampling_arg,
                                                    diffusion_steps=1000,
-                                                   device=torch_device, verbose=True)
+                                                   device=torch_device, verbose=False)
 #%%
 fig = diagnostics.recovery(posterior_global_samples_valid, np.array(valid_prior_global), variable_names=global_param_names)
 fig.savefig(f'plots/{score_model.name}/recovery_global.png')
@@ -173,7 +173,7 @@ conditions_global = (np.median(posterior_global_samples_valid, axis=0), posterio
 score_model.sde.s_shift_cosine = 0
 posterior_local_samples_valid = euler_maruyama_sampling(score_model, valid_data, obs_n_time_steps=obs_n_time_steps,
                                                         n_post_samples=n_post_samples, conditions=conditions_global,
-                                                        diffusion_steps=50, device=torch_device, verbose=True)
+                                                        diffusion_steps=200, device=torch_device, verbose=False)
 #%%
 fig = diagnostics.recovery(posterior_local_samples_valid.reshape(valid_data.shape[0], n_post_samples, -1),
                           np.array(valid_prior_local).reshape(valid_data.shape[0], -1),
