@@ -287,18 +287,7 @@ elif variable_of_interest == 'compare_stan':
                                                   diffusion_steps=1000,
                                                   device=torch_device, verbose=False)
 
-    score_model.sde.s_shift_cosine = 0
-    score_model.current_number_of_obs = 1
-    posterior_local_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
-                                                           n_post_samples=n_post_samples,
-                                                           conditions=posterior_global_samples_test,
-                                                           diffusion_steps=300,
-                                                           device=torch_device, verbose=False)
-
-    posterior_local_samples_test = score_model.prior.transform_local_params(posterior_local_samples_test)
-
     np.save(f'problems/ar1/posterior_global_samples_test32grid.npy', posterior_global_samples_test)
-    np.save(f'problems/ar1/posterior_local_samples_test32grid.npy', posterior_local_samples_test)
 
     fig = diagnostics.recovery(posterior_global_samples_test, true_global, variable_names=global_param_names)
     fig.savefig(f'plots/{score_model.name}/recovery_global_ours.png')
@@ -311,9 +300,20 @@ elif variable_of_interest == 'compare_stan':
                                        variable_names=global_param_names)
     fig.savefig(f'plots/{score_model.name}/ecdf_global_ours.png')
 
+    score_model.sde.s_shift_cosine = 0
+    score_model.current_number_of_obs = 1
+    posterior_local_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+                                                           n_post_samples=n_post_samples,
+                                                           conditions=posterior_global_samples_test,
+                                                           diffusion_steps=300,
+                                                           device=torch_device, verbose=False)
+
+    posterior_local_samples_test = score_model.prior.transform_local_params(posterior_local_samples_test)
+    np.save(f'problems/ar1/posterior_local_samples_test32grid.npy', posterior_local_samples_test)
+
     fig = diagnostics.recovery(posterior_local_samples_test.reshape(test_data.shape[0], n_post_samples, -1)[:, :, :12],
                                np.median(local_posterior_stan[:, :, :12], axis=1), ylabel='Score Based Estimates',
-                               xlabel='STAN Median Estimate', variable_names=local_param_names[:12])
+                               variable_names=local_param_names[:12])
     fig.savefig(f'plots/{score_model.name}/recovery_local_ours_vs_STAN.png')
     exit()
 
