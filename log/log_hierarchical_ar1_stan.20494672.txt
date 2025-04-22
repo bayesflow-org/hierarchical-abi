@@ -1,0 +1,10 @@
+WARNING:bayesflow:
+When using torch backend, we need to disable autograd by default to avoid excessive memory usage. Use
+
+with torch.enable_grad():
+    ...
+
+in contexts where you need gradients (e.g. custom training loops).
+[I 2025-04-22 11:29:39,135] A new study created in memory with name: no-name-c29db1ef-130f-4688-a731-589d90e2e344
+/var/spool/slurmd/job20494672/slurm_script: line 23: 3919312 Killed                  python3.11 /home/jarruda_hpc/hierarchical-abi/ar\(1\)_score_matching.py 1
+slurmstepd: error: Detected 1 oom_kill event in StepId=20494672.batch. Some of the step tasks have been OOM Killed.
