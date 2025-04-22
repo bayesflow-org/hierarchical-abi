@@ -219,7 +219,7 @@ elif variable_of_interest == 'compare_stan':
     print(n_grid_stan * n_grid_stan, test_data.shape)
 
     def objective(trial):
-        t1_value = trial.suggest_float('t1_value', 1e-7, 1)
+        t1_value = trial.suggest_float('t1_value', 0.01, 1)
         s_shift_cosine = trial.suggest_float('s_shift_cosine', 0, 10)
         tau1 = trial.suggest_float('tau_1', 0.4, 0.9)
         tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.4), 1)
@@ -234,7 +234,8 @@ elif variable_of_interest == 'compare_stan':
                 'tau_1': tau1,
                 'tau_2': tau2,
                 'mixing_factor': 1.
-            }
+            },
+            'sampling_chunk_size': 2048 * 10
         }
         score_model.sde.s_shift_cosine = s_shift_cosine
 
@@ -255,14 +256,14 @@ elif variable_of_interest == 'compare_stan':
         return rmse + c_error
 
     study = optuna.create_study()
-    study.optimize(objective, n_trials=50)
+    study.optimize(objective, n_trials=100)
 
     print(study.best_params)
 
     t1_value = study.best_params['t1_value']
     t0_value = 1
     sampling_arg = {
-        #'size': 8,
+        'size': 8,
         'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
         'noisy_condition': {
             'apply': True,
@@ -270,7 +271,8 @@ elif variable_of_interest == 'compare_stan':
             'tau_1': study.best_params['tau_1'],
             'tau_2': min(study.best_params['tau_1'] + study.best_params['delta_tau_2'], 1),
             'mixing_factor': 1.
-        }
+        },
+        'sampling_chunk_size': 2048 * 10
     }
     score_model.sde.s_shift_cosine = study.best_params['s_shift_cosine']
 
@@ -340,7 +342,7 @@ elif variable_of_interest == 'max_results':
         tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.4), 1)
 
         t0_value = 1
-        mini_batch_arg = {
+        sampling_arg = {
             'size': 16,
             'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
             'noisy_condition': {
@@ -349,19 +351,20 @@ elif variable_of_interest == 'max_results':
                 'tau_1': tau1,
                 'tau_2': tau2,
                 'mixing_factor': 1.
-            }
+            },
+            'sampling_chunk_size': 2048 * 10
         }
         score_model.sde.s_shift_cosine = s_shift_cosine
 
         # test_global_samples = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
         #                                         n_post_samples=100,
-        #                                         sampling_arg=mini_batch_arg,
+        #                                         sampling_arg=sampling_arg,
         #                                         run_sampling_in_parallel=False,
         #                                         device=torch_device, verbose=False)
 
         test_global_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                            n_post_samples=n_post_samples,
-                                                           sampling_arg=mini_batch_arg,
+                                                           sampling_arg=sampling_arg,
                                                            diffusion_steps=1000,
                                                            device=torch_device, verbose=False)
 
@@ -375,7 +378,7 @@ elif variable_of_interest == 'max_results':
 
     t1_value = study.best_params['t1_value']
     t0_value = 1
-    mini_batch_arg = {
+    sampling_arg = {
         'size': 16,
         'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
         'noisy_condition': {
@@ -384,7 +387,8 @@ elif variable_of_interest == 'max_results':
             'tau_1': study.best_params['tau_1'],
             'tau_2': min(study.best_params['tau_1'] + study.best_params['delta_tau_2'], 1),
             'mixing_factor': 1.
-        }
+        },
+        'sampling_chunk_size': 2048 * 10
     }
     score_model.sde.s_shift_cosine = study.best_params['s_shift_cosine']
 
@@ -395,7 +399,7 @@ elif variable_of_interest == 'max_results':
     #                                                   device=torch_device, verbose=False)
     posterior_global_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                             n_post_samples=n_post_samples,
-                                                            sampling_arg=mini_batch_arg,
+                                                            sampling_arg=sampling_arg,
                                                             diffusion_steps=1000,
                                                             device=torch_device, verbose=False)
 
