@@ -219,7 +219,7 @@ elif variable_of_interest == 'compare_stan':
     print(n_grid_stan * n_grid_stan, test_data.shape)
 
     def objective(trial):
-        t1_value = trial.suggest_float('t1_value', 0.01, 0.5)
+        t1_value = trial.suggest_float('t1_value', 0.001, 0.01)
         s_shift_cosine = trial.suggest_float('s_shift_cosine', 0, 10)
         #tau1 = trial.suggest_float('tau_1', 0.4, 0.9)
         #tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.4), 1)

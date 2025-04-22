@@ -7,7 +7,7 @@
 #SBATCH --partition mlgpu_medium
 #SBATCH --gpus 1
 #SBATCH --time 1-00:00:00
-#SBATCH --array=40-49
+#SBATCH --array=30-49
 #SBATCH --depend=afterany:2041138
 #SBATCH --mail-type=END
 #SBATCH --mail-user=jonas.arruda@uni-bonn.de
