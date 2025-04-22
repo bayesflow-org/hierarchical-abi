@@ -219,7 +219,7 @@ elif variable_of_interest == 'compare_stan':
     print(n_grid_stan * n_grid_stan, test_data.shape)
 
     def objective(trial):
-        t1_value = trial.suggest_float('t1_value', 0.01, 1)
+        t1_value = trial.suggest_float('t1_value', 0.01, 0.5)
         s_shift_cosine = trial.suggest_float('s_shift_cosine', 0, 10)
         tau1 = trial.suggest_float('tau_1', 0.4, 0.9)
         tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.4), 1)
@@ -343,7 +343,7 @@ elif variable_of_interest == 'max_results':
 
         t0_value = 1
         sampling_arg = {
-            'size': 16,
+            'size': 8,
             'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
             'noisy_condition': {
                 'apply': True,
@@ -352,7 +352,6 @@ elif variable_of_interest == 'max_results':
                 'tau_2': tau2,
                 'mixing_factor': 1.
             },
-            'sampling_chunk_size': 2048 * 10
         }
         score_model.sde.s_shift_cosine = s_shift_cosine
 
@@ -379,7 +378,7 @@ elif variable_of_interest == 'max_results':
     t1_value = study.best_params['t1_value']
     t0_value = 1
     sampling_arg = {
-        'size': 16,
+        'size': 8,
         'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
         'noisy_condition': {
             'apply': True,
@@ -388,7 +387,6 @@ elif variable_of_interest == 'max_results':
             'tau_2': min(study.best_params['tau_1'] + study.best_params['delta_tau_2'], 1),
             'mixing_factor': 1.
         },
-        'sampling_chunk_size': 2048 * 10
     }
     score_model.sde.s_shift_cosine = study.best_params['s_shift_cosine']
 
