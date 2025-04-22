@@ -7,27 +7,27 @@ from diffusion_model.helper_functions import generate_diffusion_time
 
 class Simulator:
     def __init__(self):
-        self.gw = 40  # gate width in ps
+        self.gw = 12500/256  # gate width in ps
 
-        self.noise = np.load('problems/FLI/system_noise.npy')
-        self.pIRF = np.load('problems/FLI/IRF.npy')
+        self.noise = np.load('problems/FLI/noise_micro.npy')
+        self.pIRF = np.load('problems/FLI/irf_micro.npy')
 
         self.n_time_points = self.pIRF.shape[2]
         self.img_size_full = (self.pIRF.shape[0], self.pIRF.shape[1])
 
-    def __call__(self, params, with_noise=True):
+    def __call__(self, params):
         # Convert parameters to numpy arrays.
         batch_tau_L, batch_tau_L_2, batch_A_L = params['tau_L'], params['tau_L_2'], params['A_L']
 
         sims = []
         for tau_L, tau_L_2, A_L in zip(batch_tau_L, batch_tau_L_2, batch_A_L):
-            F_dec_conv = self.decay_gen_single(tau_L=tau_L, tau_L_2=tau_L_2, A_L=A_L, with_noise=with_noise)
+            F_dec_conv = self.decay_gen_single(tau_L=tau_L, tau_L_2=tau_L_2, A_L=A_L)
             sims.append(F_dec_conv)
 
         F_dec_conv = np.stack(sims)
         return dict(observable=F_dec_conv)
 
-    def _sample_augmented_noise(self):
+    def _sample_noise(self):
         i = np.random.choice(self.noise.shape[0])
         j = np.random.choice(self.noise.shape[1])
         return self.noise[i, j]
@@ -41,22 +41,20 @@ class Simulator:
         #     noise = self.noise[i, j, arr]
         # return noise
 
-    def decay_gen_single(self, tau_L, tau_L_2, A_L, with_noise):
-        img = np.random.randint(0, high=1000, size=(1, 1))
+    def decay_gen_single(self, tau_L, tau_L_2, A_L):
+        img = np.random.randint(0, high=5, size=(1, 1))
         cropped_pIRF = self._random_crop(self.pIRF, crop_size=(1, 1))
-
         a1, b1, c1 = np.shape(cropped_pIRF)
         t = np.linspace(0, c1 * (self.gw * (10 ** -3)), c1)
         t_minus = np.multiply(t, -1)
-        frac2 = 1 - A_L
+
         A = np.multiply(A_L, np.exp(np.divide(t_minus, tau_L)))
-        B = np.multiply(frac2, np.exp(np.divide(t_minus, tau_L_2)))
+        B = np.multiply(A_L, np.exp(np.divide(t_minus, tau_L_2)))
         dec = A + B
         irf_out = self._norm1D(cropped_pIRF[0,0])
         dec_conv = self._conv_dec(self._norm1D(dec), irf_out)
         dec_conv = self._norm1D(np.squeeze(dec_conv)) * img
-        if with_noise:
-            dec_conv += self._sample_augmented_noise()
+        dec_conv += self._sample_noise()
         return dec_conv
 
     @staticmethod
@@ -74,11 +72,11 @@ class Simulator:
         # Crop the subarray
         return array[top:top + a, left:left + b, :]
 
-    def decay_gen_full(self, tau_L, tau_L_2, A_L):
+    def decay_gen_full(self, tau_L, tau_L_2, A_L):  # IRF, Gate_width (in ps)
         if tau_L.size != self.img_size_full[0] * self.img_size_full[1]:
             raise ValueError("tau_L must be the same size as the image")
 
-        img = np.random.randint(0, high=1000, size=(self.img_size_full[0], self.img_size_full[1]))
+        img = np.random.randint(0, high=5, size=(self.img_size_full[0], self.img_size_full[1]))
 
         a, b = np.shape(img)
         a1, b1, c1 = np.shape(self.pIRF)
@@ -88,23 +86,19 @@ class Simulator:
         tau2 = np.reshape(tau_L_2, (a, b))
         frac1 = np.reshape(A_L, (a, b))
         frac2 = 1 - frac1
-        dec = np.zeros([a1, b1, c1])
-        A = np.zeros([a1, b1, c1])
-        B = np.zeros([a1, b1, c1])
-        irf_out = np.zeros([a, b, c1])
-        dec_conv = np.zeros([a, b, c1])
-        for i in range(a):
-            for j in range(b):
-                if tau1[i, j] != 0:
-                    A[i, j, :] = np.multiply(frac1[i, j], np.exp(np.divide(t_minus, tau1[i, j])))
-                if tau2[i, j] != 0:
-                    B[i, j, :] = np.multiply(frac2[i, j], np.exp(np.divide(t_minus, tau2[i, j])))
-                dec[i, j, :] = A[i, j, :] + B[i, j, :]
-                irf_out[i, j, :] = self._norm1D(self.pIRF[i, j, :])
-                dec_conv[i, j, :] = self._conv_dec(self._norm1D(np.squeeze(dec[i, j, :])), np.squeeze(irf_out[i, j, :]))
-                dec_conv[i, j, :] = self._norm1D(np.squeeze(dec_conv[i, j, :])) * img[i, j]
-                dec_conv[i, j, :] += self.noise[i, j, :]
-                #dec_conv[i, j, :] += self._sample_augmented_noise()
+        A = np.zeros([c1])
+        B = np.zeros([c1])
+        i = np.random.randint(a)
+        j = np.random.randint(b)
+        if tau1[i, j] != 0:
+            A = np.multiply(frac1[i, j], np.exp(np.divide(t_minus, tau1[i, j])))
+        if tau2[i, j] != 0:
+            B = np.multiply(frac2[i, j], np.exp(np.divide(t_minus, tau2[i, j])))
+        dec = A + B
+        irf_out = self._norm1D(self.pIRF[i, j, :])
+        dec_conv = self._conv_dec(self._norm1D(dec), irf_out)
+        dec_conv = self._norm1D(np.squeeze(dec_conv)) * img[i, j]
+        dec_conv += self.noise[i, j, :]
         return dec_conv
 
     @staticmethod
@@ -237,7 +231,7 @@ class FLI_Prior:
     def __call__(self, batch_size):
         return self.sample_single(batch_size)
 
-    def sample_single(self, batch_size, n_local_samples=1, transform_params=False, with_noise=True):
+    def sample_single(self, batch_size, n_local_samples=1, transform_params=False):
         """
         Sample a batch of data. The number of local samples can be specified. The data is returned as a dictionary.
         IRF and noise are randomly sampled for each pixel.
@@ -249,7 +243,7 @@ class FLI_Prior:
         for i in range(batch_size):
             global_sample = self._sample_global()
             local_sample = self._sample_local(n_local_samples=n_local_samples)
-            sim = self.simulator(local_sample, with_noise=with_noise)
+            sim = self.simulator(local_sample)
 
             if not transform_params:
                 global_params[i] = [global_sample['log_tau_G'], global_sample['log_sigma_tau_G'],
@@ -347,7 +341,7 @@ class FLI_Prior:
 
     def _move_to_device(self, device):
         if self.current_device != device:
-            print(f"Moving prior to device: {device}")
+            #print(f"Moving prior to device: {device}")
             self.norm_prior_global_mean = self.norm_prior_global_mean.to(device)
             self.norm_prior_global_std = self.norm_prior_global_std.to(device)
             self.norm_prior_local_mean = self.norm_prior_local_mean.to(device)

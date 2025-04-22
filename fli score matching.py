@@ -31,6 +31,7 @@ torch_device = torch.device("cuda")
 prior = FLI_Prior()
 batch_size = 64
 number_of_obs = 1 #[16]
+obs_n_time_steps = 256
 
 current_sde = SDE(
     kernel_type=['variance_preserving', 'sub_variance_preserving'][0],
@@ -148,14 +149,14 @@ mini_batch_arg = {
 t0_value, t1_value
 #%%
 #score_model.sde.s_shift_cosine = 4
-# posterior_global_samples_valid = adaptive_sampling(score_model, valid_data, obs_n_time_steps=201,
+# posterior_global_samples_valid = adaptive_sampling(score_model, valid_data, obs_n_time_steps=obs_n_time_steps,
 #                                                    n_post_samples=n_post_samples,
 #                                                    #sampling_arg=mini_batch_arg,
 #                                                    run_sampling_in_parallel=False,
 #                                                    device=torch_device, verbose=True)
 
 posterior_global_samples_valid = adaptive_sampling(score_model, valid_data,
-                                                   obs_n_time_steps=201,
+                                                   obs_n_time_steps=obs_n_time_steps,
                                                    n_post_samples=n_post_samples,
                                                    sampling_arg=mini_batch_arg,
                                                    device=torch_device, verbose=True)
@@ -169,7 +170,7 @@ fig.savefig(f'plots/{score_model.name}/ecdf_global.png')
 #%%
 conditions_global = (np.median(posterior_global_samples_valid, axis=0), posterior_global_samples_valid)[1]
 score_model.sde.s_shift_cosine = 0
-posterior_local_samples_valid = euler_maruyama_sampling(score_model, valid_data, obs_n_time_steps=201,
+posterior_local_samples_valid = euler_maruyama_sampling(score_model, valid_data, obs_n_time_steps=obs_n_time_steps,
                                                         n_post_samples=n_post_samples, conditions=conditions_global,
                                                         diffusion_steps=50, device=torch_device, verbose=True)
 #%%

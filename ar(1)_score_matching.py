@@ -50,10 +50,10 @@ variable_of_interest, model_id = list(itertools.product(variables_of_interest, m
 
 print('Exp:', experiment_id, 'Model:', model_id, variable_of_interest)
 
-if variable_of_interest == 'compare_stan' and max_number_of_obs > 1:
-    model_id = 3
-if variable_of_interest == 'max_results' and max_number_of_obs > 1:
-    model_id = 3
+#if variable_of_interest == 'compare_stan' and max_number_of_obs > 1:
+#    model_id = 3
+#if variable_of_interest == 'max_results' and max_number_of_obs > 1:
+#    model_id = 3
 
 
 #%%
@@ -225,8 +225,8 @@ elif variable_of_interest == 'compare_stan':
         tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.4), 1)
 
         t0_value = 1
-        mini_batch_arg = {
-            #'size': 8,
+        sampling_arg = {
+            'size': 8,
             'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
             'noisy_condition': {
                 'apply': True,
@@ -240,14 +240,14 @@ elif variable_of_interest == 'compare_stan':
 
         # test_global_samples = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
         #                                         n_post_samples=100,
-        #                                         mini_batch_arg=mini_batch_arg,
+        #                                         sampling_arg=sampling_arg,
         #                                         run_sampling_in_parallel=False,
         #                                         device=torch_device, verbose=False)
 
         test_global_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                            n_post_samples=n_post_samples,
-                                                           mini_batch_arg=mini_batch_arg,
-                                                           diffusion_steps=300,
+                                                           sampling_arg=sampling_arg,
+                                                           diffusion_steps=1000,
                                                            device=torch_device, verbose=False)
 
         c_error = diagnostics.calibration_error(test_global_samples, true_global)['values'].mean()
@@ -261,7 +261,7 @@ elif variable_of_interest == 'compare_stan':
 
     t1_value = study.best_params['t1_value']
     t0_value = 1
-    mini_batch_arg = {
+    sampling_arg = {
         #'size': 8,
         'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
         'noisy_condition': {
@@ -281,8 +281,8 @@ elif variable_of_interest == 'compare_stan':
     #                                                   device=torch_device, verbose=False)
     posterior_global_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
                                                   n_post_samples=n_post_samples,
-                                                  sampling_arg=mini_batch_arg,
-                                                  diffusion_steps=300,
+                                                  sampling_arg=sampling_arg,
+                                                  diffusion_steps=1000,
                                                   device=torch_device, verbose=False)
 
     score_model.sde.s_shift_cosine = 0

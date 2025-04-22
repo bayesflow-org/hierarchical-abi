@@ -104,7 +104,7 @@ class Prior:
 
     def _move_to_device(self, device):
         if self.current_device != device:
-            print(f"Moving prior to device: {device}")
+            #print(f"Moving prior to device: {device}")
             self.norm_prior_global_mean = self.norm_prior_global_mean.to(device)
             self.norm_prior_global_std = self.norm_prior_global_std.to(device)
             self.norm_x_mean = self.norm_x_mean.to(device)
