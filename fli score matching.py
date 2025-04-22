@@ -140,8 +140,8 @@ mini_batch_size = 10
 t1_value = 0.01
 t0_value = 1
 mini_batch_arg = {
-    'size': mini_batch_size,
-    'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
+    #'size': mini_batch_size,
+    #'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
 }
 #plt.plot(torch.linspace(0, 1, 100), mini_batch_arg['damping_factor'](torch.linspace(0, 1, 100)))
 #plt.show()
@@ -155,10 +155,11 @@ t0_value, t1_value
 #                                                    run_sampling_in_parallel=False,
 #                                                    device=torch_device, verbose=True)
 
-posterior_global_samples_valid = adaptive_sampling(score_model, valid_data,
+posterior_global_samples_valid = euler_maruyama_sampling(score_model, valid_data,
                                                    obs_n_time_steps=obs_n_time_steps,
                                                    n_post_samples=n_post_samples,
                                                    sampling_arg=mini_batch_arg,
+                                                   diffusion_steps=1000,
                                                    device=torch_device, verbose=True)
 #%%
 fig = diagnostics.recovery(posterior_global_samples_valid, np.array(valid_prior_global), variable_names=global_param_names)

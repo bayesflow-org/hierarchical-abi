@@ -221,18 +221,18 @@ elif variable_of_interest == 'compare_stan':
     def objective(trial):
         t1_value = trial.suggest_float('t1_value', 0.01, 0.5)
         s_shift_cosine = trial.suggest_float('s_shift_cosine', 0, 10)
-        tau1 = trial.suggest_float('tau_1', 0.4, 0.9)
-        tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.4), 1)
+        #tau1 = trial.suggest_float('tau_1', 0.4, 0.9)
+        #tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.4), 1)
 
         t0_value = 1
         sampling_arg = {
             'size': 8,
             'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
             'noisy_condition': {
-                'apply': True,
+                'apply': False,
                 'noise_scale': 1.,
-                'tau_1': tau1,
-                'tau_2': tau2,
+                #'tau_1': tau1,
+                #'tau_2': tau2,
                 'mixing_factor': 1.
             },
             'sampling_chunk_size': 2048 * 10
@@ -266,10 +266,10 @@ elif variable_of_interest == 'compare_stan':
         'size': 8,
         'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
         'noisy_condition': {
-            'apply': True,
+            'apply': False,
             'noise_scale': 1.,
-            'tau_1': study.best_params['tau_1'],
-            'tau_2': min(study.best_params['tau_1'] + study.best_params['delta_tau_2'], 1),
+            #'tau_1': study.best_params['tau_1'],
+            #'tau_2': min(study.best_params['tau_1'] + study.best_params['delta_tau_2'], 1),
             'mixing_factor': 1.
         },
         'sampling_chunk_size': 2048 * 10
@@ -287,18 +287,18 @@ elif variable_of_interest == 'compare_stan':
                                                   diffusion_steps=1000,
                                                   device=torch_device, verbose=False)
 
-    np.save(f'problems/ar1/posterior_global_samples_test32grid.npy', posterior_global_samples_test)
+    np.save(f'problems/ar1/posterior_global_samples_test_grid{N}.npy', posterior_global_samples_test)
 
     fig = diagnostics.recovery(posterior_global_samples_test, true_global, variable_names=global_param_names)
-    fig.savefig(f'plots/{score_model.name}/recovery_global_ours.png')
+    fig.savefig(f'plots/{score_model.name}/recovery_global_ours_grid{N}.png')
 
     fig = diagnostics.recovery(posterior_global_samples_test, np.median(global_posterior_stan, axis=1),
                                variable_names=global_param_names, xlabel='STAN Median Estimate')
-    fig.savefig(f'plots/{score_model.name}/recovery_global_ours_vs_STAN.png')
+    fig.savefig(f'plots/{score_model.name}/recovery_global_ours_vs_STAN_grid{N}.png')
 
     fig = diagnostics.calibration_ecdf(posterior_global_samples_test, true_global, difference=True,
                                        variable_names=global_param_names)
-    fig.savefig(f'plots/{score_model.name}/ecdf_global_ours.png')
+    fig.savefig(f'plots/{score_model.name}/ecdf_global_ours_grid{N}.png')
 
     score_model.sde.s_shift_cosine = 0
     score_model.current_number_of_obs = 1
@@ -309,12 +309,12 @@ elif variable_of_interest == 'compare_stan':
                                                            device=torch_device, verbose=False)
 
     posterior_local_samples_test = score_model.prior.transform_local_params(posterior_local_samples_test)
-    np.save(f'problems/ar1/posterior_local_samples_test32grid.npy', posterior_local_samples_test)
+    np.save(f'problems/ar1/posterior_local_samples_test_grid{N}.npy', posterior_local_samples_test)
 
     fig = diagnostics.recovery(posterior_local_samples_test.reshape(test_data.shape[0], n_post_samples, -1)[:, :, :12],
                                np.median(local_posterior_stan[:, :, :12], axis=1), ylabel='Score Based Estimates',
                                variable_names=local_param_names[:12])
-    fig.savefig(f'plots/{score_model.name}/recovery_local_ours_vs_STAN.png')
+    fig.savefig(f'plots/{score_model.name}/recovery_local_ours_vs_STAN_grid{N}.png')
     exit()
 
 elif variable_of_interest == 'max_results':
@@ -338,18 +338,18 @@ elif variable_of_interest == 'max_results':
     def objective(trial):
         t1_value = trial.suggest_float('t1_value', 0.0000001, 0.01)
         s_shift_cosine = trial.suggest_float('s_shift_cosine', 0, 10)
-        tau1 = trial.suggest_float('tau_1', 0.4, 0.9)
-        tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.4), 1)
+        #tau1 = trial.suggest_float('tau_1', 0.4, 0.9)
+        #tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.4), 1)
 
         t0_value = 1
         sampling_arg = {
             'size': 8,
             'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
             'noisy_condition': {
-                'apply': True,
+                'apply': False,
                 'noise_scale': 1.,
-                'tau_1': tau1,
-                'tau_2': tau2,
+                #'tau_1': tau1,
+                #'tau_2': tau2,
                 'mixing_factor': 1.
             },
         }
@@ -381,10 +381,10 @@ elif variable_of_interest == 'max_results':
         'size': 8,
         'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
         'noisy_condition': {
-            'apply': True,
+            'apply': False,
             'noise_scale': 1.,
-            'tau_1': study.best_params['tau_1'],
-            'tau_2': min(study.best_params['tau_1'] + study.best_params['delta_tau_2'], 1),
+            #'tau_1': study.best_params['tau_1'],
+            #'tau_2': min(study.best_params['tau_1'] + study.best_params['delta_tau_2'], 1),
             'mixing_factor': 1.
         },
     }
@@ -411,15 +411,15 @@ elif variable_of_interest == 'max_results':
 
     posterior_local_samples_test = score_model.prior.transform_local_params(posterior_local_samples_test)
 
-    np.save(f'problems/ar1/posterior_global_samples_test512grid.npy', posterior_global_samples_test)
-    np.save(f'problems/ar1/posterior_local_samples_test512grid.npy', posterior_local_samples_test)
+    np.save(f'problems/ar1/posterior_global_samples_test_grid{n_grid}.npy', posterior_global_samples_test)
+    np.save(f'problems/ar1/posterior_local_samples_test_grid{n_grid}.npy', posterior_local_samples_test)
 
     fig = diagnostics.recovery(posterior_global_samples_test, true_global, variable_names=global_param_names)
-    fig.savefig(f'plots/{score_model.name}/recovery_global_ours.png')
+    fig.savefig(f'plots/{score_model.name}/recovery_global_ours_grid{n_grid}.png')
 
     fig = diagnostics.calibration_ecdf(posterior_global_samples_test, true_global, difference=True,
                                        variable_names=global_param_names)
-    fig.savefig(f'plots/{score_model.name}/ecdf_global_ours.png')
+    fig.savefig(f'plots/{score_model.name}/ecdf_global_ours_grid{n_grid}.png')
 
     local_rmse = diagnostics.root_mean_squared_error(posterior_local_samples_test, true_local[:, :12])['values'].mean()
     print(local_rmse)
@@ -427,7 +427,7 @@ elif variable_of_interest == 'max_results':
     fig = diagnostics.recovery(posterior_local_samples_test.reshape(test_data.shape[0], n_post_samples, -1),
                                true_local[:, :12].reshape(test_data.shape[0], -1),
                                variable_names=local_param_names)
-    fig.savefig(f'plots/{score_model.name}/recovery_global_ours.png')
+    fig.savefig(f'plots/{score_model.name}/recovery_global_ours_grid{n_grid}.png')
 
     exit()
 
