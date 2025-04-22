@@ -3,10 +3,10 @@
 #SBATCH --output log/log_hierarchical_fli.%j.txt
 #SBATCH --nodes 1
 #SBATCH --cpus-per-task 1
-#SBATCH --mem-per-cpu 50GB
-#SBATCH --partition mlgpu_medium
+#SBATCH --mem-per-cpu 75GB
+#SBATCH --partition mlgpu_long
 #SBATCH --gpus 1
-#SBATCH --time 1-00:00:00
+#SBATCH --time 3-00:00:00
 #SBATCH --array=0-0
 #SBATCH --depend=afterany:2041138
 #SBATCH --mail-type=END

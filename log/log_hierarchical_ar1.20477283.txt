@@ -1,0 +1,1010 @@
+WARNING:bayesflow:
+When using torch backend, we need to disable autograd by default to avoid excessive memory usage. Use
+
+with torch.enable_grad():
+    ...
+
+in contexts where you need gradients (e.g. custom training loops).
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/bayesflow/diagnostics/metrics/posterior_contraction.py:59: RuntimeWarning: Degrees of freedom <= 0 for slice
+  post_vars = samples["estimates"].var(axis=1, ddof=1)
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/numpy/core/_methods.py:195: RuntimeWarning: invalid value encountered in divide
+  ret = um.true_divide(
+Exp: 8 Model: 8 mini_batch
+Kernel type: variance_preserving, noise schedule: cosine
+t_min: 0.00035210439818911254, t_max: 0.999647855758667
+alpha, sigma: (tensor(1.0000), tensor(0.0006)) (tensor(0.0006), tensor(1.0000))
+Moving prior to device: cpu
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|        time_embedding.0.scale        |     1      |
+|       time_embedding.1.weight        |     64     |
+|        time_embedding.1.bias         |     8      |
+|   blocks.res_blocks.0.dense.weight   |    4096    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    4096    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|    final_projection_linear.weight    |    768     |
+|     final_projection_linear.bias     |     3      |
++--------------------------------------+------------+
+Total Trainable Params: 272460
+ar1_8_1global_score_model_v_variance_preserving_cosine_likelihood_weighting
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|        time_embedding.0.scale        |     1      |
+|       time_embedding.1.weight        |     64     |
+|        time_embedding.1.bias         |     8      |
+|   blocks.res_blocks.0.dense.weight   |    4352    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    4352    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|    final_projection_linear.weight    |    256     |
+|     final_projection_linear.bias     |     1      |
++--------------------------------------+------------+
+Total Trainable Params: 272458
+ar1_8_1local_score_model_v_variance_preserving_cosine_likelihood_weighting
++---------------------------------------------------+------------+
+|                      Modules                      | Parameters |
++---------------------------------------------------+------------+
+|        global_model.time_embedding.0.scale        |     1      |
+|        global_model.time_embedding.1.weight       |     64     |
+|         global_model.time_embedding.1.bias        |     8      |
+|   global_model.blocks.res_blocks.0.dense.weight   |    4096    |
+|    global_model.blocks.res_blocks.0.dense.bias    |    256     |
+| global_model.blocks.res_blocks.0.projector.weight |    4096    |
+|   global_model.blocks.res_blocks.1.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.1.dense.bias    |    256     |
+|   global_model.blocks.res_blocks.2.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.2.dense.bias    |    256     |
+|   global_model.blocks.res_blocks.3.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.3.dense.bias    |    256     |
+|   global_model.blocks.res_blocks.4.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.4.dense.bias    |    256     |
+|    global_model.final_projection_linear.weight    |    768     |
+|     global_model.final_projection_linear.bias     |     3      |
+|         local_model.time_embedding.0.scale        |     1      |
+|        local_model.time_embedding.1.weight        |     64     |
+|         local_model.time_embedding.1.bias         |     8      |
+|    local_model.blocks.res_blocks.0.dense.weight   |    4352    |
+|     local_model.blocks.res_blocks.0.dense.bias    |    256     |
+|  local_model.blocks.res_blocks.0.projector.weight |    4352    |
+|    local_model.blocks.res_blocks.1.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.1.dense.bias    |    256     |
+|    local_model.blocks.res_blocks.2.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.2.dense.bias    |    256     |
+|    local_model.blocks.res_blocks.3.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.3.dense.bias    |    256     |
+|    local_model.blocks.res_blocks.4.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.4.dense.bias    |    256     |
+|     local_model.final_projection_linear.weight    |    256     |
+|      local_model.final_projection_linear.bias     |     1      |
++---------------------------------------------------+------------+
+Total Trainable Params: 544918
+ar1_8_1hierarchical_score_model_v_variance_preserving_cosine_likelihood_weighting
+Model loaded
+mini_batch
+Data Size: 16, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+global sampling
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Finished after 10000 steps (20000 score evals) at time 0.8741030097007751.
+Mean step size: 1.25946941927091e-05, min: 3.726521526914439e-07, max: 0.0002827441203407943
+maximum steps reached, increase number of steps.
+local sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+global shapes (100, 3, 3) (100, 3)
+local shapes (100, 3, 16) (100, 16)
+Data Size: 16, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+global sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Finished after 10000 steps (20000 score evals) at time 0.9272070527076721.
+Mean step size: 7.281610102156492e-06, min: 2.2568983126802777e-07, max: 0.00019004572823178023
+maximum steps reached, increase number of steps.
+local sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+global shapes (100, 3, 3) (100, 3)
+local shapes (100, 3, 16) (100, 16)
+Data Size: 16, Mini Batch: None, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+global sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Finished after 10000 steps (20000 score evals) at time 0.9218912124633789.
+Mean step size: 7.81337007053221e-06, min: 2.2784053044233588e-07, max: 0.00016474720905534923
+maximum steps reached, increase number of steps.
+local sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+global shapes (100, 3, 3) (100, 3)
+local shapes (100, 3, 16) (100, 16)
+Data Size: 256, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+global sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+local sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+global shapes (100, 100, 3) (100, 3)
+local shapes (100, 100, 256) (100, 256)
+Data Size: 256, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+global sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+local sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+global shapes (100, 100, 3) (100, 3)
+local shapes (100, 100, 256) (100, 256)
+Data Size: 256, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+global sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+local sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+global shapes (100, 100, 3) (100, 3)
+local shapes (100, 100, 256) (100, 256)
+Data Size: 256, Mini Batch: None, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+global sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+local sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+global shapes (100, 100, 3) (100, 3)
+local shapes (100, 100, 256) (100, 256)
+Data Size: 4096, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+global sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Finished after 10000 steps (20000 score evals) at time 0.9957877993583679.
+Mean step size: 4.220968129634162e-07, min: 5.92205608995755e-08, max: 2.49107506533619e-06
+maximum steps reached, increase number of steps.
+local sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+max steps reached
+global shapes (100, 1, 3) (100, 3)
+local shapes (100, 1, 4096) (100, 4096)
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+Data Size: 16384, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+global sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+Finished after 10000 steps (20000 score evals) at time 0.9996423125267029.
+Mean step size: 3.473264520135128e-08, min: 1.5729110458551077e-08, max: 8.445687882385755e-08
+maximum steps reached, increase number of steps.
+local sampling
+Moving prior to device: cpu
+Moving prior to device: cuda:0
+max steps reached
+global shapes (100, 1, 3) (100, 3)
+local shapes (100, 1, 16384) (100, 16384)
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
