@@ -1,0 +1,8 @@
+WARNING:bayesflow:
+When using torch backend, we need to disable autograd by default to avoid excessive memory usage. Use
+
+with torch.enable_grad():
+    ...
+
+in contexts where you need gradients (e.g. custom training loops).
+[I 2025-04-22 19:03:56,846] A new study created in memory with name: no-name-33f51212-0109-4726-9287-a4e4a89f1056
