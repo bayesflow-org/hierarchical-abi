@@ -251,14 +251,14 @@ elif variable_of_interest == 'compare_stan':
                                                            diffusion_steps=1000,
                                                            device=torch_device, verbose=False)
 
-        fig = diagnostics.recovery(posterior_global_samples_test, true_global, variable_names=global_param_names)
+        fig = diagnostics.recovery(test_global_samples, true_global, variable_names=global_param_names)
         fig.savefig(f'plots/{score_model.name}/recovery_global_ours_grid{N}_{t1_value}_{s_shift_cosine}.png')
 
-        fig = diagnostics.recovery(posterior_global_samples_test, np.median(global_posterior_stan, axis=1),
+        fig = diagnostics.recovery(test_global_samples, np.median(global_posterior_stan, axis=1),
                                    variable_names=global_param_names, xlabel='STAN Median Estimate')
         fig.savefig(f'plots/{score_model.name}/recovery_global_ours_vs_STAN_grid{N}_{t1_value}_{s_shift_cosine}.png')
 
-        fig = diagnostics.calibration_ecdf(posterior_global_samples_test, true_global, difference=True,
+        fig = diagnostics.calibration_ecdf(test_global_samples, true_global, difference=True,
                                            variable_names=global_param_names)
         fig.savefig(f'plots/{score_model.name}/ecdf_global_ours_grid{N}_{t1_value}_{s_shift_cosine}.png')
 
@@ -378,10 +378,10 @@ elif variable_of_interest == 'max_results':
                                                            diffusion_steps=1000,
                                                            device=torch_device, verbose=False)
 
-        fig = diagnostics.recovery(posterior_global_samples_test, true_global, variable_names=global_param_names)
+        fig = diagnostics.recovery(test_global_samples, true_global.numpy(), variable_names=global_param_names)
         fig.savefig(f'plots/{score_model.name}/recovery_global_ours_grid{n_grid}_{t1_value}_{s_shift_cosine}.png')
 
-        fig = diagnostics.calibration_ecdf(posterior_global_samples_test, true_global, difference=True,
+        fig = diagnostics.calibration_ecdf(test_global_samples, true_global.numpy(), difference=True,
                                            variable_names=global_param_names)
         fig.savefig(f'plots/{score_model.name}/ecdf_global_ours_grid{n_grid}_{t1_value}_{s_shift_cosine}.png')
 
