@@ -1,0 +1,61 @@
+WARNING:bayesflow:
+When using torch backend, we need to disable autograd by default to avoid excessive memory usage. Use
+
+with torch.enable_grad():
+    ...
+
+in contexts where you need gradients (e.g. custom training loops).
+[I 2025-04-23 11:29:09,514] A new study created in memory with name: no-name-4bfbf76f-92d9-45b7-99df-8c87117dc691
+[I 2025-04-23 11:40:23,744] Trial 0 finished with value: 0.3623113505829845 and parameters: {'t1_value': 0.19954950211562858, 's_shift_cosine': 2.0233632565145045}. Best is trial 0 with value: 0.3623113505829845.
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/numpy/lib/function_base.py:4657: RuntimeWarning: invalid value encountered in add
+  lerp_interpolation = asanyarray(add(a, diff_b_a * t, out=out))
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/bayesflow/diagnostics/metrics/root_mean_squared_error.py:61: RuntimeWarning: overflow encountered in square
+  rmse = np.sqrt(np.mean((samples["estimates"] - samples["targets"][:, None, :]) ** 2, axis=0))
+[W 2025-04-23 11:50:53,562] Trial 1 failed with parameters: {'t1_value': 0.09180764912442992, 's_shift_cosine': 0.13102350569284016} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 11:50:53,562] Trial 1 failed with value VariableArray(nan).
+[I 2025-04-23 12:02:05,366] Trial 2 finished with value: 0.3134713644364424 and parameters: {'t1_value': 0.1391679630640474, 's_shift_cosine': 4.041607699998329}. Best is trial 2 with value: 0.3134713644364424.
+[I 2025-04-23 12:13:17,030] Trial 3 finished with value: 0.43631903367868646 and parameters: {'t1_value': 0.0718499829116211, 's_shift_cosine': 3.2242030682297886}. Best is trial 2 with value: 0.3134713644364424.
+[I 2025-04-23 12:24:29,009] Trial 4 finished with value: 0.5716553360955757 and parameters: {'t1_value': 0.14332803820789602, 's_shift_cosine': 6.146148315989588}. Best is trial 2 with value: 0.3134713644364424.
+[I 2025-04-23 12:35:40,764] Trial 5 finished with value: 0.3767182931120982 and parameters: {'t1_value': 0.04184037164691654, 's_shift_cosine': 2.868371535980735}. Best is trial 2 with value: 0.3134713644364424.
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/bayesflow/utils/plot_utils.py:146: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`). Consider using `matplotlib.pyplot.close()`.
+  f, axes = plt.subplots(num_row, num_col, figsize=figsize)
+[I 2025-04-23 12:46:50,659] Trial 6 finished with value: 0.46646466195583347 and parameters: {'t1_value': 0.12077166639679394, 's_shift_cosine': 3.751361518876877}. Best is trial 2 with value: 0.3134713644364424.
+[I 2025-04-23 12:58:01,339] Trial 7 finished with value: 0.5828085547581054 and parameters: {'t1_value': 0.17656216915226727, 's_shift_cosine': 5.094029669343854}. Best is trial 2 with value: 0.3134713644364424.
+[I 2025-04-23 13:09:13,077] Trial 8 finished with value: 0.8557631476511036 and parameters: {'t1_value': 0.015926627054546075, 's_shift_cosine': 4.617572645676371}. Best is trial 2 with value: 0.3134713644364424.
+[I 2025-04-23 13:20:24,980] Trial 9 finished with value: 0.26692487051612457 and parameters: {'t1_value': 0.03924253448005481, 's_shift_cosine': 5.160359391113334}. Best is trial 9 with value: 0.26692487051612457.
+[I 2025-04-23 13:31:39,176] Trial 10 finished with value: 0.3247749494931155 and parameters: {'t1_value': 0.07187778079461493, 's_shift_cosine': 2.009179709632505}. Best is trial 9 with value: 0.26692487051612457.
+[I 2025-04-23 13:42:53,133] Trial 11 finished with value: 1.29693125791717 and parameters: {'t1_value': 0.0026096723240769185, 's_shift_cosine': 6.863666528758527}. Best is trial 9 with value: 0.26692487051612457.
+[W 2025-04-23 13:53:31,367] Trial 12 failed with parameters: {'t1_value': 0.09390387708611325, 's_shift_cosine': 0.3676581910273158} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 13:53:31,367] Trial 12 failed with value VariableArray(nan).
+[I 2025-04-23 14:04:45,891] Trial 13 finished with value: 0.5458009791269638 and parameters: {'t1_value': 0.10330778016742234, 's_shift_cosine': 5.1269590512666054}. Best is trial 9 with value: 0.26692487051612457.
+[W 2025-04-23 14:15:21,522] Trial 14 failed with parameters: {'t1_value': 0.16021164860570775, 's_shift_cosine': 0.4219931787054376} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 14:15:21,522] Trial 14 failed with value VariableArray(nan).
+[W 2025-04-23 14:25:55,846] Trial 15 failed with parameters: {'t1_value': 0.1399671222890605, 's_shift_cosine': 0.36392362748723706} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 14:25:55,846] Trial 15 failed with value VariableArray(nan).
+[I 2025-04-23 14:37:10,036] Trial 16 finished with value: 0.3157537384827932 and parameters: {'t1_value': 0.14778054977582017, 's_shift_cosine': 4.240352363026469}. Best is trial 9 with value: 0.26692487051612457.
+[W 2025-04-23 14:47:36,076] Trial 17 failed with parameters: {'t1_value': 0.06899343971716895, 's_shift_cosine': 0.00017799760715542234} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 14:47:36,077] Trial 17 failed with value VariableArray(nan).
+[W 2025-04-23 14:58:17,505] Trial 18 failed with parameters: {'t1_value': 0.05370593635205012, 's_shift_cosine': 0.2573569577805639} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 14:58:17,506] Trial 18 failed with value VariableArray(nan).
+[W 2025-04-23 15:09:14,335] Trial 19 failed with parameters: {'t1_value': 0.05988060051352041, 's_shift_cosine': 0.8262419323721466} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 15:09:14,336] Trial 19 failed with value VariableArray(nan).
+[W 2025-04-23 15:19:54,994] Trial 20 failed with parameters: {'t1_value': 0.0632268906818633, 's_shift_cosine': 0.33322560663826506} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 15:19:54,994] Trial 20 failed with value VariableArray(nan).
+[W 2025-04-23 15:30:41,956] Trial 21 failed with parameters: {'t1_value': 0.07263705936034034, 's_shift_cosine': 0.6022236923137747} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 15:30:41,956] Trial 21 failed with value VariableArray(nan).
+[W 2025-04-23 15:41:48,744] Trial 22 failed with parameters: {'t1_value': 0.06590612474365545, 's_shift_cosine': 1.1067885802409778} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 15:41:48,744] Trial 22 failed with value VariableArray(nan).
+[W 2025-04-23 15:52:23,348] Trial 23 failed with parameters: {'t1_value': 0.07209552252546199, 's_shift_cosine': 0.17579263133979284} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 15:52:23,349] Trial 23 failed with value VariableArray(nan).
+[W 2025-04-23 16:03:04,803] Trial 24 failed with parameters: {'t1_value': 0.06899043648797908, 's_shift_cosine': 0.41419318074747924} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 16:03:04,804] Trial 24 failed with value VariableArray(nan).
+[W 2025-04-23 16:14:03,951] Trial 25 failed with parameters: {'t1_value': 0.06671073597757753, 's_shift_cosine': 0.898172585136999} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 16:14:03,951] Trial 25 failed with value VariableArray(nan).
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/numpy/lib/function_base.py:4655: RuntimeWarning: invalid value encountered in subtract
+  diff_b_a = subtract(b, a)
+[W 2025-04-23 16:24:55,966] Trial 26 failed with parameters: {'t1_value': 0.07030222083247815, 's_shift_cosine': 0.761614237619844} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 16:24:55,966] Trial 26 failed with value VariableArray(nan).
+[W 2025-04-23 16:35:54,643] Trial 27 failed with parameters: {'t1_value': 0.06640478872599648, 's_shift_cosine': 0.9561360415888154} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 16:35:54,643] Trial 27 failed with value VariableArray(nan).
+[W 2025-04-23 16:46:43,350] Trial 28 failed with parameters: {'t1_value': 0.05990595831538133, 's_shift_cosine': 0.689863686008815} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 16:46:43,350] Trial 28 failed with value VariableArray(nan).
