@@ -219,8 +219,8 @@ elif variable_of_interest == 'compare_stan':
     print(n_grid_stan * n_grid_stan, test_data.shape)
 
     def objective(trial):
-        t1_value = trial.suggest_float('t1_value', 0.001, 0.01)
-        s_shift_cosine = trial.suggest_float('s_shift_cosine', 0, 10)
+        t1_value = trial.suggest_float('t1_value', 0.001, 0.2)
+        s_shift_cosine = trial.suggest_float('s_shift_cosine', 0, 7)
         #tau1 = trial.suggest_float('tau_1', 0.4, 0.9)
         #tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.4), 1)
 
@@ -250,6 +250,17 @@ elif variable_of_interest == 'compare_stan':
                                                            sampling_arg=sampling_arg,
                                                            diffusion_steps=1000,
                                                            device=torch_device, verbose=False)
+
+        fig = diagnostics.recovery(posterior_global_samples_test, true_global, variable_names=global_param_names)
+        fig.savefig(f'plots/{score_model.name}/recovery_global_ours_grid{N}_{t1_value}_{s_shift_cosine}.png')
+
+        fig = diagnostics.recovery(posterior_global_samples_test, np.median(global_posterior_stan, axis=1),
+                                   variable_names=global_param_names, xlabel='STAN Median Estimate')
+        fig.savefig(f'plots/{score_model.name}/recovery_global_ours_vs_STAN_grid{N}_{t1_value}_{s_shift_cosine}.png')
+
+        fig = diagnostics.calibration_ecdf(posterior_global_samples_test, true_global, difference=True,
+                                           variable_names=global_param_names)
+        fig.savefig(f'plots/{score_model.name}/ecdf_global_ours_grid{N}_{t1_value}_{s_shift_cosine}.png')
 
         c_error = diagnostics.calibration_error(test_global_samples, true_global)['values'].mean()
         rmse = diagnostics.root_mean_squared_error(test_global_samples, true_global)['values'].mean()
@@ -366,6 +377,13 @@ elif variable_of_interest == 'max_results':
                                                            sampling_arg=sampling_arg,
                                                            diffusion_steps=1000,
                                                            device=torch_device, verbose=False)
+
+        fig = diagnostics.recovery(posterior_global_samples_test, true_global, variable_names=global_param_names)
+        fig.savefig(f'plots/{score_model.name}/recovery_global_ours_grid{n_grid}_{t1_value}_{s_shift_cosine}.png')
+
+        fig = diagnostics.calibration_ecdf(posterior_global_samples_test, true_global, difference=True,
+                                           variable_names=global_param_names)
+        fig.savefig(f'plots/{score_model.name}/ecdf_global_ours_grid{n_grid}_{t1_value}_{s_shift_cosine}.png')
 
         c_error = diagnostics.calibration_error(test_global_samples, true_global.numpy())['values'].mean()
         rmse = diagnostics.root_mean_squared_error(test_global_samples, true_global.numpy())['values'].mean()
