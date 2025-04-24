@@ -16,9 +16,16 @@ sampling_defaults = {
         'tau_2': 0.8,
         'mixing_factor': 1.
     },
-    'sampling_chunk_size': 2048  # to prevent out of memory errors
+    'sampling_chunk_size': 2048,  # to prevent out of memory errors
+    'MC-dropout': False,
 }
 
+
+def enable_dropout(model):
+    """ Function to enable the dropout layers during test-time """
+    for m in model.modules():
+        if m.__class__.__name__.startswith('Dropout'):
+            m.train()
 
 def prepare_observations_for_sampling(x_obs, model, n_post_samples, n_time_steps):
     """
@@ -452,6 +459,8 @@ def euler_maruyama_sampling(model, x_obs, obs_n_time_steps, n_post_samples=1, co
     with torch.no_grad():
         model.to(device)
         model.eval()
+        if sampling_arg_dict['MC-dropout']:
+            enable_dropout(model)
         theta = theta.to(device)
         if conditions_exp is not None:
             conditions_exp = conditions_exp.to(device)
@@ -517,6 +526,8 @@ def sde_sampling(model, x_obs, obs_n_time_steps, n_post_samples=1, conditions=No
     with torch.no_grad():
         model.to(device)
         model.eval()
+        if sampling_arg_dict['MC-dropout']:
+            enable_dropout(model)
         if conditions_exp is not None:
             conditions_exp = conditions_exp.to(device)
         #  dx = [f(x,t) - g(t)^2 * score] * dt + g(t) * dWt
@@ -691,6 +702,8 @@ def adaptive_sampling(model, x_obs, obs_n_time_steps,
     with torch.no_grad():
         model.to(device)
         model.eval()
+        if sampling_arg_dict['MC-dropout']:
+            enable_dropout(model)
         theta = theta.to(device)
         theta_prev = theta_prev.to(device)
         if conditions_exp is not None:
@@ -825,6 +838,8 @@ def probability_ode_solving(model, x_obs, obs_n_time_steps, n_post_samples=1, co
     with torch.no_grad():
         model.to(device)
         model.eval()
+        if sampling_arg_dict['MC-dropout']:
+            enable_dropout(model)
         theta = theta.to(device)
         if conditions_exp is not None:
             conditions_exp = conditions_exp.to(device)
@@ -927,6 +942,8 @@ def langevin_sampling(model, x_obs, obs_n_time_steps, n_post_samples, conditions
     with torch.no_grad():
         model.to(device)
         model.eval()
+        if sampling_arg_dict['MC-dropout']:
+            enable_dropout(model)
         theta = theta.to(device)
         if not conditions_exp is None:
             conditions_exp = conditions_exp.to(device)

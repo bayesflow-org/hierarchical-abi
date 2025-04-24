@@ -389,11 +389,11 @@ elif variable_of_interest == 'max_results':
         rmse = diagnostics.root_mean_squared_error(test_global_samples, true_global.numpy())['values'].mean()
         return rmse + c_error
 
-    study = optuna.create_study()
-    study.optimize(objective, n_trials=20)
-    print(study.best_params)
+    #study = optuna.create_study()
+    #study.optimize(objective, n_trials=20)
+    #print(study.best_params)
 
-    t1_value = study.best_params['t1_value']
+    t1_value = 1e-7 #study.best_params['t1_value']
     t0_value = 1
     sampling_arg = {
         'size': 8,
@@ -406,7 +406,7 @@ elif variable_of_interest == 'max_results':
             'mixing_factor': 1.
         },
     }
-    score_model.sde.s_shift_cosine = study.best_params['s_shift_cosine']
+    score_model.sde.s_shift_cosine = 5 #study.best_params['s_shift_cosine']
 
     # posterior_global_samples_test = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
     #                                                   n_post_samples=100,
@@ -417,7 +417,7 @@ elif variable_of_interest == 'max_results':
                                                             n_post_samples=n_post_samples,
                                                             sampling_arg=sampling_arg,
                                                             diffusion_steps=1000,
-                                                            device=torch_device, verbose=False)
+                                                            device=torch_device, verbose=True)
 
     score_model.sde.s_shift_cosine = 0
     score_model.current_number_of_obs = 1
