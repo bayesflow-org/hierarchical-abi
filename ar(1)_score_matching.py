@@ -432,14 +432,14 @@ elif variable_of_interest == 'max_results':
     np.save(f'problems/ar1/posterior_global_samples_test_grid{n_grid}.npy', posterior_global_samples_test)
     np.save(f'problems/ar1/posterior_local_samples_test_grid{n_grid}.npy', posterior_local_samples_test)
 
-    fig = diagnostics.recovery(posterior_global_samples_test, true_global, variable_names=global_param_names)
+    fig = diagnostics.recovery(posterior_global_samples_test, true_global.numpy(), variable_names=global_param_names)
     fig.savefig(f'plots/{score_model.name}/recovery_global_ours_grid{n_grid}.png')
 
-    fig = diagnostics.calibration_ecdf(posterior_global_samples_test, true_global, difference=True,
+    fig = diagnostics.calibration_ecdf(posterior_global_samples_test, true_global.numpy(), difference=True,
                                        variable_names=global_param_names)
     fig.savefig(f'plots/{score_model.name}/ecdf_global_ours_grid{n_grid}.png')
 
-    local_rmse = diagnostics.root_mean_squared_error(posterior_local_samples_test, true_local[:, :12])['values'].mean()
+    local_rmse = diagnostics.root_mean_squared_error(posterior_local_samples_test, true_local[:, :12].numpy())['values'].mean()
     print(local_rmse)
 
     fig = diagnostics.recovery(posterior_local_samples_test.reshape(test_data.shape[0], n_post_samples, -1),
