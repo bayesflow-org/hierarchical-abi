@@ -60,3 +60,299 @@ in contexts where you need gradients (e.g. custom training loops).
 [W 2025-04-23 16:34:36,528] Trial 27 failed with value VariableArray(nan).
 [W 2025-04-23 16:45:13,043] Trial 28 failed with parameters: {'t1_value': 0.10624783344082331, 's_shift_cosine': 0.18943761173686813} because of the following error: The value nan is not acceptable.
 [W 2025-04-23 16:45:13,043] Trial 28 failed with value VariableArray(nan).
+[W 2025-04-23 16:55:35,891] Trial 29 failed with parameters: {'t1_value': 0.10585343285839964, 's_shift_cosine': 0.03943913456595238} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 16:55:35,892] Trial 29 failed with value VariableArray(nan).
+[W 2025-04-23 17:06:19,373] Trial 30 failed with parameters: {'t1_value': 0.10049461669639748, 's_shift_cosine': 0.2698735509780561} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 17:06:19,373] Trial 30 failed with value VariableArray(nan).
+[W 2025-04-23 17:17:04,412] Trial 31 failed with parameters: {'t1_value': 0.1039537639176249, 's_shift_cosine': 0.32784925180131497} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 17:17:04,412] Trial 31 failed with value VariableArray(nan).
+[W 2025-04-23 17:27:26,621] Trial 32 failed with parameters: {'t1_value': 0.10242508651714086, 's_shift_cosine': 0.01730548149166733} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 17:27:26,621] Trial 32 failed with value VariableArray(nan).
+[W 2025-04-23 17:38:07,611] Trial 33 failed with parameters: {'t1_value': 0.1101210439081308, 's_shift_cosine': 0.3590046161395488} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 17:38:07,611] Trial 33 failed with value VariableArray(nan).
+[I 2025-04-23 17:49:22,386] Trial 34 finished with value: 0.35352897569537167 and parameters: {'t1_value': 0.10510468380933155, 's_shift_cosine': 4.13287191420598}. Best is trial 7 with value: 0.3385050796469053.
+[W 2025-04-23 17:59:54,006] Trial 35 failed with parameters: {'t1_value': 0.11982539534194962, 's_shift_cosine': 0.1494007128786614} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 17:59:54,006] Trial 35 failed with value VariableArray(nan).
+[W 2025-04-23 18:10:21,623] Trial 36 failed with parameters: {'t1_value': 0.10756570033070754, 's_shift_cosine': 0.10475073171637561} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 18:10:21,624] Trial 36 failed with value VariableArray(nan).
+[W 2025-04-23 18:20:55,851] Trial 37 failed with parameters: {'t1_value': 0.11692132807277775, 's_shift_cosine': 0.18820648973542564} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 18:20:55,851] Trial 37 failed with value VariableArray(nan).
+[W 2025-04-23 18:31:26,986] Trial 38 failed with parameters: {'t1_value': 0.11579296830257849, 's_shift_cosine': 0.15544772115101857} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 18:31:26,986] Trial 38 failed with value VariableArray(nan).
+[W 2025-04-23 18:42:19,436] Trial 39 failed with parameters: {'t1_value': 0.11617103594878612, 's_shift_cosine': 0.49349963276892095} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 18:42:19,436] Trial 39 failed with value VariableArray(nan).
+[W 2025-04-23 18:53:15,755] Trial 40 failed with parameters: {'t1_value': 0.11156059254308524, 's_shift_cosine': 0.6658491198446952} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 18:53:15,755] Trial 40 failed with value VariableArray(nan).
+[W 2025-04-23 19:03:52,842] Trial 41 failed with parameters: {'t1_value': 0.108175558787187, 's_shift_cosine': 0.20784143503139774} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 19:03:52,843] Trial 41 failed with value VariableArray(nan).
+[W 2025-04-23 19:14:27,405] Trial 42 failed with parameters: {'t1_value': 0.11425685407814747, 's_shift_cosine': 0.17829063813210722} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 19:14:27,406] Trial 42 failed with value VariableArray(nan).
+[W 2025-04-23 19:25:03,679] Trial 43 failed with parameters: {'t1_value': 0.11947258206375573, 's_shift_cosine': 0.248103125723806} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 19:25:03,679] Trial 43 failed with value VariableArray(nan).
+[W 2025-04-23 19:35:27,974] Trial 44 failed with parameters: {'t1_value': 0.11528564684346201, 's_shift_cosine': 0.06555999112059352} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 19:35:27,974] Trial 44 failed with value VariableArray(nan).
+[W 2025-04-23 19:46:23,991] Trial 45 failed with parameters: {'t1_value': 0.10590480680227975, 's_shift_cosine': 0.49597498243740956} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 19:46:23,992] Trial 45 failed with value VariableArray(nan).
+[W 2025-04-23 19:57:10,808] Trial 46 failed with parameters: {'t1_value': 0.11673131121413066, 's_shift_cosine': 0.4625512476846225} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 19:57:10,808] Trial 46 failed with value VariableArray(nan).
+[W 2025-04-23 20:07:45,045] Trial 47 failed with parameters: {'t1_value': 0.11527177760755762, 's_shift_cosine': 0.17567953937993597} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 20:07:45,045] Trial 47 failed with value VariableArray(nan).
+[I 2025-04-23 20:19:00,138] Trial 48 finished with value: 0.2683688896319323 and parameters: {'t1_value': 0.11539863570286879, 's_shift_cosine': 4.187771325830466}. Best is trial 48 with value: 0.2683688896319323.
+[W 2025-04-23 20:29:31,446] Trial 49 failed with parameters: {'t1_value': 0.12254068394465757, 's_shift_cosine': 0.21039798249491115} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 20:29:31,446] Trial 49 failed with value VariableArray(nan).
+[W 2025-04-23 20:40:04,385] Trial 50 failed with parameters: {'t1_value': 0.12445049426746561, 's_shift_cosine': 0.18235231798873608} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 20:40:04,386] Trial 50 failed with value VariableArray(nan).
+[I 2025-04-23 20:51:20,574] Trial 51 finished with value: 0.4279196923552898 and parameters: {'t1_value': 0.128553281360216, 's_shift_cosine': 1.5964249843642055}. Best is trial 48 with value: 0.2683688896319323.
+[W 2025-04-23 21:02:09,575] Trial 52 failed with parameters: {'t1_value': 0.1149119345684223, 's_shift_cosine': 0.4486850398387552} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 21:02:09,575] Trial 52 failed with value VariableArray(nan).
+[W 2025-04-23 21:13:10,716] Trial 53 failed with parameters: {'t1_value': 0.11613915491782888, 's_shift_cosine': 0.753477289182805} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 21:13:10,716] Trial 53 failed with value VariableArray(nan).
+[W 2025-04-23 21:23:47,344] Trial 54 failed with parameters: {'t1_value': 0.12530805908646006, 's_shift_cosine': 0.2726351003978307} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 21:23:47,344] Trial 54 failed with value VariableArray(nan).
+[W 2025-04-23 21:34:08,385] Trial 55 failed with parameters: {'t1_value': 0.12123286582363682, 's_shift_cosine': 0.018729321258597942} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 21:34:08,385] Trial 55 failed with value VariableArray(nan).
+[W 2025-04-23 21:44:47,807] Trial 56 failed with parameters: {'t1_value': 0.12724571182389557, 's_shift_cosine': 0.2554622750836426} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 21:44:47,807] Trial 56 failed with value VariableArray(nan).
+[W 2025-04-23 21:55:15,223] Trial 57 failed with parameters: {'t1_value': 0.12345204858179022, 's_shift_cosine': 0.08933238031451562} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 21:55:15,223] Trial 57 failed with value VariableArray(nan).
+[I 2025-04-23 22:06:31,780] Trial 58 finished with value: 0.40058569574042374 and parameters: {'t1_value': 0.12499262994771859, 's_shift_cosine': 2.256508483865378}. Best is trial 48 with value: 0.2683688896319323.
+[I 2025-04-23 22:17:48,744] Trial 59 finished with value: 0.37294240638613707 and parameters: {'t1_value': 0.08522937896389741, 's_shift_cosine': 4.160719733721007}. Best is trial 48 with value: 0.2683688896319323.
+[I 2025-04-23 22:29:03,961] Trial 60 finished with value: 1.1727516209033497 and parameters: {'t1_value': 0.006088380081471639, 's_shift_cosine': 5.564846889048184}. Best is trial 48 with value: 0.2683688896319323.
+[W 2025-04-23 22:39:56,048] Trial 61 failed with parameters: {'t1_value': 0.048952410672149366, 's_shift_cosine': 0.24734855210407236} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 22:39:56,048] Trial 61 failed with value VariableArray(nan).
+[W 2025-04-23 22:50:46,489] Trial 62 failed with parameters: {'t1_value': 0.1876136720597359, 's_shift_cosine': 0.6501253565415883} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 22:50:46,489] Trial 62 failed with value VariableArray(nan).
+[W 2025-04-23 23:01:37,028] Trial 63 failed with parameters: {'t1_value': 0.048829912561982734, 's_shift_cosine': 0.36581600727347574} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 23:01:37,028] Trial 63 failed with value VariableArray(nan).
+[W 2025-04-23 23:12:25,999] Trial 64 failed with parameters: {'t1_value': 0.04579284671487979, 's_shift_cosine': 0.3653584159330334} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 23:12:25,999] Trial 64 failed with value VariableArray(nan).
+[W 2025-04-23 23:23:04,615] Trial 65 failed with parameters: {'t1_value': 0.04823957192162168, 's_shift_cosine': 0.1452752666625643} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 23:23:04,616] Trial 65 failed with value VariableArray(nan).
+[W 2025-04-23 23:33:16,313] Trial 66 failed with parameters: {'t1_value': 0.1982226440930896, 's_shift_cosine': 0.13971078877916687} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 23:33:16,313] Trial 66 failed with value VariableArray(nan).
+[W 2025-04-23 23:43:45,079] Trial 67 failed with parameters: {'t1_value': 0.05783521001408502, 's_shift_cosine': 0.025826963656095714} because of the following error: The value nan is not acceptable.
+[W 2025-04-23 23:43:45,079] Trial 67 failed with value VariableArray(nan).
+[I 2025-04-23 23:54:54,766] Trial 68 finished with value: 0.2592130921336643 and parameters: {'t1_value': 0.036925122460131944, 's_shift_cosine': 3.588989936060755}. Best is trial 68 with value: 0.2592130921336643.
+[W 2025-04-24 00:05:37,179] Trial 69 failed with parameters: {'t1_value': 0.04506823104937946, 's_shift_cosine': 0.25668800990451857} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 00:05:37,179] Trial 69 failed with value VariableArray(nan).
+[W 2025-04-24 00:16:15,010] Trial 70 failed with parameters: {'t1_value': 0.03182890377875915, 's_shift_cosine': 0.027225184443773642} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 00:16:15,011] Trial 70 failed with value VariableArray(nan).
+[I 2025-04-24 00:27:24,715] Trial 71 finished with value: 0.3425507352252802 and parameters: {'t1_value': 0.046285493103911425, 's_shift_cosine': 3.5599377627358986}. Best is trial 68 with value: 0.2592130921336643.
+[W 2025-04-24 00:38:15,816] Trial 72 failed with parameters: {'t1_value': 0.025321451670297795, 's_shift_cosine': 0.4054848586134383} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 00:38:15,816] Trial 72 failed with value VariableArray(nan).
+[W 2025-04-24 00:49:10,750] Trial 73 failed with parameters: {'t1_value': 0.028840067726655372, 's_shift_cosine': 0.4366674705458038} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 00:49:10,751] Trial 73 failed with value VariableArray(nan).
+[W 2025-04-24 01:00:00,995] Trial 74 failed with parameters: {'t1_value': 0.037725607530807434, 's_shift_cosine': 0.4114890094853578} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 01:00:00,996] Trial 74 failed with value VariableArray(nan).
+[W 2025-04-24 01:10:47,794] Trial 75 failed with parameters: {'t1_value': 0.028156949519664905, 's_shift_cosine': 0.23485225741560178} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 01:10:47,795] Trial 75 failed with value VariableArray(nan).
+[W 2025-04-24 01:21:27,318] Trial 76 failed with parameters: {'t1_value': 0.03881494898073848, 's_shift_cosine': 0.09258239931298551} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 01:21:27,318] Trial 76 failed with value VariableArray(nan).
+[W 2025-04-24 01:32:09,651] Trial 77 failed with parameters: {'t1_value': 0.02955975677053124, 's_shift_cosine': 0.1195539083306878} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 01:32:09,651] Trial 77 failed with value VariableArray(nan).
+[W 2025-04-24 01:42:56,718] Trial 78 failed with parameters: {'t1_value': 0.026945672877966374, 's_shift_cosine': 0.26561820962976324} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 01:42:56,718] Trial 78 failed with value VariableArray(nan).
+[W 2025-04-24 01:53:41,151] Trial 79 failed with parameters: {'t1_value': 0.028749047749592936, 's_shift_cosine': 0.19164365836221808} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 01:53:41,151] Trial 79 failed with value VariableArray(nan).
+[W 2025-04-24 02:04:39,551] Trial 80 failed with parameters: {'t1_value': 0.027448647104225635, 's_shift_cosine': 0.6717538269255954} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 02:04:39,551] Trial 80 failed with value VariableArray(nan).
+[W 2025-04-24 02:15:31,239] Trial 81 failed with parameters: {'t1_value': 0.03186354057256338, 's_shift_cosine': 0.37214404458929584} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 02:15:31,239] Trial 81 failed with value VariableArray(nan).
+[W 2025-04-24 02:26:24,284] Trial 82 failed with parameters: {'t1_value': 0.024891179704908253, 's_shift_cosine': 0.45392803168759466} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 02:26:24,284] Trial 82 failed with value VariableArray(nan).
+[W 2025-04-24 02:37:22,427] Trial 83 failed with parameters: {'t1_value': 0.030997430596942856, 's_shift_cosine': 0.7752829709810274} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 02:37:22,427] Trial 83 failed with value VariableArray(nan).
+[W 2025-04-24 02:48:08,063] Trial 84 failed with parameters: {'t1_value': 0.034640972384307425, 's_shift_cosine': 0.27635221382025055} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 02:48:08,064] Trial 84 failed with value VariableArray(nan).
+[W 2025-04-24 02:59:01,823] Trial 85 failed with parameters: {'t1_value': 0.0235249823259848, 's_shift_cosine': 0.5049949461573373} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 02:59:01,823] Trial 85 failed with value VariableArray(nan).
+[I 2025-04-24 03:10:11,541] Trial 86 finished with value: 0.3390654100503838 and parameters: {'t1_value': 0.026801575907572806, 's_shift_cosine': 2.2645073458847684}. Best is trial 68 with value: 0.2592130921336643.
+[W 2025-04-24 03:20:55,253] Trial 87 failed with parameters: {'t1_value': 0.05199300889464299, 's_shift_cosine': 0.24773003377422054} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 03:20:55,253] Trial 87 failed with value VariableArray(nan).
+[I 2025-04-24 03:32:04,786] Trial 88 finished with value: 0.36160614848136907 and parameters: {'t1_value': 0.05701042766396586, 's_shift_cosine': 3.608425148761408}. Best is trial 68 with value: 0.2592130921336643.
+[W 2025-04-24 03:43:05,002] Trial 89 failed with parameters: {'t1_value': 0.09067855664100238, 's_shift_cosine': 0.8563748340929564} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 03:43:05,002] Trial 89 failed with value VariableArray(nan).
+[W 2025-04-24 03:53:31,882] Trial 90 failed with parameters: {'t1_value': 0.08803818872872674, 's_shift_cosine': 0.1247143628107148} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 03:53:31,883] Trial 90 failed with value VariableArray(nan).
+[W 2025-04-24 04:04:35,542] Trial 91 failed with parameters: {'t1_value': 0.08985959518085505, 's_shift_cosine': 0.9021923724653798} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 04:04:35,542] Trial 91 failed with value VariableArray(nan).
+[W 2025-04-24 04:15:28,689] Trial 92 failed with parameters: {'t1_value': 0.01921997347208247, 's_shift_cosine': 0.31319302126420157} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 04:15:28,689] Trial 92 failed with value VariableArray(nan).
+[W 2025-04-24 04:26:08,426] Trial 93 failed with parameters: {'t1_value': 0.08898754355826462, 's_shift_cosine': 0.2915026111420054} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 04:26:08,426] Trial 93 failed with value VariableArray(nan).
+[W 2025-04-24 04:36:33,455] Trial 94 failed with parameters: {'t1_value': 0.08892979464253298, 's_shift_cosine': 0.06526288671749247} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 04:36:33,455] Trial 94 failed with value VariableArray(nan).
+[I 2025-04-24 04:47:43,062] Trial 95 finished with value: 0.44763383408910357 and parameters: {'t1_value': 0.08397486494123566, 's_shift_cosine': 2.8292095318598807}. Best is trial 68 with value: 0.2592130921336643.
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/numpy/core/_methods.py:118: RuntimeWarning: overflow encountered in reduce
+  ret = umr_sum(arr, axis, dtype, out, keepdims, where=where)
+[W 2025-04-24 04:58:44,796] Trial 96 failed with parameters: {'t1_value': 0.01803200885690323, 's_shift_cosine': 0.5355053292699581} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 04:58:44,796] Trial 96 failed with value VariableArray(nan).
+[I 2025-04-24 05:09:58,551] Trial 97 finished with value: 0.8001119948897446 and parameters: {'t1_value': 0.0173681092101455, 's_shift_cosine': 4.350773538781848}. Best is trial 68 with value: 0.2592130921336643.
+[W 2025-04-24 05:20:34,017] Trial 98 failed with parameters: {'t1_value': 0.11898698744891018, 's_shift_cosine': 0.2570929241865323} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 05:20:34,017] Trial 98 failed with value VariableArray(nan).
+[W 2025-04-24 05:31:19,462] Trial 99 failed with parameters: {'t1_value': 0.11669523560134662, 's_shift_cosine': 0.5009068645552612} because of the following error: The value nan is not acceptable.
+[W 2025-04-24 05:31:19,462] Trial 99 failed with value VariableArray(nan).
+Exp: 33 Model: 3 compare_stan
+Kernel type: variance_preserving, noise schedule: cosine
+t_min: 0.00035210439818911254, t_max: 0.999647855758667
+alpha, sigma: (tensor(1.0000), tensor(0.0006)) (tensor(0.0006), tensor(1.0000))
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|        time_embedding.0.scale        |     1      |
+|       time_embedding.1.weight        |     64     |
+|        time_embedding.1.bias         |     8      |
+|   blocks.res_blocks.0.dense.weight   |    4096    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    4096    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|    final_projection_linear.weight    |    768     |
+|     final_projection_linear.bias     |     3      |
++--------------------------------------+------------+
+Total Trainable Params: 272460
+ar1_3_1global_score_model_v_variance_preserving_cosine_likelihood_weighting
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|        time_embedding.0.scale        |     1      |
+|       time_embedding.1.weight        |     64     |
+|        time_embedding.1.bias         |     8      |
+|   blocks.res_blocks.0.dense.weight   |    4352    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    4352    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|    final_projection_linear.weight    |    256     |
+|     final_projection_linear.bias     |     1      |
++--------------------------------------+------------+
+Total Trainable Params: 272458
+ar1_3_1local_score_model_v_variance_preserving_cosine_likelihood_weighting
++---------------------------------------------------+------------+
+|                      Modules                      | Parameters |
++---------------------------------------------------+------------+
+|        global_model.time_embedding.0.scale        |     1      |
+|        global_model.time_embedding.1.weight       |     64     |
+|         global_model.time_embedding.1.bias        |     8      |
+|   global_model.blocks.res_blocks.0.dense.weight   |    4096    |
+|    global_model.blocks.res_blocks.0.dense.bias    |    256     |
+| global_model.blocks.res_blocks.0.projector.weight |    4096    |
+|   global_model.blocks.res_blocks.1.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.1.dense.bias    |    256     |
+|   global_model.blocks.res_blocks.2.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.2.dense.bias    |    256     |
+|   global_model.blocks.res_blocks.3.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.3.dense.bias    |    256     |
+|   global_model.blocks.res_blocks.4.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.4.dense.bias    |    256     |
+|    global_model.final_projection_linear.weight    |    768     |
+|     global_model.final_projection_linear.bias     |     3      |
+|         local_model.time_embedding.0.scale        |     1      |
+|        local_model.time_embedding.1.weight        |     64     |
+|         local_model.time_embedding.1.bias         |     8      |
+|    local_model.blocks.res_blocks.0.dense.weight   |    4352    |
+|     local_model.blocks.res_blocks.0.dense.bias    |    256     |
+|  local_model.blocks.res_blocks.0.projector.weight |    4352    |
+|    local_model.blocks.res_blocks.1.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.1.dense.bias    |    256     |
+|    local_model.blocks.res_blocks.2.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.2.dense.bias    |    256     |
+|    local_model.blocks.res_blocks.3.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.3.dense.bias    |    256     |
+|    local_model.blocks.res_blocks.4.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.4.dense.bias    |    256     |
+|     local_model.final_projection_linear.weight    |    256     |
+|      local_model.final_projection_linear.bias     |     1      |
++---------------------------------------------------+------------+
+Total Trainable Params: 544918
+ar1_3_1hierarchical_score_model_v_variance_preserving_cosine_likelihood_weighting
+Model loaded
+compare_stan
+1024 (100, 1024, 5)
+NaNs in theta at time 0.0650000050663948 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.030000001192092896 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.06300000101327896 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.07300000637769699 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.05300000309944153 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.06400000303983688 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.04400000348687172 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.036000002175569534 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.03400000184774399 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.06599999964237213 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.03100000135600567 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.04700000211596489 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.04400000348687172 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.05900000408291817 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.05900000408291817 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.07800000160932541 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.049000002443790436 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.046000003814697266 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.07900000363588333 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.05100000277161598 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.06599999964237213 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.07300000637769699 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.06200000271201134 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.06599999964237213 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.03500000014901161 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.029000001028180122 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.058000002056360245 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.06200000271201134 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.05900000408291817 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.07700000703334808 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.03200000151991844 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.04200000315904617 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.06200000271201134 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.06599999964237213 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.0650000050663948 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.039000000804662704 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.023000001907348633 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.058000002056360245 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.08400000631809235 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.0560000017285347 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.07600000500679016 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.04000000283122063 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.030000001192092896 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.030000001192092896 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.03200000151991844 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.04800000041723251 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.08800000697374344 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.06200000271201134 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.04200000315904617 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.049000002443790436 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.03100000135600567 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.023000001907348633 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.030000001192092896 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.03500000014901161 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.04800000041723251 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.04200000315904617 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.03500000014901161 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.039000000804662704 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.018000001087784767 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.02800000086426735 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.026000000536441803 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.018000001087784767 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.03700000047683716 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.02500000037252903 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.04000000283122063 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.015000000596046448 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.0650000050663948 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.010000000707805157 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.026000000536441803 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.046000003814697266 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.06800000369548798 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.017000000923871994 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.05300000309944153 with step size: tensor(0.0010, device='cuda:0')
+NaNs in theta at time 0.03700000047683716 with step size: tensor(0.0010, device='cuda:0')
+{'t1_value': 0.036925122460131944, 's_shift_cosine': 3.588989936060755}

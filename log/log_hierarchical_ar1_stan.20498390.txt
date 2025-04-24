@@ -6,3 +6,4 @@ with torch.enable_grad():
 
 in contexts where you need gradients (e.g. custom training loops).
 [I 2025-04-23 11:29:12,005] A new study created in memory with name: no-name-3783cabe-9dc4-4fb9-84ee-110f02481308
+slurmstepd: error: *** JOB 20498390 ON mlgpu015 CANCELLED AT 2025-04-24T11:29:06 DUE TO TIME LIMIT ***
