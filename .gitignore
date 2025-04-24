@@ -4,10 +4,11 @@ problems/grid/
 /problems/gaussian_grid
 /problems/ar1/
 /problems/ar1_grid
+/checkpoints/
+Vanilla FLI.ipynb
 .venv
 
 # Ignore Python bytecode caches
-diffusion_model/__pycache__/
 __pycache__/
 **/__pycache__/
 *.py[cod]
