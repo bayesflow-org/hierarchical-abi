@@ -50,12 +50,6 @@ variable_of_interest, model_id = list(itertools.product(variables_of_interest, m
 
 print('Exp:', experiment_id, 'Model:', model_id, variable_of_interest)
 
-#if variable_of_interest == 'compare_stan' and max_number_of_obs > 1:
-#    model_id = 3
-#if variable_of_interest == 'max_results' and max_number_of_obs > 1:
-#    model_id = 3
-
-
 #%%
 prior = Prior()
 np.random.seed(experiment_id)
@@ -239,13 +233,7 @@ elif variable_of_interest == 'compare_stan':
         }
         score_model.sde.s_shift_cosine = s_shift_cosine
 
-        # test_global_samples = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
-        #                                         n_post_samples=100,
-        #                                         sampling_arg=sampling_arg,
-        #                                         run_sampling_in_parallel=False,
-        #                                         device=torch_device, verbose=False)
-
-        test_global_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+        test_global_samples = euler_maruyama_sampling(score_model, test_data,
                                                            n_post_samples=n_post_samples,
                                                            sampling_arg=sampling_arg,
                                                            diffusion_steps=1000,
@@ -287,12 +275,7 @@ elif variable_of_interest == 'compare_stan':
     }
     score_model.sde.s_shift_cosine = study.best_params['s_shift_cosine']
 
-    # posterior_global_samples_test = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
-    #                                                   n_post_samples=100,
-    #                                                   sampling_arg=mini_batch_arg,
-    #                                                   run_sampling_in_parallel=False,
-    #                                                   device=torch_device, verbose=False)
-    posterior_global_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+    posterior_global_samples_test = euler_maruyama_sampling(score_model, test_data,
                                                   n_post_samples=n_post_samples,
                                                   sampling_arg=sampling_arg,
                                                   diffusion_steps=1000,
@@ -313,7 +296,7 @@ elif variable_of_interest == 'compare_stan':
 
     score_model.sde.s_shift_cosine = 0
     score_model.current_number_of_obs = 1
-    posterior_local_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+    posterior_local_samples_test = euler_maruyama_sampling(score_model, test_data,
                                                            n_post_samples=n_post_samples,
                                                            conditions=posterior_global_samples_test,
                                                            diffusion_steps=300,
@@ -365,14 +348,7 @@ elif variable_of_interest == 'max_results':
             },
         }
         score_model.sde.s_shift_cosine = s_shift_cosine
-
-        # test_global_samples = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
-        #                                         n_post_samples=100,
-        #                                         sampling_arg=sampling_arg,
-        #                                         run_sampling_in_parallel=False,
-        #                                         device=torch_device, verbose=False)
-
-        test_global_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+        test_global_samples = euler_maruyama_sampling(score_model, test_data,
                                                            n_post_samples=n_post_samples,
                                                            sampling_arg=sampling_arg,
                                                            diffusion_steps=1000,
@@ -408,12 +384,7 @@ elif variable_of_interest == 'max_results':
     }
     score_model.sde.s_shift_cosine = 5 #study.best_params['s_shift_cosine']
 
-    # posterior_global_samples_test = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
-    #                                                   n_post_samples=100,
-    #                                                   mini_batch_arg=mini_batch_arg,
-    #                                                   run_sampling_in_parallel=False,
-    #                                                   device=torch_device, verbose=False)
-    posterior_global_samples_test = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+    posterior_global_samples_test = euler_maruyama_sampling(score_model, test_data,
                                                             n_post_samples=n_post_samples,
                                                             sampling_arg=sampling_arg,
                                                             diffusion_steps=1000,
@@ -421,7 +392,7 @@ elif variable_of_interest == 'max_results':
 
     score_model.sde.s_shift_cosine = 0
     score_model.current_number_of_obs = 1
-    posterior_local_samples_test = euler_maruyama_sampling(score_model, test_data[:, :12], obs_n_time_steps=obs_n_time_steps,
+    posterior_local_samples_test = euler_maruyama_sampling(score_model, test_data[:, :12],
                                                            n_post_samples=n_post_samples,
                                                            conditions=posterior_global_samples_test,
                                                            diffusion_steps=300,
@@ -542,7 +513,6 @@ for n in data_sizes:
         try:
             print('global sampling')
             test_global_samples, list_steps = adaptive_sampling(score_model, test_data, conditions=None,
-                                                         obs_n_time_steps=obs_n_time_steps,
                                                          n_post_samples=n_post_samples,
                                                          sampling_arg=mini_batch_arg,
                                                          max_evals=max_steps*2,
@@ -553,7 +523,7 @@ for n in data_sizes:
             score_model.current_number_of_obs = 1
             score_model.sde.s_shift_cosine = 0
             print('local sampling')
-            test_local_samples = euler_maruyama_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+            test_local_samples = euler_maruyama_sampling(score_model, test_data,
                                                       n_post_samples=test_global_samples.shape[1],
                                                       conditions=test_global_samples,
                                                       diffusion_steps=200, random_seed=experiment_id,

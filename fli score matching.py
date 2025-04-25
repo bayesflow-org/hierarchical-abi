@@ -15,8 +15,8 @@ from bayesflow import diagnostics
 
 from torch.utils.data import DataLoader
 
-from diffusion_model import HierarchicalScoreModel, SDE, euler_maruyama_sampling, adaptive_sampling, train_score_model
-from diffusion_model.helper_networks import GaussianFourierProjection, ShallowSet
+from diffusion_model import HierarchicalScoreModel, SDE, euler_maruyama_sampling, train_score_model
+from diffusion_model.helper_networks import GaussianFourierProjection
 from diffusion_model.bayesflow_summary_nets import TimeSeriesNetwork
 from problems.fli import FLIProblem, FLI_Prior, generate_synthetic_data
 from problems import plot_shrinkage, visualize_simulation_output
@@ -143,14 +143,7 @@ sampling_arg = {
 t0_value, t1_value
 #%%
 #score_model.sde.s_shift_cosine = 4
-# posterior_global_samples_valid = adaptive_sampling(score_model, valid_data, obs_n_time_steps=obs_n_time_steps,
-#                                                    n_post_samples=n_post_samples,
-#                                                    #sampling_arg=sampling_arg,
-#                                                    run_sampling_in_parallel=False,
-#                                                    device=torch_device, verbose=True)
-
 posterior_global_samples_valid = euler_maruyama_sampling(score_model, valid_data,
-                                                   obs_n_time_steps=obs_n_time_steps,
                                                    n_post_samples=n_post_samples,
                                                    sampling_arg=sampling_arg,
                                                    diffusion_steps=1000,
@@ -165,7 +158,7 @@ fig.savefig(f'plots/{score_model.name}/ecdf_global.png')
 #%%
 conditions_global = (np.median(posterior_global_samples_valid, axis=0), posterior_global_samples_valid)[1]
 score_model.sde.s_shift_cosine = 0
-posterior_local_samples_valid = euler_maruyama_sampling(score_model, valid_data, obs_n_time_steps=obs_n_time_steps,
+posterior_local_samples_valid = euler_maruyama_sampling(score_model, valid_data,
                                                         n_post_samples=n_post_samples, conditions=conditions_global,
                                                         diffusion_steps=200, device=torch_device, verbose=False)
 #%%

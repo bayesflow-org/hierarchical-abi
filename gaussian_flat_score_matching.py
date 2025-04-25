@@ -260,7 +260,7 @@ for n in data_sizes:
 
         # Run adaptive sampling.
         try:
-            test_samples, list_steps = adaptive_sampling(score_model, test_data, obs_n_time_steps=obs_n_time_steps,
+            test_samples, list_steps = adaptive_sampling(score_model, test_data,
                                                          conditions=None,
                                                          n_post_samples=n_post_samples,
                                                          sampling_arg=mini_batch_arg,
