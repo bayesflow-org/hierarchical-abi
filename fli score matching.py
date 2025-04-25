@@ -15,14 +15,9 @@ from bayesflow import diagnostics
 
 from torch.utils.data import DataLoader
 
-from diffusion_model import HierarchicalScoreModel, SDE, adaptive_sampling, euler_maruyama_sampling, train_score_model
-from diffusion_model.helper_networks import GaussianFourierProjection, GRUEncoder
-try:
-    import mamba_ssm
-    from diffusion_model.bayesflow_summary_nets import Mamba as CustomSummaryNetwork
-except ImportError:
-    print('Mamba not available, using TimeSeriesNetwork instead')
-    from diffusion_model.bayesflow_summary_nets import TimeSeriesNetwork as CustomSummaryNetwork
+from diffusion_model import HierarchicalScoreModel, SDE, euler_maruyama_sampling, adaptive_sampling, train_score_model
+from diffusion_model.helper_networks import GaussianFourierProjection, ShallowSet
+from diffusion_model.bayesflow_summary_nets import TimeSeriesNetwork
 from problems.fli import FLIProblem, FLI_Prior, generate_synthetic_data
 from problems import plot_shrinkage, visualize_simulation_output
 #%%
@@ -60,8 +55,7 @@ dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=Fals
 #%%
 # Define diffusion model
 hidden_dim_summary = 32 # 18
-#summary_net = GRUEncoder(input_size=1, summary_dim=hidden_dim_summary)
-summary_net = CustomSummaryNetwork(input_dim=1, summary_dim=hidden_dim_summary)
+summary_net = TimeSeriesNetwork(input_dim=1, recurrent_dim=256, summary_dim=hidden_dim_summary)
 
 global_summary_dim = 32 #18
 #global_summary_net = ShallowSet(dim_input=hidden_dim_summary, dim_output=global_summary_dim, dim_hidden=16)
@@ -103,7 +97,7 @@ if not os.path.exists(f"plots/{score_model.name}"):
 if not os.path.exists(f"models/{score_model.name}.pt"):
     # train model
     loss_history = train_score_model(score_model, dataloader, dataloader_valid=dataloader_valid, hierarchical=True,
-                                                  epochs=5000, device=torch_device)
+                                                  epochs=3000, device=torch_device)
     score_model.eval()
     torch.save(score_model.state_dict(), f"models/{score_model.name}.pt")
 

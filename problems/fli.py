@@ -1,19 +1,25 @@
 import numpy as np
 import torch
 
-from scipy.special import expit
+from scipy.special import expit, logit
 from torch.utils.data import Dataset
 from diffusion_model.helper_functions import generate_diffusion_time
 
 class Simulator:
     def __init__(self):
         self.gw = 12500/256  # gate width in ps
-
-        self.noise = np.load('problems/FLI/noise_micro.npy')
-        self.pIRF = np.load('problems/FLI/irf_micro.npy')
+        try:
+            self.noise = np.load('problems/FLI/noise_micro.npy')
+            self.pIRF = np.load('problems/FLI/irf_micro.npy')
+        except FileNotFoundError:
+            self.noise = np.load('noise_micro.npy')
+            self.pIRF = np.load('irf_micro.npy')
+            #self.noise = np.load('system_noise.npy')
+            #self.pIRF = np.load('IRF.npy')
 
         self.n_time_points = self.pIRF.shape[2]
         self.img_size_full = (self.pIRF.shape[0], self.pIRF.shape[1])
+        self.max_pIRF = np.max(self.pIRF)
 
     def __call__(self, params):
         # Convert parameters to numpy arrays.
@@ -27,37 +33,30 @@ class Simulator:
         F_dec_conv = np.stack(sims)
         return dict(observable=F_dec_conv)
 
-    def _sample_noise(self):
+    def _sample_noise(self, scale=1):
         i = np.random.choice(self.noise.shape[0])
         j = np.random.choice(self.noise.shape[1])
-        return self.noise[i, j]
-
-        # # augment noise, can be forward or backward
-        # if np.random.rand() > 0.8:
-        #     noise = self.noise[i, j]
-        # else:
-        #     arr = np.arange(self.noise.shape[2])
-        #     np.random.shuffle(arr)
-        #     noise = self.noise[i, j, arr]
-        # return noise
+        return scale * self.noise[i, j]
 
     def decay_gen_single(self, tau_L, tau_L_2, A_L):
-        img = np.random.randint(0, high=5, size=(1, 1))
-        cropped_pIRF = self._random_crop(self.pIRF, crop_size=(1, 1))
+        cropped_pIRF = self._random_crop(self.pIRF, crop_size=(1, 1))  / self.max_pIRF
         a1, b1, c1 = np.shape(cropped_pIRF)
         t = np.linspace(0, c1 * (self.gw * (10 ** -3)), c1)
-        t_minus = np.multiply(t, -1)
-
-        A = np.multiply(A_L, np.exp(np.divide(t_minus, tau_L)))
-        B = np.multiply(A_L, np.exp(np.divide(t_minus, tau_L_2)))
+        A = A_L * np.exp(-t / tau_L)
+        B = (1-A_L) * np.exp(-t / tau_L_2)
         dec = A + B
-        irf_out = self._norm1D(cropped_pIRF[0,0])
-        dec_conv = self._conv_dec(self._norm1D(dec), irf_out)
-        dec_conv = self._norm1D(np.squeeze(dec_conv)) * img
+        irf_out = cropped_pIRF[0,0] #self._norm1D(cropped_pIRF[0,0])
+        #dec_conv = self._conv_dec(self._norm1D(dec), irf_out)
+        dec_conv = self._conv_dec(dec, irf_out)
+
+        # add noise
         dec_conv += self._sample_noise()
 
+        # normalise output
+        #dec_conv = self._norm1D(dec_conv)
+
         # truncated from below
-        dec_conv = np.maximum(dec_conv, 0)
+        dec_conv = np.maximum(dec_conv, 0) / 3.5
         return dec_conv
 
     @staticmethod
@@ -75,44 +74,12 @@ class Simulator:
         # Crop the subarray
         return array[top:top + a, left:left + b, :]
 
-    def decay_gen_full(self, tau_L, tau_L_2, A_L):  # IRF, Gate_width (in ps)
-        if tau_L.size != self.img_size_full[0] * self.img_size_full[1]:
-            raise ValueError("tau_L must be the same size as the image")
-
-        img = np.random.randint(0, high=5, size=(self.img_size_full[0], self.img_size_full[1]))
-
-        a, b = np.shape(img)
-        a1, b1, c1 = np.shape(self.pIRF)
-        t = np.linspace(0, c1 * (self.gw * (10 ** -3)), c1)
-        t_minus = np.multiply(t, -1)
-        tau1 = np.reshape(tau_L, (a, b))
-        tau2 = np.reshape(tau_L_2, (a, b))
-        frac1 = np.reshape(A_L, (a, b))
-        frac2 = 1 - frac1
-        A = np.zeros([c1])
-        B = np.zeros([c1])
-        i = np.random.randint(a)
-        j = np.random.randint(b)
-        if tau1[i, j] != 0:
-            A = np.multiply(frac1[i, j], np.exp(np.divide(t_minus, tau1[i, j])))
-        if tau2[i, j] != 0:
-            B = np.multiply(frac2[i, j], np.exp(np.divide(t_minus, tau2[i, j])))
-        dec = A + B
-        irf_out = self._norm1D(self.pIRF[i, j, :])
-        dec_conv = self._conv_dec(self._norm1D(dec), irf_out)
-        dec_conv = self._norm1D(np.squeeze(dec_conv)) * img[i, j]
-        dec_conv += self.noise[i, j, :]
-
-        # truncated from below
-        dec_conv = np.maximum(dec_conv, 0)
-        return dec_conv
-
     @staticmethod
     def _norm1D(fn):
         if np.amax(fn) == 0:
             nfn = fn
         else:
-            nfn = np.divide(fn, np.amax(fn))
+            nfn = fn / np.amax(fn)
         return nfn
 
     @staticmethod
@@ -126,49 +93,87 @@ class FLI_Prior:
     """
     Prior parameters for the FLI problem. All hyper-priors are log-normal.
     """
-    def __init__(self):
-        self.tau1_mean_hyperprior_mean = np.log(0.2)
-        self.tau1_mean_hyperprior_std = 0.7
-        self.tau1_std_hyperprior_mean = -1
-        self.tau1_std_hyperprior_std = 0.1
-
-        self.delta_tau_mean_hyperprior_mean = np.log(1.2)
-        self.delta_tau_mean_hyperprior_std = 0.5
-        self.delta_tau_std_hyperprior_mean = -2
-        self.delta_tau_std_hyperprior_std = 0.1
-
-        self.a_mean_hyperprior_mean = 0
-        self.a_mean_hyperprior_std = 1
-        self.a_std_hyperprior_mean = -1
-        self.a_std_hyperprior_std = 1
-
-        self.global_param_names = [r'$\log \tau_1^G$', r'$\log \sigma_{\tau_1^G}$',
-                                   r'$\log \Delta\tau_2^G$', r'$\log \sigma_{\Delta\tau_2^G}$',
-                                   r'$a^G$', r'$\log \sigma_{a^G}$']
-
-        # Build prior parameters as tensors.
-        self.hyper_prior_means = torch.tensor(
-            [self.tau1_mean_hyperprior_mean,
-             self.tau1_std_hyperprior_mean,
-             self.delta_tau_mean_hyperprior_mean,
-             self.delta_tau_std_hyperprior_mean,
-             self.a_mean_hyperprior_mean,
-             self.a_std_hyperprior_mean],
-            dtype=torch.float32
-        )
-        self.hyper_prior_stds = torch.tensor(
-            [self.tau1_mean_hyperprior_std,
-             self.tau1_std_hyperprior_std,
-             self.delta_tau_mean_hyperprior_std,
-             self.delta_tau_std_hyperprior_std,
-             self.a_mean_hyperprior_std,
-             self.a_std_hyperprior_std],
-            dtype=torch.float32
-        )
-
-        self._sample_global()
+    def __init__(self, parameterization='difference'):
         self.n_params_global = 6
         self.n_params_local = 3
+        self.parameterization = parameterization
+
+        self.a_mean_hyperprior_mean = logit(0.6)  # skewed towards higher values
+        self.a_mean_hyperprior_std = 1
+        self.a_std_hyperprior_mean = -1
+        self.a_std_hyperprior_std = 0.5
+
+        if self.parameterization == 'difference':
+            self.tau1_mean_hyperprior_mean = np.log(0.2)
+            self.tau1_mean_hyperprior_std = 0.7
+            self.tau1_std_hyperprior_mean = -1
+            self.tau1_std_hyperprior_std = 0.1
+
+            self.delta_tau_mean_hyperprior_mean = np.log(1.)
+            self.delta_tau_mean_hyperprior_std = 0.5
+            self.delta_tau_std_hyperprior_mean = -2
+            self.delta_tau_std_hyperprior_std = 0.1
+
+            self.global_param_names = [r'$\log \tau_1^G$', r'$\log \sigma_{\tau_1^G}$',
+                                       r'$\log \Delta\tau_2^G$', r'$\log \sigma_{\Delta\tau_2^G}$',
+                                       r'$a^G$', r'$\log \sigma_{a^G}$']
+
+            # Build prior parameters as tensors.
+            self.hyper_prior_means = torch.tensor(
+                [self.tau1_mean_hyperprior_mean,
+                 self.tau1_std_hyperprior_mean,
+                 self.delta_tau_mean_hyperprior_mean,
+                 self.delta_tau_std_hyperprior_mean,
+                 self.a_mean_hyperprior_mean,
+                 self.a_std_hyperprior_mean],
+                dtype=torch.float32
+            )
+            self.hyper_prior_stds = torch.tensor(
+                [self.tau1_mean_hyperprior_std,
+                 self.tau1_std_hyperprior_std,
+                 self.delta_tau_mean_hyperprior_std,
+                 self.delta_tau_std_hyperprior_std,
+                 self.a_mean_hyperprior_std,
+                 self.a_std_hyperprior_std],
+                dtype=torch.float32)
+        else:
+            # s = tau1 + tau2
+            # r = tau2 / tau1, r = 1 + exp(log_r_L), such that r is always > 1 and tau2 > tau1
+            self.log_s_mean_hyperprior_mean = np.log(2.0)
+            self.log_s_mean_hyperprior_std = 0.3
+            self.log_s_std_hyperprior_mean = -2
+            self.log_s_std_hyperprior_std = 0.1
+
+            self.log_r_mean_hyperprior_mean = 0.0  # ratio ~2
+            self.log_r_mean_hyperprior_std = 0.3
+            self.log_r_std_hyperprior_mean = -2
+            self.log_r_std_hyperprior_std = 0.1
+
+            self.global_param_names = [r'$\log s^G$', r'$\log \sigma_{s^G}$',
+                                       r'$\log r^G$', r'$\log \sigma_{r^G}$',
+                                       r'$a^G$', r'$\log \sigma_{a^G}$']
+
+            # Build prior parameters as tensors.
+            self.hyper_prior_means = torch.tensor(
+                [self.log_s_mean_hyperprior_mean,
+                 self.log_s_std_hyperprior_mean,
+                 self.log_r_mean_hyperprior_mean,
+                 self.log_r_std_hyperprior_mean,
+                 self.a_mean_hyperprior_mean,
+                 self.a_std_hyperprior_mean],
+                dtype=torch.float32
+            )
+            self.hyper_prior_stds = torch.tensor(
+                [self.log_s_mean_hyperprior_std,
+                 self.log_s_std_hyperprior_std,
+                 self.log_r_mean_hyperprior_std,
+                 self.log_r_std_hyperprior_std,
+                 self.a_mean_hyperprior_std,
+                 self.a_std_hyperprior_std],
+                dtype=torch.float32
+            )
+
+        self._sample_global()
 
         np.random.seed(0)
         self.simulator = Simulator()
@@ -183,43 +188,100 @@ class FLI_Prior:
         self.norm_prior_local_std = torch.tensor(np.std(test['local_params'], axis=0), dtype=torch.float32)
         self.current_device = 'cpu'
 
-    @staticmethod
-    def get_local_param_names(n_local_samples):
-        names = [[r'$\log \tau_1^{L' + str(i) + '}$',
-                  r'$\log \Delta\tau_2^{L' + str(i) + '}$',
-                  r'$\log a^{L' + str(i) + '}$'] for i in range(n_local_samples)]
+    def get_local_param_names(self, n_local_samples):
+        if self.parameterization == 'difference':
+            names = [[r'$\log \tau_1^{L' + str(i) + '}$',
+                      r'$\log \Delta\tau_2^{L' + str(i) + '}$',
+                      r'$\log a^{L' + str(i) + '}$'] for i in range(n_local_samples)]
+        else:
+            names = [[r'$\log s^{L' + str(i) + '}$',
+                      r'$\log r^{L' + str(i) + '}$',
+                      r'$\log a^{L' + str(i) + '}$'] for i in range(n_local_samples)]
         return np.concatenate(names)
 
 
     def _sample_global(self):
-        self.log_tau_G = np.random.normal(self.tau1_mean_hyperprior_mean, self.tau1_mean_hyperprior_std)
-        self.log_sigma_tau_G = np.random.normal(self.tau1_std_hyperprior_mean, self.tau1_std_hyperprior_std)
-
-        self.log_delta_tau_G = np.random.normal(self.delta_tau_mean_hyperprior_mean, self.delta_tau_mean_hyperprior_std)
-        self.log_delta_sigma_tau_G = np.random.normal(self.delta_tau_std_hyperprior_mean, self.delta_tau_std_hyperprior_std)
 
         self.a_mean = np.random.normal(self.a_mean_hyperprior_mean, self.a_mean_hyperprior_std)
         self.a_log_std = np.random.normal(self.a_std_hyperprior_mean, self.a_std_hyperprior_std)
 
-        # transform parameters
-        tau_G, tau_G_2, A_G, tau_G_std, tau_G_2_std, A_G_std = self.transform_raw_params(
-            self.log_tau_G, self.log_delta_tau_G, self.a_mean,
-            self.log_sigma_tau_G, self.log_delta_sigma_tau_G, self.a_log_std
+        if self.parameterization == 'difference':
+            self.log_tau_G = np.random.normal(self.tau1_mean_hyperprior_mean, self.tau1_mean_hyperprior_std)
+            self.log_sigma_tau_G = np.random.normal(self.tau1_std_hyperprior_mean, self.tau1_std_hyperprior_std)
+
+            self.log_delta_tau_G = np.random.normal(self.delta_tau_mean_hyperprior_mean,
+                                                    self.delta_tau_mean_hyperprior_std)
+            self.log_delta_sigma_tau_G = np.random.normal(self.delta_tau_std_hyperprior_mean,
+                                                          self.delta_tau_std_hyperprior_std)
+
+            raw_params = dict(
+                log_tau_G=self.log_tau_G, log_sigma_tau_G=self.log_sigma_tau_G,
+                log_delta_tau_G=self.log_delta_tau_G, log_delta_sigma_tau_G=self.log_delta_sigma_tau_G,
+                a_mean=self.a_mean, a_log_std=self.a_log_std
+            )
+            # transform parameters
+            tau_G, tau_G_2, A_G, tau_G_std, tau_G_2_std, A_G_std = self.transform_raw_params(
+                log_tau=self.log_tau_G, log_delta_tau=self.log_delta_tau_G, a=self.a_mean,
+                log_tau_std=self.log_sigma_tau_G, log_delta_tau_std=self.log_delta_sigma_tau_G, log_a_std=self.a_log_std
+            )
+        else:
+            self.log_s_G_mean = np.random.normal(self.log_s_mean_hyperprior_mean, self.log_s_mean_hyperprior_std)
+            self.log_s_G_std = np.random.normal(self.log_s_std_hyperprior_mean, self.log_s_std_hyperprior_std)
+
+            self.log_r_G_mean = np.random.normal(self.log_r_mean_hyperprior_mean, self.log_r_mean_hyperprior_std)
+            self.log_r_G_std = np.random.normal(self.log_r_std_hyperprior_mean, self.log_r_std_hyperprior_std)
+
+            raw_params = dict(
+                log_s_G_mean=self.log_s_G_mean, log_s_G_std=self.log_s_G_std,
+                log_r_G_mean=self.log_r_G_mean, log_r_G_std=self.log_r_G_std,
+                a_mean=self.a_mean, a_log_std=self.a_log_std
+            )
+            # transform parameters
+            tau_G, tau_G_2, A_G, tau_G_std, tau_G_2_std, A_G_std = self.transform_raw_params_ratios(
+                log_r_L=self.log_r_G_mean, log_s_L=self.log_s_G_mean, a=self.a_mean,
+                log_s_G_std=self.log_s_G_std, log_r_G_std=self.log_r_G_std, log_a_std=self.a_log_std
+            )
+        trans_params = dict(
+            tau_G=tau_G, tau_G_std=tau_G_std,
+            tau_G_2=tau_G_2, tau_G_2_std=tau_G_2_std,
+            A_G=A_G, A_G_std=A_G_std
         )
-        return dict(log_tau_G=self.log_tau_G, log_sigma_tau_G=self.log_sigma_tau_G,
-                    log_delta_tau_G=self.log_delta_tau_G, log_delta_sigma_tau_G=self.log_delta_sigma_tau_G,
-                    a_mean=self.a_mean, a_log_std=self.a_log_std,
-                    tau_G=tau_G, tau_G_2=tau_G_2, A_G=A_G, tau_G_std=tau_G_std, tau_G_2_std=tau_G_2_std, A_G_std=A_G_std)
+        return raw_params, trans_params
 
     def _sample_local(self, n_local_samples):
-        log_tau_L = np.random.normal(self.log_tau_G, np.exp(self.log_sigma_tau_G), size=n_local_samples)
-        log_delta_tau_L = np.random.normal(self.log_delta_tau_G, np.exp(self.log_delta_sigma_tau_G), size=n_local_samples)
         a_l = np.random.normal(self.a_mean, np.exp(self.a_log_std), size=n_local_samples)
 
-        # transform parameters
-        tau_L, tau_L_2, A_L = self.transform_raw_params(log_tau_L, log_delta_tau_L, a_l)
-        return dict(log_tau_L=log_tau_L, log_delta_tau_L=log_delta_tau_L, a_l=a_l,
-                    tau_L=tau_L, tau_L_2=tau_L_2, A_L=A_L)
+        if self.parameterization == 'difference':
+            log_tau_L = np.random.normal(self.log_tau_G, np.exp(self.log_sigma_tau_G), size=n_local_samples)
+            log_delta_tau_L = np.random.normal(self.log_delta_tau_G, np.exp(self.log_delta_sigma_tau_G),
+                                               size=n_local_samples)
+            raw_params = dict(
+                log_tau_L=log_tau_L, log_delta_tau_L=log_delta_tau_L, a_l=a_l
+            )
+            # transform parameters
+            tau_L, tau_L_2, A_L = self.transform_raw_params(
+                log_tau=log_tau_L,
+                log_delta_tau=log_delta_tau_L,
+                a=a_l
+            )
+        else:
+            log_s_L = np.random.normal(self.log_s_G_mean, np.exp(self.log_s_G_std), size=n_local_samples)
+            log_r_L = np.random.normal(self.log_r_G_mean, np.exp(self.log_r_G_std), size=n_local_samples)
+
+            raw_params = dict(
+                log_r_L=log_r_L, log_s_L=log_s_L, a_l=a_l
+            )
+            # transform parameters
+            tau_L, tau_L_2, A_L = self.transform_raw_params_ratios(
+                log_r_L=log_r_L,
+                log_s_L=log_s_L,
+                a=a_l
+            )
+
+        trans_params = dict(
+            tau_L=tau_L, tau_L_2=tau_L_2, A_L=A_L
+        )
+        return raw_params, trans_params
 
     @staticmethod
     def transform_raw_params(log_tau, log_delta_tau, a, log_tau_std=None, log_delta_tau_std=None, log_a_std=None):
@@ -231,6 +293,37 @@ class FLI_Prior:
             tau_std = tau * np.exp(log_tau_std)
             tau_2_std = np.sqrt((tau * np.exp(log_tau_std))**2 + (np.exp(log_delta_tau) * np.exp(log_delta_tau_std))**2)
             A_std = A * (1 - A) * np.exp(log_a_std)
+            return tau, tau_2, A, tau_std, tau_2_std, A_std
+        return tau, tau_2, A
+
+    @staticmethod
+    def transform_raw_params_ratios(log_r_L, log_s_L, a, log_s_G_std=None, log_r_G_std=None, log_a_std=None):
+        r = 1 + np.exp(log_r_L)
+        s = np.exp(log_s_L)
+        A = expit(a)
+        tau = s / (1 + r)
+        tau_2 = r * tau
+
+        if log_s_G_std is not None and log_r_G_std is not None and log_a_std is not None:
+            sigma_r = np.exp(log_r_G_std)
+            sigma_s = np.exp(log_s_G_std)
+            sigma_a = np.exp(log_a_std)
+
+            # propagate into tau = s/(1+r)
+            #   ∂tau/∂s = 1/(1+r)    →   var_s term = (tau * sigma_s)^2
+            #   ∂tau/∂r = -s/(1+r)^2 →   var_r term = (tau * r/(1+r) * sigma_r)^2
+            tau_std = np.sqrt(
+                (tau * sigma_s) ** 2 +
+                (tau * r / (1 + r) * sigma_r) ** 2
+            )
+
+            # propagate into tau2 = r * tau1
+            #   best combined: var = var(r τ1) + var(τ1 r)
+            #   ≈ (tau2 * sigma_r)**2 + (tau2 * sigma_s)**2
+            tau_2_std = tau_2 * np.sqrt(sigma_r ** 2 + sigma_s ** 2)
+
+            # amplitude A = sigmoid(a), so ∂A/∂a = A(1−A)
+            A_std = A * (1 - A) * sigma_a
             return tau, tau_2, A, tau_std, tau_2_std, A_std
         return tau, tau_2, A
 
@@ -247,25 +340,16 @@ class FLI_Prior:
         data = np.zeros((batch_size, n_local_samples, self.n_time_points))
 
         for i in range(batch_size):
-            global_sample = self._sample_global()
-            local_sample = self._sample_local(n_local_samples=n_local_samples)
-            sim = self.simulator(local_sample)
+            global_sample_raw, global_sample_trans = self._sample_global()
+            local_sample_raw, local_sample_trans = self._sample_local(n_local_samples=n_local_samples)
+            sim = self.simulator(local_sample_trans)
 
             if not transform_params:
-                global_params[i] = [global_sample['log_tau_G'], global_sample['log_sigma_tau_G'],
-                                    global_sample['log_delta_tau_G'], global_sample['log_delta_sigma_tau_G'],
-                                    global_sample['a_mean'], global_sample['a_log_std']]
-
-                local_params[i] = np.stack((local_sample['log_tau_L'],
-                                                  local_sample['log_delta_tau_L'],
-                                                  local_sample['a_l']), axis=-1)
+                global_params[i] = np.array(list(global_sample_raw.values()))
+                local_params[i] = np.stack(list(local_sample_raw.values()), axis=-1)
             else:
-                global_params[i] = [global_sample['tau_G'], global_sample['tau_G_std'],
-                                    global_sample['tau_G_2'], global_sample['tau_G_2_std'],
-                                    global_sample['A_G'], global_sample['A_G_std']]
-                local_params[i] = np.stack((local_sample['tau_L'],
-                                            local_sample['tau_L_2'],
-                                            local_sample['A_L']), axis=-1)
+                global_params[i] = np.array(list(global_sample_trans.values()))
+                local_params[i] = np.stack(list(local_sample_trans.values()), axis=-1)
             data[i] = sim['observable'].reshape(n_local_samples, self.n_time_points)
 
         if not np.isfinite(global_params).all():
@@ -274,32 +358,32 @@ class FLI_Prior:
             raise ValueError('Non-finite local parameters')
         return dict(global_params=global_params, local_params=local_params, data=data)
 
-    def sample_full(self, batch_size):
-        """
-        Sample a batch of data. The data is returned as a dictionary.
-        IRF and noise are NOT randomly sampled for each pixel, and image size if fixed for more realistic data.
-        """
-        n_local_samples = self.simulator.img_size_full.shape[0] * self.simulator.img_size_full.shape[1]
-
-        global_params = np.zeros((batch_size, self.n_params_global))
-        local_params = np.zeros((batch_size, n_local_samples, self.n_params_local))
-        data = np.zeros((batch_size, n_local_samples, self.n_time_points))
-
-        for i in range(batch_size):
-            global_sample = self._sample_global()
-            local_sample = self._sample_local(n_local_samples=n_local_samples)
-            sim = self.simulator.decay_gen_full(
-                tau_L=local_sample['tau_L'],
-                tau_L_2=local_sample['tau_L_2'],
-                A_L=local_sample['A_L']
-            )
-
-            global_params[i] = [global_sample['log_tau_G'], global_sample['log_sigma_tau_G'],
-                                global_sample['log_delta_tau_G'], global_sample['log_delta_sigma_tau_G'],
-                                global_sample['a_mean'], global_sample['a_log_std']]
-            local_params[i] = [local_sample['log_tau_L'], local_sample['log_delta_tau_L'], local_sample['a_l']]
-            data[i] = sim['observable'].reshape(n_local_samples, self.n_time_points)
-        return dict(global_params=global_params, local_params=local_params, data=data)
+    # def sample_full(self, batch_size):
+    #     """
+    #     Sample a batch of data. The data is returned as a dictionary.
+    #     IRF and noise are NOT randomly sampled for each pixel, and image size if fixed for more realistic data.
+    #     """
+    #     n_local_samples = self.simulator.img_size_full.shape[0] * self.simulator.img_size_full.shape[1]
+    #
+    #     global_params = np.zeros((batch_size, self.n_params_global))
+    #     local_params = np.zeros((batch_size, n_local_samples, self.n_params_local))
+    #     data = np.zeros((batch_size, n_local_samples, self.n_time_points))
+    #
+    #     for i in range(batch_size):
+    #         global_sample = self._sample_global()
+    #         local_sample = self._sample_local(n_local_samples=n_local_samples)
+    #         sim = self.simulator.decay_gen_full(
+    #             tau_L=local_sample['tau_L'],
+    #             tau_L_2=local_sample['tau_L_2'],
+    #             A_L=local_sample['A_L']
+    #         )
+    #
+    #         global_params[i] = [global_sample['log_tau_G'], global_sample['log_sigma_tau_G'],
+    #                             global_sample['log_delta_tau_G'], global_sample['log_delta_sigma_tau_G'],
+    #                             global_sample['a_mean'], global_sample['a_log_std']]
+    #         local_params[i] = [local_sample['log_tau_L'], local_sample['log_delta_tau_L'], local_sample['a_l']]
+    #         data[i] = sim['observable'].reshape(n_local_samples, self.n_time_points)
+    #     return dict(global_params=global_params, local_params=local_params, data=data)
 
     def score_global_batch(self, theta_batch_norm, condition_norm=None):
         """ Computes the global score for a batch of parameters."""
@@ -484,4 +568,3 @@ class FLIProblem(Dataset):
         if self._amortize_n_conditions:
             # sample number of observations
             self._current_n_obs = np.random.choice(self._number_of_obs_list)
-
