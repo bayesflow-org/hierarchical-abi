@@ -72,7 +72,7 @@ dataset = AR1GridProblem(
     online_learning=True,
     number_of_obs=number_of_obs,
     amortize_time=False,
-    #as_set=True
+    as_set=True
 )
 
 dataset_valid = AR1GridProblem(
@@ -80,7 +80,7 @@ dataset_valid = AR1GridProblem(
     prior=prior,
     sde=current_sde,
     number_of_obs=number_of_obs,
-    #as_set=True,
+    as_set=True,
 )
 
 # Create dataloader
@@ -92,7 +92,7 @@ dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=Fals
 global_summary_dim = 5
 obs_n_time_steps = 0
 global_summary_net = ShallowSet(dim_input=5, dim_output=global_summary_dim, dim_hidden=16)
-local_summary_net = GRUEncoder(input_size=1, summary_dim=5, num_layers=1, hidden_size=16, dropout=0)
+#local_summary_net = GRUEncoder(input_size=1, summary_dim=5, num_layers=1, hidden_size=16, dropout=0)
 
 time_dim = 8
 time_embedding_local = nn.Sequential(
@@ -113,7 +113,7 @@ score_model = HierarchicalScoreModel(
     input_dim_x_global=global_summary_dim,
     global_summary_net=global_summary_net if isinstance(number_of_obs, list) else None,
     input_dim_x_local=global_summary_dim,
-    summary_net=local_summary_net,
+    #summary_net=local_summary_net,
     time_embedding_local=time_embedding_local,
     time_embedding_global=time_embedding_global,
     hidden_dim=256,
@@ -123,8 +123,9 @@ score_model = HierarchicalScoreModel(
     sde=current_sde,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
-    #name_prefix=f'ar1_{model_id}_{max_number_of_obs}'
-    name_prefix=f'ar1_GRU_'
+    #dropout_rate=0.1,
+    name_prefix=f'ar1_{model_id}_{max_number_of_obs}'
+    #name_prefix=f'ar1_dropout_'
 )
 
 # make dir for plots
@@ -217,42 +218,44 @@ elif variable_of_interest == 'compare_stan':
     print(n_grid_stan * n_grid_stan, test_data.shape)
 
     def objective(trial):
-        t1_value = trial.suggest_float('t1_value', 0.001, 0.2)
-        s_shift_cosine = trial.suggest_float('s_shift_cosine', 0, 7)
-        #tau1 = trial.suggest_float('tau_1', 0.4, 0.9)
-        #tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.4), 1)
+        t1_value = trial.suggest_float('t1_value', 0.01, 0.2)
+        s_shift_cosine = trial.suggest_float('s_shift_cosine', 0, 5)
+        tau1 = trial.suggest_float('tau_1', 0.5, 1.)
+        tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.5), 1.)
+        noise_scale = trial.suggest_float('noise_scale', 0.1, 2.)
+        mixing_factor = trial.suggest_float('mixing_factor', 0, 1.)
+        diffusion_steps = trial.suggest_int('diffusion_steps', 500, 1000)
 
         t0_value = 1
         sampling_arg = {
-            'size': 8,
+            'size': 1,
             'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
             'noisy_condition': {
-                'apply': False,
-                'noise_scale': 1.,
-                #'tau_1': tau1,
-                #'tau_2': tau2,
-                'mixing_factor': 1.
+                'apply': True,
+                'noise_scale': noise_scale,
+                'tau_1': tau1,
+                'tau_2': tau2,
+                'mixing_factor': mixing_factor
             },
-            'sampling_chunk_size': 2048 * 10
         }
         score_model.sde.s_shift_cosine = s_shift_cosine
 
         test_global_samples = euler_maruyama_sampling(score_model, test_data,
-                                                           n_post_samples=n_post_samples,
-                                                           sampling_arg=sampling_arg,
-                                                           diffusion_steps=1000,
-                                                           device=torch_device, verbose=False)
+                                                      n_post_samples=n_post_samples,
+                                                      sampling_arg=sampling_arg,
+                                                      diffusion_steps=diffusion_steps,
+                                                      device=torch_device, verbose=False)
 
         fig = diagnostics.recovery(test_global_samples, true_global, variable_names=global_param_names)
-        fig.savefig(f'plots/{score_model.name}/recovery_global_ours_grid{N}_{t1_value}_{s_shift_cosine}.png')
+        fig.savefig(f'plots/{score_model.name}/recovery_global_ours_grid{N}_{trial.number}.png')
 
         fig = diagnostics.recovery(test_global_samples, np.median(global_posterior_stan, axis=1),
                                    variable_names=global_param_names, xlabel='STAN Median Estimate')
-        fig.savefig(f'plots/{score_model.name}/recovery_global_ours_vs_STAN_grid{N}_{t1_value}_{s_shift_cosine}.png')
+        fig.savefig(f'plots/{score_model.name}/recovery_global_ours_vs_STAN_grid{N}_{trial.number}.png')
 
         fig = diagnostics.calibration_ecdf(test_global_samples, true_global, difference=True,
                                            variable_names=global_param_names)
-        fig.savefig(f'plots/{score_model.name}/ecdf_global_ours_grid{N}_{t1_value}_{s_shift_cosine}.png')
+        fig.savefig(f'plots/{score_model.name}/ecdf_global_ours_grid{N}_{trial.number}.png')
 
         c_error = diagnostics.calibration_error(test_global_samples, true_global)['values'].mean()
         rmse = diagnostics.root_mean_squared_error(test_global_samples, true_global)['values'].mean()
@@ -260,29 +263,27 @@ elif variable_of_interest == 'compare_stan':
 
     study = optuna.create_study()
     study.optimize(objective, n_trials=100)
-
     print(study.best_params)
 
     t1_value = study.best_params['t1_value']
     t0_value = 1
     sampling_arg = {
-        'size': 8,
+        'size': 1,
         'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
         'noisy_condition': {
-            'apply': False,
-            'noise_scale': 1.,
-            #'tau_1': study.best_params['tau_1'],
-            #'tau_2': min(study.best_params['tau_1'] + study.best_params['delta_tau_2'], 1),
-            'mixing_factor': 1.
+            'apply': True,
+            'noise_scale': study.best_params['noise_scale'],
+            'tau_1': study.best_params['tau_1'],
+            'tau_2': min(study.best_params['tau_1'] + study.best_params['delta_tau_2'], 1),
+            'mixing_factor': study.best_params['mixing_factor']
         },
-        'sampling_chunk_size': 2048 * 10
     }
     score_model.sde.s_shift_cosine = study.best_params['s_shift_cosine']
 
     posterior_global_samples_test = euler_maruyama_sampling(score_model, test_data,
                                                   n_post_samples=n_post_samples,
                                                   sampling_arg=sampling_arg,
-                                                  diffusion_steps=1000,
+                                                  diffusion_steps=study.best_params['diffusion_steps'],
                                                   device=torch_device, verbose=False)
 
     np.save(f'problems/ar1/posterior_global_samples_test_grid{N}.npy', posterior_global_samples_test)
@@ -333,66 +334,71 @@ elif variable_of_interest == 'max_results':
 
     print(n_grid * n_grid, test_data.shape)
 
+
     def objective(trial):
-        t1_value = trial.suggest_float('t1_value', 0.0000001, 0.01)
-        s_shift_cosine = trial.suggest_float('s_shift_cosine', 0, 10)
-        #tau1 = trial.suggest_float('tau_1', 0.4, 0.9)
-        #tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.4), 1)
+        t1_value = trial.suggest_float('t1_value', 0.01, 0.2)
+        s_shift_cosine = trial.suggest_float('s_shift_cosine', 0, 5)
+        tau1 = trial.suggest_float('tau_1', 0.5, 1.)
+        tau2 = min(tau1 + trial.suggest_float('delta_tau_2', 0, 0.5), 1.)
+        noise_scale = trial.suggest_float('noise_scale', 0.1, 2.)
+        mixing_factor = trial.suggest_float('mixing_factor', 0, 1.)
+        diffusion_steps = trial.suggest_int('diffusion_steps', 500, 1000)
 
         t0_value = 1
         sampling_arg = {
-            'size': 8,
+            'size': 1,
             'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
             'noisy_condition': {
-                'apply': False,
-                'noise_scale': 1.,
-                #'tau_1': tau1,
-                #'tau_2': tau2,
-                'mixing_factor': 1.
+                'apply': True,
+                'noise_scale': noise_scale,
+                'tau_1': tau1,
+                'tau_2': tau2,
+                'mixing_factor': mixing_factor
             },
         }
         score_model.sde.s_shift_cosine = s_shift_cosine
+
         test_global_samples = euler_maruyama_sampling(score_model, test_data,
-                                                           n_post_samples=n_post_samples,
-                                                           sampling_arg=sampling_arg,
-                                                           diffusion_steps=1000,
-                                                           device=torch_device, verbose=False)
+                                                      n_post_samples=n_post_samples,
+                                                      sampling_arg=sampling_arg,
+                                                      diffusion_steps=diffusion_steps,
+                                                      device=torch_device, verbose=False)
 
         fig = diagnostics.recovery(test_global_samples, true_global.numpy(), variable_names=global_param_names)
-        fig.savefig(f'plots/{score_model.name}/recovery_global_ours_grid{n_grid}_{t1_value}_{s_shift_cosine}.png')
+        fig.savefig(f'plots/{score_model.name}/recovery_global_ours_grid{n_grid}_{trial.number}.png')
 
         fig = diagnostics.calibration_ecdf(test_global_samples, true_global.numpy(), difference=True,
                                            variable_names=global_param_names)
-        fig.savefig(f'plots/{score_model.name}/ecdf_global_ours_grid{n_grid}_{t1_value}_{s_shift_cosine}.png')
+        fig.savefig(f'plots/{score_model.name}/ecdf_global_ours_grid{n_grid}_{trial.number}.png')
 
-        c_error = diagnostics.calibration_error(test_global_samples, true_global.numpy())['values'].mean()
-        rmse = diagnostics.root_mean_squared_error(test_global_samples, true_global.numpy())['values'].mean()
+        c_error = diagnostics.calibration_error(test_global_samples, true_global)['values'].mean()
+        rmse = diagnostics.root_mean_squared_error(test_global_samples, true_global)['values'].mean()
         return rmse + c_error
 
-    #study = optuna.create_study()
-    #study.optimize(objective, n_trials=20)
-    #print(study.best_params)
+    study = optuna.create_study()
+    study.optimize(objective, n_trials=100)
+    print(study.best_params)
 
-    t1_value = 1e-7 #study.best_params['t1_value']
+    t1_value = study.best_params['t1_value']
     t0_value = 1
     sampling_arg = {
-        'size': 8,
+        'size': 1,
         'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2 * t),
         'noisy_condition': {
-            'apply': False,
-            'noise_scale': 1.,
-            #'tau_1': study.best_params['tau_1'],
-            #'tau_2': min(study.best_params['tau_1'] + study.best_params['delta_tau_2'], 1),
-            'mixing_factor': 1.
+            'apply': True,
+            'noise_scale': study.best_params['noise_scale'],
+            'tau_1': study.best_params['tau_1'],
+            'tau_2': min(study.best_params['tau_1'] + study.best_params['delta_tau_2'], 1),
+            'mixing_factor': study.best_params['mixing_factor']
         },
     }
-    score_model.sde.s_shift_cosine = 5 #study.best_params['s_shift_cosine']
+    score_model.sde.s_shift_cosine = study.best_params['s_shift_cosine']
 
     posterior_global_samples_test = euler_maruyama_sampling(score_model, test_data,
-                                                            n_post_samples=n_post_samples,
-                                                            sampling_arg=sampling_arg,
-                                                            diffusion_steps=1000,
-                                                            device=torch_device, verbose=True)
+                                                  n_post_samples=n_post_samples,
+                                                  sampling_arg=sampling_arg,
+                                                  diffusion_steps=study.best_params['diffusion_steps'],
+                                                  device=torch_device, verbose=False)
 
     score_model.sde.s_shift_cosine = 0
     score_model.current_number_of_obs = 1

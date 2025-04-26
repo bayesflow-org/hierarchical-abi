@@ -221,7 +221,7 @@ def sub_sample_observations(data, sampling_arg_dict):
     """
     Subsample observations for the score update with x shape: (batch_shape, n_obs, ...)
     """
-    # sample indicies
+    # sample indices
     rand_obs_indx = np.random.permutation(data.shape[1])
     # get subsampled data
     data_sub = data[:, rand_obs_indx[:sampling_arg_dict['size']]]
@@ -289,8 +289,8 @@ def eval_compositional_score(model, theta, diffusion_time, x_obs, conditions_exp
 
     if sampling_arg_dict['noisy_condition']['apply']:
         # mean and std on clean data
-        x_mean_clean = torch.mean(x_exp, dim=1, keepdim=True)
-        x_std_clean = torch.std(x_exp, dim=1, keepdim=True)
+        #x_mean_clean = torch.mean(x_exp, dim=1, keepdim=True)
+        #x_std_clean = torch.std(x_exp, dim=1, keepdim=True)
 
         # get noisy condition
         cond_t = piecewise_condition_function(t_exp,
@@ -300,11 +300,15 @@ def eval_compositional_score(model, theta, diffusion_time, x_obs, conditions_exp
             cond_t = cond_t[:, None]
         x_noisy = torch.sqrt(cond_t) * x_exp
         x_noisy = x_noisy + sampling_arg_dict['noisy_condition']['noise_scale'] * torch.sqrt(1 - cond_t) * torch.randn_like(x_exp)
-        x_rescaled = (x_noisy - torch.mean(x_noisy, dim=1, keepdim=True)) / torch.std(x_noisy, dim=1, keepdim=True)
+        #x_rescaled = (x_noisy - torch.mean(x_noisy, dim=1, keepdim=True)) / torch.std(x_noisy, dim=1, keepdim=True)
         # rescale noisy condition
-        x_rescaled = x_rescaled * x_std_clean + x_mean_clean
+        #x_rescaled = x_rescaled * x_std_clean + x_mean_clean
         # final corrupted output
-        x_exp = sampling_arg_dict['noisy_condition']['mixing_factor'] * x_rescaled + (1 - sampling_arg_dict['noisy_condition']['mixing_factor']) * x_exp
+        #x_exp = sampling_arg_dict['noisy_condition']['mixing_factor'] * x_rescaled + (
+        #            1 - sampling_arg_dict['noisy_condition']['mixing_factor']) * x_exp
+        x_exp = sampling_arg_dict['noisy_condition']['mixing_factor'] * x_noisy + (
+                1 - sampling_arg_dict['noisy_condition']['mixing_factor']) * x_exp
+
 
     if conditions_exp is None and n_scores_update_full > 1:
         theta_exp = theta.unsqueeze(1).expand(-1, sampling_arg_dict['size'], -1).contiguous().view(-1, model.prior.n_params_global)
