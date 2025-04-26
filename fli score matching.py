@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from scipy.special import expit
+import itertools
 
 os.environ['KERAS_BACKEND'] = 'torch'
 from bayesflow import diagnostics
@@ -26,6 +27,7 @@ torch_device = torch.device("cuda")
 prior = FLI_Prior()
 batch_size = 64
 number_of_obs = 1 #[16]
+experiment_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
 
 current_sde = SDE(
     kernel_type=['variance_preserving', 'sub_variance_preserving'][0],
@@ -33,7 +35,7 @@ current_sde = SDE(
 )
 
 dataset = FLIProblem(
-    n_data=10000,
+    n_data=20000,
     prior=prior,
     sde=current_sde,
     online_learning=True,
@@ -53,10 +55,13 @@ dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=Fals
 
 #%%
 # Define diffusion model
-hidden_dim_summary = 32 # 18
+n_blocks = [5,6]
+hidden_dim = [256, 512]
+hidden_dim_summary = [18, 32]
+n_blocks, hidden_dim, hidden_dim_summary = list(itertools.product(n_blocks, hidden_dim, hidden_dim_summary))[experiment_id]
 summary_net = TimeSeriesNetwork(input_dim=1, recurrent_dim=256, summary_dim=hidden_dim_summary)
 
-global_summary_dim = 32 #18
+global_summary_dim = hidden_dim_summary
 #global_summary_net = ShallowSet(dim_input=hidden_dim_summary, dim_output=global_summary_dim, dim_hidden=16)
 
 time_embedding_local = nn.Sequential(
@@ -79,14 +84,14 @@ score_model = HierarchicalScoreModel(
     #global_summary_net=global_summary_net,
     time_embedding_local=time_embedding_local,
     time_embedding_global=time_embedding_global,
-    hidden_dim=512,
-    n_blocks=5,
+    hidden_dim=hidden_dim,
+    n_blocks=n_blocks,
     max_number_of_obs=number_of_obs if isinstance(number_of_obs, int) else max(number_of_obs),
     prediction_type=['score', 'e', 'x', 'v'][3],
     sde=current_sde,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
-    name_prefix=f'FLI_{summary_net.name}_'
+    name_prefix=f'FLI_{hidden_dim_summary}_{n_blocks}_{summary_net.name}_'
 )
 
 # make dir for plots
@@ -118,7 +123,7 @@ score_model.eval()
 #%% md
 # # Validation
 #%%
-n_local_samples = 1
+n_local_samples = 10
 valid_prior_global, valid_prior_local, valid_data = generate_synthetic_data(prior=prior, n_data=100,
                                                                             n_local_samples=n_local_samples,
                                                                             random_seed=0)
@@ -133,7 +138,7 @@ mini_batch_size = 10
 t1_value = 0.01
 t0_value = 1
 sampling_arg = {
-    #'size': mini_batch_size,
+    'size': mini_batch_size,
     #'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
 }
 #plt.plot(torch.linspace(0, 1, 100), mini_batch_arg['damping_factor'](torch.linspace(0, 1, 100)))
@@ -145,7 +150,7 @@ t0_value, t1_value
 posterior_global_samples_valid = euler_maruyama_sampling(score_model, valid_data,
                                                    n_post_samples=n_post_samples,
                                                    sampling_arg=sampling_arg,
-                                                   diffusion_steps=1000,
+                                                   diffusion_steps=500,
                                                    device=torch_device, verbose=False)
 #%%
 fig = diagnostics.recovery(posterior_global_samples_valid, np.array(valid_prior_global), variable_names=global_param_names)
