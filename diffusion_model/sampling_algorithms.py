@@ -88,7 +88,6 @@ def expand_obs(x_obs, model, n_post_samples):
                                                    model.current_number_of_obs, -1)
             x_expanded = x_expanded.contiguous().view(batch_size * n_post_samples * n_obs_reduced,
                                                       model.current_number_of_obs, -1)
-
     return x_expanded
 
 
@@ -107,8 +106,8 @@ def get_n_obs(x_obs, model):
         # input is (batch_size, n_obs, n_features)
         n_obs = x_obs.shape[1]
     else:
-        raise ValueError('x_obs must have shape (batch_size, n_time_steps, n_features) or '
-                         '(batch_size, n_time_steps, n_features, n_features)')
+        raise ValueError('x_obs must have shape (batch_size, n_obs, n_time_steps, n_features) or '
+                         '(batch_size, n_obs, n_features)')
 
     ##########################
 

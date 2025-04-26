@@ -476,6 +476,8 @@ def generate_synthetic_data(prior, n_data, n_local_samples=1, normalize=False,
         param_global = prior.normalize_theta(param_global, global_params=True)
         param_local = prior.normalize_theta(param_local, global_params=False)
         data = prior.normalize_data(data)
+    # add feature dimension for RNN
+    data = data.unsqueeze(3)
     return param_global, param_local, data
 
 
@@ -509,8 +511,6 @@ class FLIProblem(Dataset):
             # squeeze obs-dimension
             self._xs = self._xs.squeeze(1)
             self._thetas_local = self._thetas_local.squeeze(1)
-        # add feature dimension for RNN
-        self._xs = self._xs.unsqueeze(-1)
 
         # generate new noise only with new data
         if self._rectified_flow:

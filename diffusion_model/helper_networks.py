@@ -158,11 +158,12 @@ class LSTM(nn.Module):
 
 
 class GRUEncoder(nn.Module):
-    def __init__(self, input_size, summary_dim=32, hidden_size=256):
+    def __init__(self, input_size, summary_dim=32, hidden_size=256, num_layers=2, dropout=0.05):
         super().__init__()
         self.hidden_size = hidden_size
-        self.rnn = nn.GRU(input_size=input_size, hidden_size=hidden_size, num_layers=2, bidirectional=True, batch_first=True,
-                          dropout=0.05)
+        self.rnn = nn.GRU(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers,
+                          bidirectional=True, batch_first=True,
+                          dropout=dropout)
         self.projector = nn.Linear(hidden_size * 2, summary_dim)
         self.name = "GRUEncoder"
 

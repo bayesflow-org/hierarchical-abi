@@ -31,7 +31,7 @@ from bayesflow import diagnostics
 from torch.utils.data import DataLoader
 
 from diffusion_model import HierarchicalScoreModel, SDE, euler_maruyama_sampling, adaptive_sampling, train_score_model
-from diffusion_model.helper_networks import GaussianFourierProjection, ShallowSet
+from diffusion_model.helper_networks import GaussianFourierProjection, ShallowSet, GRUEncoder
 from problems.ar1_grid import AR1GridProblem, Prior
 import optuna
 
@@ -72,7 +72,7 @@ dataset = AR1GridProblem(
     online_learning=True,
     number_of_obs=number_of_obs,
     amortize_time=False,
-    as_set=True
+    #as_set=True
 )
 
 dataset_valid = AR1GridProblem(
@@ -80,7 +80,7 @@ dataset_valid = AR1GridProblem(
     prior=prior,
     sde=current_sde,
     number_of_obs=number_of_obs,
-    as_set=True,
+    #as_set=True,
 )
 
 # Create dataloader
@@ -92,6 +92,7 @@ dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=Fals
 global_summary_dim = 5
 obs_n_time_steps = 0
 global_summary_net = ShallowSet(dim_input=5, dim_output=global_summary_dim, dim_hidden=16)
+local_summary_net = GRUEncoder(input_size=1, summary_dim=5, num_layers=1, hidden_size=16, dropout=0)
 
 time_dim = 8
 time_embedding_local = nn.Sequential(
@@ -112,6 +113,7 @@ score_model = HierarchicalScoreModel(
     input_dim_x_global=global_summary_dim,
     global_summary_net=global_summary_net if isinstance(number_of_obs, list) else None,
     input_dim_x_local=global_summary_dim,
+    summary_net=local_summary_net,
     time_embedding_local=time_embedding_local,
     time_embedding_global=time_embedding_global,
     hidden_dim=256,
@@ -121,7 +123,8 @@ score_model = HierarchicalScoreModel(
     sde=current_sde,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
-    name_prefix=f'ar1_{model_id}_{max_number_of_obs}'
+    #name_prefix=f'ar1_{model_id}_{max_number_of_obs}'
+    name_prefix=f'ar1_GRU_'
 )
 
 # make dir for plots
@@ -142,6 +145,7 @@ if not os.path.exists(f"models/{score_model.name}.pt"):
     plt.ylabel('Value')
     plt.legend()
     plt.savefig(f'plots/{score_model.name}/loss_training.png')
+    exit()
     # %%
 else:
     score_model.load_state_dict(
