@@ -114,14 +114,14 @@ score_model = HierarchicalScoreModel(
     input_dim_x_local=global_summary_dim,
     time_embedding_local=time_embedding_local,
     time_embedding_global=time_embedding_global,
-    hidden_dim=512,
+    hidden_dim=256,
     n_blocks=5,
     max_number_of_obs=max_number_of_obs,
     prediction_type=['score', 'e', 'x', 'v'][3],
     sde=current_sde,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
-    name_prefix=f'ar1_512_{model_id}_{max_number_of_obs}'
+    name_prefix=f'ar1_{model_id}_{max_number_of_obs}'
 )
 
 # make dir for plots
@@ -142,7 +142,6 @@ if not os.path.exists(f"models/{score_model.name}.pt"):
     plt.ylabel('Value')
     plt.legend()
     plt.savefig(f'plots/{score_model.name}/loss_training.png')
-    exit()
     # %%
 else:
     score_model.load_state_dict(

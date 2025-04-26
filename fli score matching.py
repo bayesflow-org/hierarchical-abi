@@ -26,7 +26,6 @@ torch_device = torch.device("cuda")
 prior = FLI_Prior()
 batch_size = 64
 number_of_obs = 1 #[16]
-obs_n_time_steps = 256
 
 current_sde = SDE(
     kernel_type=['variance_preserving', 'sub_variance_preserving'][0],
@@ -81,7 +80,7 @@ score_model = HierarchicalScoreModel(
     time_embedding_local=time_embedding_local,
     time_embedding_global=time_embedding_global,
     hidden_dim=512,
-    n_blocks=6,
+    n_blocks=5,
     max_number_of_obs=number_of_obs if isinstance(number_of_obs, int) else max(number_of_obs),
     prediction_type=['score', 'e', 'x', 'v'][3],
     sde=current_sde,

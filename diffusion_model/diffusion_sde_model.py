@@ -704,7 +704,7 @@ def weighting_function(t, sde, weighting_type, prediction_type='error'):
             raise NotImplementedError("Flow matching not implemented for this noise schedule.")
 
     if weighting_type == 'sigmoid':
-        return torch.sigmoid(-log_snr / 2)
+        return torch.sigmoid(-log_snr + 2)
 
     if weighting_type == 'min-snr':
         gamma = 5
