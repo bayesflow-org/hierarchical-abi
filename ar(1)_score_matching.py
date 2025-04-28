@@ -78,7 +78,7 @@ dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=Fals
 # Define diffusion model
 global_summary_dim = 5
 obs_n_time_steps = 0
-global_summary_net = ShallowSet(dim_input=5, dim_output=global_summary_dim, dim_hidden=16)
+global_summary_net = ShallowSet(dim_input=5, dim_output=global_summary_dim, dim_hidden=128)
 #local_summary_net = GRUEncoder(input_size=1, summary_dim=5, num_layers=1, hidden_size=16, dropout=0)
 
 time_dim = 8

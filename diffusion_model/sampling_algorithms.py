@@ -30,7 +30,7 @@ def enable_dropout(model):
 def expand_obs(x_obs, model, n_post_samples):
     """
     Expand and normalize observations.
-    Input is (batch_size, n_obs, n_time_steps, n_features) or (batch_size, n_obs, n_features)
+    Input is (batch_size, n_obs, ...)
     """
     if not isinstance(x_obs, torch.Tensor):
         x_obs = torch.tensor(x_obs, dtype=torch.float32)
@@ -39,82 +39,10 @@ def expand_obs(x_obs, model, n_post_samples):
     n_obs = x_obs_norm.shape[1]
 
     ##########################
-
-    if x_obs_norm.ndim == 4:
-        # Reshape observations to (batch_size*n_post_samples*n_obs, n_time_steps, n_features)
-        n_time_steps = x_obs_norm.shape[2]
-
-        if model.max_number_of_obs == 1:
-            # the score is always conditioned on only one observation
-            # expand to number of posterior samples
-            x_exp = x_obs_norm.unsqueeze(1).expand(batch_size, n_post_samples, n_obs, n_time_steps, -1)
-            x_expanded = x_exp.contiguous().view(batch_size * n_post_samples * n_obs, n_time_steps, -1)
-        else:
-            # the score is conditioned on multiple observations
-            # factorize data into (batch_size*n_post_samples * reduced_data, current_number_of_obs, n_time_steps, n_features)
-            n_obs_reduced = n_obs // model.current_number_of_obs
-            if n_obs % model.current_number_of_obs != 0:
-                print('warning: number of observations is not a multiple of current_number_of_obs '
-                      f'dropping last {n_obs % model.current_number_of_obs} observations.')
-                n_obs = n_obs_reduced * model.current_number_of_obs
-                x_obs_norm = x_obs_norm[:, :n_obs]
-            x_exp = x_obs_norm.contiguous().view(batch_size, n_obs_reduced, model.current_number_of_obs, n_time_steps,
-                                                 -1)
-            # expand to number of posterior samples
-            x_expanded = x_exp.unsqueeze(1).expand(batch_size, n_post_samples, n_obs_reduced,
-                                                   model.current_number_of_obs,
-                                                   n_time_steps, -1)
-            x_expanded = x_expanded.contiguous().view(batch_size * n_post_samples * n_obs_reduced,
-                                                      model.current_number_of_obs, n_time_steps, -1)
-    else:
-        # Reshape observations to (batch_size*n_post_samples*n_obs, n_features)
-        if model.max_number_of_obs == 1:
-            # the score is always conditioned on only one observation
-            # expand to number of posterior samples
-            x_exp = x_obs_norm.unsqueeze(1).expand(batch_size, n_post_samples, n_obs, -1)
-            x_expanded = x_exp.contiguous().view(batch_size * n_post_samples * n_obs, -1)
-        else:
-            # the score is conditioned on multiple observations
-            # factorize data into (batch_size*n_post_samples * reduced_data, current_number_of_obs, n_features)
-            n_obs_reduced = n_obs // model.current_number_of_obs
-            if n_obs % model.current_number_of_obs != 0:
-                print('warning: number of observations is not a multiple of current_number_of_obs '
-                      f'dropping last {n_obs % model.current_number_of_obs} observations.')
-                n_obs = n_obs_reduced * model.current_number_of_obs
-                x_obs_norm = x_obs_norm[:, :n_obs]
-            x_exp = x_obs_norm.contiguous().view(batch_size, n_obs_reduced, model.current_number_of_obs, -1)
-            # expand to number of posterior samples
-            x_expanded = x_exp.unsqueeze(1).expand(batch_size, n_post_samples, n_obs_reduced,
-                                                   model.current_number_of_obs, -1)
-            x_expanded = x_expanded.contiguous().view(batch_size * n_post_samples * n_obs_reduced,
-                                                      model.current_number_of_obs, -1)
+    # expand to number of posterior samples
+    x_exp = x_obs_norm.unsqueeze(1).expand(batch_size, n_post_samples, *x_obs_norm.shape[1:])
+    x_expanded = x_exp.contiguous().view(batch_size * n_post_samples * n_obs, *x_obs_norm.shape[2:])
     return x_expanded
-
-
-def get_n_obs(x_obs, model):
-    """
-        Get number of observations from x_obs.
-
-        Returns:
-            x_obs_norm: Tensor of shape (n_post_samples*n_obs, n_time_steps, n_features)
-            n_obs: Number of observations
-    """
-    if x_obs.ndim == 4:
-        # input is (batch_size, n_obs, n_time_steps, n_features)
-        n_obs = x_obs.shape[1]
-    elif x_obs.ndim == 3:
-        # input is (batch_size, n_obs, n_features)
-        n_obs = x_obs.shape[1]
-    else:
-        raise ValueError('x_obs must have shape (batch_size, n_obs, n_time_steps, n_features) or '
-                         '(batch_size, n_obs, n_features)')
-
-    ##########################
-
-    if model.max_number_of_obs > 1:
-        # the score is conditioned on multiple observations
-        n_obs = n_obs // model.current_number_of_obs
-    return n_obs
 
 
 def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, random_seed):
@@ -146,10 +74,14 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, 
     if not conditions is None:
         global_sampling = False
         model.current_number_of_obs = 1  # local sampling, so only one observation per posterior sample
+    else:
+        if model.max_number_of_obs == 1:
+            # to prevent errors in the model
+            model.current_number_of_obs = 1
 
     # Preprocess observations
     batch_size = x_obs.shape[0]
-    n_obs = get_n_obs(x_obs=x_obs, model=model)
+    n_obs = x_obs.shape[1]
 
     # Preprocess conditions
     if not global_sampling:
@@ -175,9 +107,18 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, 
 
     # Number of observations to use for the score update
     if global_sampling:
-        n_scores_update = n_obs
+        n_scores_update = n_obs // model.current_number_of_obs
     else:
-        n_scores_update = 1  # local sampling, so only one observation per posterior sample
+        n_scores_update = n_obs  # local sampling, so only one observation per posterior sample
+
+    if n_obs % model.current_number_of_obs != 0:
+        print('warning: number of observations is not a multiple of current_number_of_obs '
+              f'dropping last {n_obs % model.current_number_of_obs} observations.')
+        x_obs = x_obs[:, :n_scores_update * model.current_number_of_obs]
+    if model.max_number_of_obs > 1 and x_obs.ndim == 3:
+        x_obs = x_obs.reshape(batch_size, n_scores_update, model.current_number_of_obs, -1)
+    elif model.max_number_of_obs > 1 and x_obs.ndim == 4:
+        x_obs = x_obs.reshape(batch_size, n_scores_update, model.current_number_of_obs, x_obs.shape[2], -1)
 
     ###### Prepare Mini-Batching
     sampling_arg_dict = sampling_defaults.copy()
@@ -196,7 +137,7 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, 
     # sample from latent prior for diffusion model
     if global_sampling:
         theta_init = torch.randn((batch_size * n_post_samples, model.prior.n_params_global), dtype=torch.float32)
-        theta_init = theta_init / np.sqrt(n_obs)
+        theta_init = theta_init / np.sqrt(n_scores_update)
 
         if 'damping_factor_prior' in sampling_arg_dict:
             damping_factor = torch.tensor(sampling_arg_dict['damping_factor_prior'], dtype=torch.float32)
