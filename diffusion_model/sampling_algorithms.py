@@ -113,12 +113,7 @@ def get_n_obs(x_obs, model):
 
     if model.max_number_of_obs > 1:
         # the score is conditioned on multiple observations
-        # factorize data into (batch_size*n_post_samples * reduced_data, current_number_of_obs, n_features)
-        n_obs_reduced = n_obs // model.current_number_of_obs
-        if n_obs % model.current_number_of_obs != 0:
-            print('warning: number of observations is not a multiple of current_number_of_obs '
-                 f'dropping last {n_obs % model.current_number_of_obs} observations.')
-            n_obs = n_obs_reduced * model.current_number_of_obs
+        n_obs = n_obs // model.current_number_of_obs
     return n_obs
 
 
@@ -156,9 +151,6 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, 
     batch_size = x_obs.shape[0]
     n_obs = get_n_obs(x_obs=x_obs, model=model)
 
-    if n_obs % model.current_number_of_obs != 0:
-        raise ValueError("'n_obs' must be a multiple of 'model.current_number_of_obs'")
-
     # Preprocess conditions
     if not global_sampling:
         if not isinstance(conditions, torch.Tensor):
@@ -183,9 +175,9 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, 
 
     # Number of observations to use for the score update
     if global_sampling:
-        n_scores_update = n_obs // model.current_number_of_obs
-    else:
         n_scores_update = n_obs
+    else:
+        n_scores_update = 1  # local sampling, so only one observation per posterior sample
 
     ###### Prepare Mini-Batching
     sampling_arg_dict = sampling_defaults.copy()
