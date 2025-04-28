@@ -107,12 +107,12 @@ class FLI_Prior:
             self.tau1_mean_hyperprior_mean = np.log(0.2)
             self.tau1_mean_hyperprior_std = 0.7
             self.tau1_std_hyperprior_mean = -1
-            self.tau1_std_hyperprior_std = 0.1
+            self.tau1_std_hyperprior_std = 0.5
 
             self.delta_tau_mean_hyperprior_mean = np.log(1.)
             self.delta_tau_mean_hyperprior_std = 0.5
             self.delta_tau_std_hyperprior_mean = -2
-            self.delta_tau_std_hyperprior_std = 0.1
+            self.delta_tau_std_hyperprior_std = 0.5
 
             self.global_param_names = [r'$\log \tau_1^G$', r'$\log \sigma_{\tau_1^G}$',
                                        r'$\log \Delta\tau_2^G$', r'$\log \sigma_{\Delta\tau_2^G}$',
