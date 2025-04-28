@@ -21,6 +21,6 @@ def get_stan_posterior(sim_test, sigma_noise, chains=4):
     fit = stan_model.sample(data=stan_data, show_progress=False, chains=chains)
 
     global_posterior = np.concatenate([fit.draws_pd("alpha"),
-                                       fit.draws_pd("mu_beta"), fit.draws_pd("log_std_beta")], axis=-1)
-    local_posterior = fit.draws_pd("beta").T
+                                       fit.draws_pd("beta"), fit.draws_pd("log_std_eta")], axis=-1)
+    local_posterior = fit.draws_pd("eta").T
     return global_posterior, local_posterior

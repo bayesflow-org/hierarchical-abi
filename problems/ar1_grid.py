@@ -21,11 +21,11 @@ class Simulator:
         self.initial_is_zero = False
 
     def __call__(self, params, n_time_points=N_TIME_POINTS):
-        beta = np.array(params['beta'])
+        eta = np.array(params['eta'])
         alpha = np.array(params['alpha'])
-        N = beta.size
-        if beta.ndim > 1:
-            raise ValueError("beta must be a 1D array.")
+        N = eta.size
+        if eta.ndim > 1:
+            raise ValueError("eta must be a 1D array.")
 
         # Generate noise for the increments: shape (N, n_time_points)
         noise = np.random.normal(
@@ -41,7 +41,7 @@ class Simulator:
         if not self.initial_is_zero:
             traj[:, 0] = noise[:, 0]
         for t in range(1, n_time_points):
-            traj[:, t] = alpha + traj[:, t - 1] * beta + noise[:, t]
+            traj[:, t] = alpha + traj[:, t - 1] * eta + noise[:, t]
 
         return dict(observable=traj)
 
@@ -53,25 +53,25 @@ class Prior:
         """
         self.alpha_mean = 0
         self.alpha_std = 1
-        self.beta_mu_mean = 0
-        self.beta_mu_std = 1 #0.1
-        self.log_beta_std_mean = 0 #np.log(0.1)
-        self.log_beta_std_std = 1 #0.5
+        self.beta_mean = 0
+        self.beta_std = 1 #0.1
+        self.log_sigma_mean = 0 #np.log(0.1)
+        self.log_sigma_std = 1 #0.5
         self.n_params_global = 3
         self.n_params_local = 1
-        self.global_param_names = [r'$\alpha$', r'$\beta_{\mu}$', r'$\log \beta_{\sigma}$']
+        self.global_param_names = [r'$\alpha$', r'$\beta$', r'$\log \sigma$']
 
         # Build prior parameters as tensors.
         self.hyper_prior_means = torch.tensor(
             [self.alpha_mean,
-             self.beta_mu_mean,
-             self.log_beta_std_mean],
+             self.beta_mean,
+             self.log_sigma_mean],
             dtype=torch.float32
         )
         self.hyper_prior_stds = torch.tensor(
             [self.alpha_std,
-             self.beta_mu_std,
-             self.log_beta_std_std],
+             self.beta_std,
+             self.log_sigma_std],
             dtype=torch.float32
         )
 
@@ -95,20 +95,20 @@ class Prior:
 
     @staticmethod
     def get_local_param_names(n_local_samples):
-        return [r'$\beta_{' + str(i) + '}$' for i in range(n_local_samples)]
+        return [r'$\eta_{' + str(i) + '}$' for i in range(n_local_samples)]
 
     def _sample_global(self):
         # Sample global parameters
         self.alpha = np.random.normal(loc=self.alpha_mean, scale=self.alpha_std)
-        self.beta_mu = np.random.normal(loc=self.beta_mu_mean, scale=self.beta_mu_std)
-        self.log_beta_std = np.random.normal(loc=self.log_beta_std_mean, scale=self.log_beta_std_std)
-        return dict(alpha=self.alpha, beta_mu=self.beta_mu, log_beta_std=self.log_beta_std)
+        self.beta = np.random.normal(loc=self.beta_mean, scale=self.beta_std)
+        self.log_sigma = np.random.normal(loc=self.log_sigma_mean, scale=self.log_sigma_std)
+        return dict(alpha=self.alpha, beta=self.beta, log_sigma=self.log_sigma)
 
     def _sample_local(self, n_local_samples=1):
         # Sample local parameters
-        beta_raw = np.random.normal(loc=self.beta_mu, scale=np.exp(self.log_beta_std), size=n_local_samples)
-        beta = self.transform_local_params(beta_raw)
-        return dict(beta=beta, beta_raw=beta_raw)
+        eta_raw = np.random.normal(loc=0, scale=np.exp(self.log_sigma), size=n_local_samples)
+        eta = self.transform_local_params(self.beta + eta_raw)
+        return dict(eta=eta, eta_raw=eta_raw)
 
     @staticmethod
     def transform_local_params(local_params):
@@ -132,12 +132,12 @@ class Prior:
         for i in range(batch_size):
             global_sample = self._sample_global()
             local_sample = self._sample_local(n_local_samples=n_local_samples)
-            sim_dict = {'alpha': global_sample['alpha'], 'beta': local_sample['beta']}
+            sim_dict = {'alpha': global_sample['alpha'], 'eta': local_sample['eta']}
             sim = self.simulator(sim_dict, n_time_points=n_time_points)
 
-            global_params[i] = [global_sample['alpha'], global_sample['beta_mu'], global_sample['log_beta_std']]
-            local_params_raw[i] = local_sample['beta_raw']
-            local_params[i] = local_sample['beta']
+            global_params[i] = [global_sample['alpha'], global_sample['beta'], global_sample['log_sigma']]
+            local_params_raw[i] = local_sample['eta_raw']
+            local_params[i] = local_sample['eta']
             data[i] = sim['observable']
 
         # Convert to tensors

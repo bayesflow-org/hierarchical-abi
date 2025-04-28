@@ -1,19 +1,6 @@
 #%% md
 # # Hierarchical Ar(1) on a Grid Test with compositional score matching
-# 
-# In this notebook, we will test the compositional score matching on a hierarchical problem defined on a grid.
-# - The observations are on grid with `n_grid` x `n_grid` points.
-# - The global parameters are the same for all grid points with hyper-priors:
-# $$ \alpha \sim \mathcal{N}(0, 1) \quad
-#   \mu_\beta \sim \mathcal{N}(0, 1) \quad
-#   \log\text{std}_\beta \sim \mathcal{N}(-1, 1);$$
-# 
-# - The local parameters are different for each grid point
-# $$ \beta_{i,j}^\text{raw} \sim \mathcal{N}(\mu_\beta, \text{std}_\beta^2), \qquad \beta_{i,j} = 2\operatorname{sigmoid}(\beta_{i,j}^\text{raw})-1$$
-# 
-# -  In each grid point, we have a time series of `T` observations. For the time beeing, we fix $\sigma=1$.
-# $$ y_{i,j} \sim \mathcal{N}(\alpha + \beta_{i,j}y_{i,j-1}, \sigma^2), y_{i,0} \sim \mathcal{N}(0, \sigma^2)$$
-# - We observe $T=5$ time points for each grid point. We can also amortize over the time dimension.
+
 #%%
 import itertools
 import os
@@ -31,7 +18,7 @@ from bayesflow import diagnostics
 from torch.utils.data import DataLoader
 
 from diffusion_model import HierarchicalScoreModel, SDE, euler_maruyama_sampling, adaptive_sampling, train_score_model
-from diffusion_model.helper_networks import GaussianFourierProjection, ShallowSet, GRUEncoder
+from diffusion_model.helper_networks import GaussianFourierProjection, ShallowSet
 from problems.ar1_grid import AR1GridProblem, Prior
 import optuna
 
@@ -123,9 +110,8 @@ score_model = HierarchicalScoreModel(
     sde=current_sde,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
-    #dropout_rate=0.1,
+    dropout_rate=0.1,
     name_prefix=f'ar1_{model_id}_{max_number_of_obs}'
-    #name_prefix=f'ar1_dropout_'
 )
 
 # make dir for plots
@@ -134,7 +120,7 @@ if not os.path.exists(f"models/{score_model.name}.pt"):
     #%%
     # train model
     loss_history = train_score_model(score_model, dataloader, dataloader_valid=dataloader_valid, hierarchical=True,
-                                     epochs=2000, device=torch_device)
+                                     epochs=3000, device=torch_device)
     torch.save(score_model.state_dict(), f"models/{score_model.name}.pt")
 
     # plot loss history
@@ -146,7 +132,6 @@ if not os.path.exists(f"models/{score_model.name}.pt"):
     plt.ylabel('Value')
     plt.legend()
     plt.savefig(f'plots/{score_model.name}/loss_training.png')
-    exit()
     # %%
 else:
     score_model.load_state_dict(
