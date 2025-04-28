@@ -55,9 +55,9 @@ dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=Fals
 
 #%%
 # Define diffusion model
-n_blocks = [5,6]
-hidden_dim = [256, 512]
-hidden_dim_summary = [18, 32]
+n_blocks = [5]
+hidden_dim = [256]
+hidden_dim_summary = [10, 14, 18, 22]
 n_blocks, hidden_dim, hidden_dim_summary = list(itertools.product(n_blocks, hidden_dim, hidden_dim_summary))[experiment_id]
 summary_net = TimeSeriesNetwork(input_dim=1, recurrent_dim=256, summary_dim=hidden_dim_summary)
 
@@ -91,7 +91,7 @@ score_model = HierarchicalScoreModel(
     sde=current_sde,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
-    name_prefix=f'FLI_{hidden_dim_summary}_{n_blocks}_{summary_net.name}_'
+    name_prefix=f'FLI_{hidden_dim_summary}_{hidden_dim}_{n_blocks}_{summary_net.name}_'
 )
 
 # make dir for plots
