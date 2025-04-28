@@ -172,11 +172,11 @@ class Prior:
 
         # Extract the relevant entries
         # condition = [alpha, beta_mu, log_beta_std]
-        local_means = condition[..., 1]
+        #local_means = 0
         local_stds = torch.exp(condition[..., 2])
 
         # Compute the local score.
-        score = -(theta - local_means) / (local_stds ** 2)
+        score = -theta / (local_stds ** 2)
         # correct the score for the normalization
         return score * self.norm_prior_local_std
 
