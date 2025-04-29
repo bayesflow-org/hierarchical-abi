@@ -25,7 +25,7 @@ torch_device = torch.device("cuda")
 # get arguments
 max_number_of_obs = int(sys.argv[1])
 experiment_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
-noise_schedule = ['cosine', 'linear', 'edm-training', 'edm-sampling'][0]
+noise_schedule = ['cosine', 'linear', 'edm-training', 'edm-sampling'][2]
 
 variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t'] # 'damping_factor', 'damping_factor_prior'
 if max_number_of_obs > 1:
@@ -81,7 +81,7 @@ score_model = ScoreModel(
     input_dim_theta=prior.n_params_global,
     input_dim_x=summary_dim,
     summary_net=summary_net,
-    time_embedding=time_embedding,
+    #time_embedding=time_embedding,
     hidden_dim=256,
     n_blocks=5,
     max_number_of_obs=max_number_of_obs,

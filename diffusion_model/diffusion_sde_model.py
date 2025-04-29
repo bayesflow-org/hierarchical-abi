@@ -204,7 +204,7 @@ class ScoreModel(nn.Module):
         elif self.prediction_type == 'score':
             x = (z + sigma ** 2 * pred) / alpha
         elif self.prediction_type == 'F':  # EDM
-            sigma_data = 0.5
+            sigma_data = 1.
             x1 = (sigma_data ** 2 * alpha) / (torch.exp(-log_snr) + sigma_data ** 2)
             x2 = torch.exp(-log_snr / 2) * sigma_data / torch.sqrt(torch.exp(-log_snr) + sigma_data ** 2)
             x = x1 * z + x2 * pred
@@ -723,6 +723,8 @@ def weighting_function(t, sde, weighting_type, prediction_type='error'):
         return sech(log_snr / 2) * torch.minimum(torch.ones_like(log_snr), gamma * torch.exp(-log_snr))
 
     if weighting_type == 'edm':
-        return torch.exp(-log_snr) + 0.5**2
+        return torch.exp(-log_snr) + 1
+        #sigma_data = 1.
+        #return torch.exp(-log_snr) / torch.square(sigma_data) + 1
 
     raise ValueError("Invalid weighting...")
