@@ -118,6 +118,15 @@ class ScoreModel(nn.Module):
         count_parameters(self)
         print(self.name)
 
+    def _transform_log_snr(self, log_snr):
+        """Transform the log_snr to the range [-1, 1] for the diffusion process."""
+        return (
+            2
+            * (log_snr - self.sde.log_snr_min)
+            / (self.sde.log_snr_max - self.sde.log_snr_min)
+            - 1
+        )
+
     def forward_global(self, theta_global, time, x, pred_score, clip_x=False):
         return self.forward(theta=theta_global, time=time, x=x, conditions=None, pred_score=pred_score, clip_x=clip_x)
 
@@ -141,7 +150,10 @@ class ScoreModel(nn.Module):
 
         # Compute a time embedding (shape: [batch, time_embed_dim])
         log_snr = self.sde.get_snr(t=time)
-        t_emb = self.time_embedding(log_snr)
+        if isinstance(self.time_embedding, nn.Identity):
+            t_emb = self._transform_log_snr(log_snr)
+        else:
+            t_emb = self.time_embedding(log_snr)
 
         # Form the conditioning vector. If conditions is None, only x and time are used.
         if conditions is not None:
@@ -488,7 +500,7 @@ class SDE:
         if self.noise_schedule == 'edm-training':
             # training
             dist = torch.distributions.Normal(loc=-2*self.p_mean, scale=2*self.p_std)
-            snr = -dist.icdf(t_trunc)
+            snr = dist.icdf(t_trunc)
             snr = snr.clamp(min=self._log_snr_min.to(snr.device), max=self._log_snr_max.to(snr.device))
             return snr
         if self.noise_schedule == 'edm-sampling':
@@ -512,10 +524,10 @@ class SDE:
             # => t = 1 / (1 + exp(snr/2))
             return 1 / (1 + torch.exp(snr / 2))
         if self.noise_schedule == 'edm-training':
-            # SNR = -dist.icdf(t_trunc)
-            # => t = dist.cdf(-snr)
+            # SNR = dist.icdf(t_trunc)
+            # => t = dist.cdf(snr)
             dist = torch.distributions.Normal(loc=-2*self.p_mean, scale=2*self.p_std)
-            return dist.cdf(-snr)
+            return dist.cdf(snr)
         if self.noise_schedule == 'edm-sampling':
             # SNR = -2 * rho * log(sigma_max ** (1/rho) + (1 - t) * (sigma_min ** (1/rho) - sigma_max ** (1/rho)))
             # => t = 1 - ((torch.exp(-snr/(2*rho)) - sigma_max ** (1/rho)) / (sigma_min ** (1/rho) - sigma_max ** (1/rho)))
