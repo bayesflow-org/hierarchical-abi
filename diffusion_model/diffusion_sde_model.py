@@ -358,15 +358,15 @@ class HierarchicalScoreModel(nn.Module):
 
             # Flatten the observation dimension for theta_local and x_emb.
             batch_size, n_obs = x_emb.shape[:2]
-            theta_local_flat = theta_local.contiguous().view(batch_size * n_obs, -1)
-            x_emb_flat = x_emb.contiguous().view(batch_size * n_obs, -1)
+            theta_local_flat = theta_local.contiguous().view(batch_size * n_obs, *theta_local.shape[2:])
+            x_emb_flat = x_emb.contiguous().view(batch_size * n_obs, *x_emb.shape[2:])
 
             # Expand time and theta_global so they match the flattened observations.
             # time: from [batch_size, time_dim] -> [batch_size, n_obs, time_dim] -> [batch_size * n_obs, time_dim]
-            time_expanded = time.unsqueeze(1).expand(batch_size, n_obs, time.shape[-1]).contiguous().view(batch_size * n_obs, -1)
+            time_expanded = time.unsqueeze(1).expand(batch_size, n_obs, 1).contiguous().view(batch_size * n_obs, 1)
             # theta_global: from [batch_size, global_theta_dim] -> [batch_size, n_obs, global_theta_dim] -> [batch_size * n_obs, global_theta_dim]
             theta_global_expanded = theta_global.unsqueeze(1).expand(batch_size, n_obs, theta_global.shape[-1]).contiguous().view(
-                batch_size * n_obs, -1)
+                batch_size * n_obs, theta_global.shape[-1])
 
             # Pass all observations at once through the local model.
             local_out_flat = self.local_model.forward(
@@ -379,7 +379,7 @@ class HierarchicalScoreModel(nn.Module):
             )
 
             # Reshape back to [batch_size, n_obs, ...]
-            local_out = local_out_flat.contiguous().view(batch_size, n_obs, -1)
+            local_out = local_out_flat.contiguous().view(batch_size, n_obs, *theta_local.shape[2:])
         else:
             global_out = self.global_model.forward(theta=theta_global, time=time, x=x_emb,
                                                    conditions=None, pred_score=pred_score, clip_x=clip_x)

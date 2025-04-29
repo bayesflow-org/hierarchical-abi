@@ -105,9 +105,9 @@ class FLI_Prior:
 
         if self.parameterization == 'difference':
             self.tau1_mean_hyperprior_mean = np.log(0.2)
-            self.tau1_mean_hyperprior_std = 0.7
+            self.tau1_mean_hyperprior_std = 0.7  # 1
             self.tau1_std_hyperprior_mean = -1
-            self.tau1_std_hyperprior_std = 0.5
+            self.tau1_std_hyperprior_std = 0.5  # 1
 
             self.delta_tau_mean_hyperprior_mean = np.log(1.)
             self.delta_tau_mean_hyperprior_std = 0.5

@@ -104,9 +104,11 @@ class TimeSeriesNetwork(nn.Module):
         bidirectional: bool = True,
         dropout: float = 0.,
         skip_steps: int = 4,
+        number_of_observations: int = 1,
     ):
         super().__init__()
         self.name = "TimeSeriesNetwork"
+        self.number_of_observations = number_of_observations
 
         # ensure tuples
         if not isinstance(filters, (list, tuple)):
@@ -166,6 +168,10 @@ class TimeSeriesNetwork(nn.Module):
         x: (batch, seq_len, channels_in)
         returns: (batch, summary_dim)
         """
+        if self.number_of_observations > 1:
+            batch_shape, n_obs = x.shape[:2]
+            x = x.reshape(batch_shape * n_obs, *x.shape[2:])
+
         # conv1d wants (B, C, L)
         x = x.transpose(1, 2)
 
@@ -180,4 +186,7 @@ class TimeSeriesNetwork(nn.Module):
         summary = self.recurrent(x)         # → (batch, recurrent_dim*2)
 
         # final projection
-        return self.output_projector(summary)  # → (batch, summary_dim)
+        out = self.output_projector(summary)  # → (batch, summary_dim)
+        if self.number_of_observations > 1:
+            out = out.reshape(batch_shape, n_obs, *out.shape[1:])
+        return out

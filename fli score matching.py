@@ -17,7 +17,7 @@ from bayesflow import diagnostics
 from torch.utils.data import DataLoader
 
 from diffusion_model import HierarchicalScoreModel, SDE, euler_maruyama_sampling, train_score_model
-from diffusion_model.helper_networks import GaussianFourierProjection
+from diffusion_model.helper_networks import GaussianFourierProjection, ShallowSet
 from diffusion_model.bayesflow_summary_nets import TimeSeriesNetwork
 from problems.fli import FLIProblem, FLI_Prior, generate_synthetic_data
 from problems import plot_shrinkage, visualize_simulation_output
@@ -26,7 +26,8 @@ torch_device = torch.device("cuda")
 #%%
 prior = FLI_Prior()
 batch_size = 64
-number_of_obs = 1 #[16]
+number_of_obs = [16] # 1
+max_number_of_obs = number_of_obs if isinstance(number_of_obs, int) else max(number_of_obs)
 experiment_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
 
 current_sde = SDE(
@@ -59,10 +60,10 @@ n_blocks = [5, 6]
 hidden_dim = [256, 512]
 hidden_dim_summary = [10, 14, 18, 22, 32]
 n_blocks, hidden_dim, hidden_dim_summary = list(itertools.product(n_blocks, hidden_dim, hidden_dim_summary))[experiment_id]
-summary_net = TimeSeriesNetwork(input_dim=1, recurrent_dim=256, summary_dim=hidden_dim_summary)
+summary_net = TimeSeriesNetwork(input_dim=1, recurrent_dim=256, summary_dim=hidden_dim_summary, number_of_observations=max_number_of_obs)
 
 global_summary_dim = hidden_dim_summary
-#global_summary_net = ShallowSet(dim_input=hidden_dim_summary, dim_output=global_summary_dim, dim_hidden=16)
+global_summary_net = ShallowSet(dim_input=hidden_dim_summary, dim_output=global_summary_dim, dim_hidden=128)
 
 time_embedding_local = nn.Sequential(
     GaussianFourierProjection(8),
@@ -81,17 +82,17 @@ score_model = HierarchicalScoreModel(
     input_dim_x_global=global_summary_dim,
     input_dim_x_local=hidden_dim_summary,
     summary_net=summary_net,
-    #global_summary_net=global_summary_net,
-    time_embedding_local=time_embedding_local,
-    time_embedding_global=time_embedding_global,
+    global_summary_net=global_summary_net if isinstance(number_of_obs, list) else None,
+    #time_embedding_local=time_embedding_local,
+    #time_embedding_global=time_embedding_global,
     hidden_dim=hidden_dim,
     n_blocks=n_blocks,
-    max_number_of_obs=number_of_obs if isinstance(number_of_obs, int) else max(number_of_obs),
+    max_number_of_obs=max_number_of_obs,
     prediction_type=['score', 'e', 'x', 'v'][3],
     sde=current_sde,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
-    name_prefix=f'FLI_{hidden_dim_summary}_{hidden_dim}_{n_blocks}_{summary_net.name}_'
+    name_prefix=f'FLI_{max_number_of_obs}_{hidden_dim_summary}_{hidden_dim}_{n_blocks}_{summary_net.name}_'
 )
 
 # make dir for plots
