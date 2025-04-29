@@ -26,7 +26,7 @@ torch_device = torch.device("cuda")
 #%%
 prior = FLI_Prior()
 batch_size = 64
-number_of_obs = [16] # 1
+number_of_obs = [4] # 1
 max_number_of_obs = number_of_obs if isinstance(number_of_obs, int) else max(number_of_obs)
 experiment_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
 
@@ -124,7 +124,7 @@ score_model.eval()
 #%% md
 # # Validation
 #%%
-n_local_samples = 10
+n_local_samples = 10*max_number_of_obs
 valid_prior_global, valid_prior_local, valid_data = generate_synthetic_data(prior=prior, n_data=100,
                                                                             n_local_samples=n_local_samples,
                                                                             random_seed=0)
@@ -132,7 +132,7 @@ n_post_samples = 100
 global_param_names = prior.global_param_names
 local_param_names = prior.get_local_param_names(n_local_samples)
 #score_model.current_number_of_obs = 4  # we can choose here, how many observations are passed together through the score
-#score_model.current_number_of_obs = 4
+score_model.current_number_of_obs = max_number_of_obs
 print(valid_data.shape, score_model.current_number_of_obs)
 #%%
 mini_batch_size = 10
@@ -140,6 +140,7 @@ t1_value = 0.01
 t0_value = 1
 sampling_arg = {
     'size': mini_batch_size,
+    'sampling_chunk_size': 512,
     #'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
 }
 #plt.plot(torch.linspace(0, 1, 100), mini_batch_arg['damping_factor'](torch.linspace(0, 1, 100)))
@@ -163,6 +164,7 @@ fig.savefig(f'plots/{score_model.name}/ecdf_global.png')
 #%%
 conditions_global = (np.median(posterior_global_samples_valid, axis=0), posterior_global_samples_valid)[1]
 score_model.sde.s_shift_cosine = 0
+score_model.current_number_of_obs = 1
 posterior_local_samples_valid = euler_maruyama_sampling(score_model, valid_data,
                                                         n_post_samples=n_post_samples, conditions=conditions_global,
                                                         diffusion_steps=200, device=torch_device, verbose=False)
