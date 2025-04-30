@@ -49,7 +49,7 @@ dataset_valid = FLIProblem(
     sde=current_sde,
     number_of_obs=number_of_obs
 )
-print('data generated')
+
 # Create dataloader
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=False)
@@ -59,7 +59,8 @@ dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=Fals
 n_blocks = [5, 6]
 hidden_dim = [256, 512]
 hidden_dim_summary = [10, 14, 18, 22, 32]
-n_blocks, hidden_dim, hidden_dim_summary = list(itertools.product(n_blocks, hidden_dim, hidden_dim_summary))[experiment_id]
+split_summary_vector = [True, False]
+n_blocks, hidden_dim, hidden_dim_summary, split_summary_vector = list(itertools.product(n_blocks, hidden_dim, hidden_dim_summary, split_summary_vector))[experiment_id]
 summary_net = TimeSeriesNetwork(input_dim=1, recurrent_dim=256, summary_dim=hidden_dim_summary, number_of_observations=max_number_of_obs)
 
 global_summary_dim = hidden_dim_summary
@@ -92,7 +93,8 @@ score_model = HierarchicalScoreModel(
     sde=current_sde,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
-    name_prefix=f'FLI_{max_number_of_obs}_{hidden_dim_summary}_{hidden_dim}_{n_blocks}_{summary_net.name}_'
+    name_prefix=f'FLI_{max_number_of_obs}_{hidden_dim_summary}_{hidden_dim}_{n_blocks}{"_split" if split_summary_vector else ""}_{summary_net.name}_',
+    split_summary_vector=split_summary_vector
 )
 
 # make dir for plots

@@ -131,9 +131,8 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, 
     sampling_arg_dict['summary_already_applied'] = False
     if not sampling_arg_dict['subsample']:
         # otherwise x_obs is expanded later on a batch-wise basis
-        if not sampling_arg_dict['noisy_condition']['apply'] and not global_sampling:
+        if not sampling_arg_dict['noisy_condition']['apply']:
             # we can apply the summary network here already
-            print('Precomputing summaries for all observations.')
             # normalize data
             if not isinstance(x_obs, torch.Tensor):
                 x_obs = torch.tensor(x_obs, dtype=torch.float32)
@@ -154,11 +153,15 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, 
             x_obs = expand_obs(x_obs=x_obs_list, n_post_samples=n_post_samples)
             sampling_arg_dict['summary_already_applied'] = True
         else:
+            # prepare data
             if not isinstance(x_obs, torch.Tensor):
                 x_obs = torch.tensor(x_obs, dtype=torch.float32)
             x_obs = model.prior.normalize_data(x_obs)
-            x_obs = expand_obs(x_obs=x_obs, n_post_samples=n_post_samples)
-            x_obs = x_obs.to(device)
+    else:
+        # prepare data
+        if not isinstance(x_obs, torch.Tensor):
+            x_obs = torch.tensor(x_obs, dtype=torch.float32)
+        x_obs = model.prior.normalize_data(x_obs)
 
     # sample from latent prior for diffusion model
     if global_sampling:
@@ -236,12 +239,17 @@ def eval_compositional_score(model, theta, diffusion_time, x_obs, conditions_exp
     # subsample observations for the score update
     if sampling_arg_dict['subsample']:
         sub_x_obs = sub_sample_observations(data=x_obs, sampling_arg_dict=sampling_arg_dict)
-        # prepare data
-        if not isinstance(sub_x_obs, torch.Tensor):
-            sub_x_obs = torch.tensor(sub_x_obs, dtype=torch.float32)
-        sub_x_obs = model.prior.normalize_data(sub_x_obs)
-        x_exp = expand_obs(x_obs=sub_x_obs, n_post_samples=n_post_samples)
-        x_exp = x_exp.to(theta.device)
+        if not sampling_arg_dict['noisy_condition']['apply']:
+            sub_x_obs_collapsed = sub_x_obs.contiguous().view(sub_x_obs.shape[0] * sub_x_obs.shape[1], *sub_x_obs.shape[2:])
+            sub_x_obs_collapsed = sub_x_obs_collapsed.to(theta.device)
+            x_sum = model.summary_forward(x=sub_x_obs_collapsed)
+            x_sum = x_sum.contiguous().view(sub_x_obs.shape[0], sub_x_obs.shape[1], *x_sum.shape[1:])
+            x_exp = expand_obs(x_obs=x_sum, n_post_samples=n_post_samples)
+            sampling_arg_dict['summary_already_applied'] = True
+        else:
+            x_exp = expand_obs(x_obs=sub_x_obs, n_post_samples=n_post_samples)
+            x_exp = x_exp.to(theta.device)
+            sampling_arg_dict['summary_already_applied'] = False
     else:
         # data is already prepared
         x_exp = x_obs
@@ -281,13 +289,22 @@ def eval_compositional_score(model, theta, diffusion_time, x_obs, conditions_exp
         for start_idx in range(0, n_samples_global, sampling_arg_dict['sampling_chunk_size']):
             end_idx = min(start_idx + sampling_arg_dict['sampling_chunk_size'], n_samples_global)
             # Run the sampling on the chunk
-            model_scores_chunk = model.forward_global(
-                theta_global=theta_exp[start_idx:end_idx],
-                time=t_exp[start_idx:end_idx],
-                x=x_exp[start_idx:end_idx],
-                pred_score=True,
-                clip_x=clip_x
-            )
+            if sampling_arg_dict['summary_already_applied']:
+                model_scores_chunk = model.forward_global_without_summary(
+                    theta_global=theta_exp[start_idx:end_idx],
+                    time=t_exp[start_idx:end_idx],
+                    x_emb=x_exp[start_idx:end_idx],
+                    pred_score=True,
+                    clip_x=clip_x
+                )
+            else:
+                model_scores_chunk = model.forward_global(
+                    theta_global=theta_exp[start_idx:end_idx],
+                    time=t_exp[start_idx:end_idx],
+                    x=x_exp[start_idx:end_idx],
+                    pred_score=True,
+                    clip_x=clip_x
+                )
             model_scores_list.append(model_scores_chunk)
         # Concatenate all sample chunks along the batch dimension.
         model_indv_scores = torch.cat(model_scores_list, dim=0)
@@ -315,13 +332,22 @@ def eval_compositional_score(model, theta, diffusion_time, x_obs, conditions_exp
         for start_idx in range(0, n_samples_global, sampling_arg_dict['sampling_chunk_size']):
             end_idx = min(start_idx + sampling_arg_dict['sampling_chunk_size'], n_samples_global)
             # Run the sampling on the chunk
-            model_scores_chunk = model.forward_global(
-                theta_global=theta[start_idx:end_idx],
-                time=t_exp[start_idx:end_idx],
-                x=x_exp[start_idx:end_idx],
-                pred_score=True,
-                clip_x=clip_x
-            )
+            if sampling_arg_dict['summary_already_applied']:
+                model_scores_chunk = model.forward_global_without_summary(
+                    theta_global=theta[start_idx:end_idx],
+                    time=t_exp[start_idx:end_idx],
+                    x_emb=x_exp[start_idx:end_idx],
+                    pred_score=True,
+                    clip_x=clip_x
+                )
+            else:
+                model_scores_chunk = model.forward_global(
+                    theta_global=theta[start_idx:end_idx],
+                    time=t_exp[start_idx:end_idx],
+                    x=x_exp[start_idx:end_idx],
+                    pred_score=True,
+                    clip_x=clip_x
+                )
             model_scores_list.append(model_scores_chunk)
         # Concatenate all sample chunks along the batch dimension.
         model_indv_scores = torch.cat(model_scores_list, dim=0)
@@ -391,6 +417,8 @@ def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
             - Local: (batch_size, n_post_samples, n_obs, model.prior.n_params_local)
     """
     # Initialize sampling
+    model.to(device)
+    model.eval()
     theta, x_obs, conditions_exp, sampling_arg_dict, batch_size, n_obs, n_scores_update = initialize_sampling(
         model=model, x_obs=x_obs, n_post_samples=n_post_samples, conditions=conditions,
         sampling_arg=sampling_arg, random_seed=random_seed, device=device
@@ -399,8 +427,6 @@ def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
     batch_size_full = batch_size * n_post_samples
 
     with torch.no_grad():
-        model.to(device)
-        model.eval()
         if sampling_arg_dict['MC-dropout']:
             enable_dropout(model)
         theta = theta.to(device)
@@ -609,6 +635,8 @@ def adaptive_sampling(model, x_obs,
         return post_samples
 
     # Initialize sampling
+    model.to(device)
+    model.eval()
     theta, x_obs, conditions_exp, sampling_arg_dict, batch_size, n_obs, n_scores_update = initialize_sampling(
         model=model, x_obs=x_obs, n_post_samples=n_post_samples, conditions=conditions,
         sampling_arg=sampling_arg, random_seed=random_seed, device=device
@@ -630,8 +658,6 @@ def adaptive_sampling(model, x_obs,
     error_scale = 1 / np.sqrt(theta[0].numel()).item()  # 1 / sqrt(n_params)
     list_accepted_steps = []
     with torch.no_grad():
-        model.to(device)
-        model.eval()
         if sampling_arg_dict['MC-dropout']:
             enable_dropout(model)
         theta = theta.to(device)
@@ -749,6 +775,8 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
         return np.concatenate(post_samples, axis=1)
 
     # Initialize sampling
+    model.to(device)
+    model.eval()
     theta, x_obs, conditions_exp, sampling_arg_dict, batch_size, n_obs, n_scores_update = initialize_sampling(
         model=model, x_obs=x_obs, n_post_samples=n_post_samples, conditions=conditions,
         sampling_arg=sampling_arg, random_seed=random_seed, device=device
@@ -756,8 +784,6 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
     batch_size_full = batch_size * n_post_samples
 
     with torch.no_grad():
-        model.to(device)
-        model.eval()
         if sampling_arg_dict['MC-dropout']:
             enable_dropout(model)
         theta = theta.to(device)
@@ -837,6 +863,8 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
             - Local: shape (n_post_samples, n_obs * model.prior.n_params_local)
     """
     # Initialize sampling
+    model.to(device)
+    model.eval()
     theta, x_obs, conditions_exp, sampling_arg_dict, batch_size, n_obs, n_scores_update = initialize_sampling(
         model=model, x_obs=x_obs, n_post_samples=n_post_samples, conditions=conditions,
         sampling_arg=sampling_arg, random_seed=random_seed, device=device
@@ -850,8 +878,6 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
     max_as = torch.max(sigma_t)
     annealing_step_size = step_size_factor * torch.square(sigma_t / max_as)
     with torch.no_grad():
-        model.to(device)
-        model.eval()
         if sampling_arg_dict['MC-dropout']:
             enable_dropout(model)
         theta = theta.to(device)
