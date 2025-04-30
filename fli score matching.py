@@ -26,7 +26,7 @@ torch_device = torch.device("cuda")
 #%%
 prior = FLI_Prior()
 batch_size = 64
-number_of_obs = [4] # 1
+number_of_obs = 1 #[4] # 1
 max_number_of_obs = number_of_obs if isinstance(number_of_obs, int) else max(number_of_obs)
 experiment_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
 
@@ -218,4 +218,137 @@ for i in range(3):
     ax[i].set_xlabel('True')
     ax[i].legend()
 plt.show()
-#%%
+#%% Real data
+
+grid_data = 512
+global_param_names = prior.global_param_names
+local_param_names = prior.get_local_param_names(grid_data * grid_data)
+
+binned_data = np.load('problems/fli/exp_binned_data.npy')[:grid_data, :grid_data]
+real_data = binned_data.reshape(1, grid_data * grid_data, 256, 1) / np.max(binned_data)
+
+plt.imshow(np.mean(binned_data, axis=-1), cmap='turbo')
+plt.colorbar()
+#plt.savefig('plots/FLI_exp_binned_data.png')
+plt.show()
+
+t1_value = 0.5
+t0_value = 1
+n_post_samples = 100
+sampling_arg = {
+    'size': 10,
+    'damping_factor': lambda t: (torch.ones_like(t) / real_data.shape[1] * 100) * (t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t)),
+    #'damping_factor': lambda t: (1-torch.ones_like(t)) / real_data.shape[1] + 0.1,
+    #'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
+}
+score_model.sde.s_shift_cosine = 3.5
+
+posterior_global_samples_real = euler_maruyama_sampling(score_model, real_data,
+                                                         n_post_samples=n_post_samples,
+                                                         sampling_arg=sampling_arg,
+                                                         diffusion_steps=800, device=torch_device, verbose=False)
+
+prior_dict = {}
+posterior_dict = {}
+prior_tranf_dict = {}
+posterior_tranf_dict = {}
+for i in range(len(global_param_names)):
+    prior_dict[global_param_names[i]] = valid_prior_global[:, i]
+    posterior_dict[global_param_names[i]] = posterior_global_samples_real[0, :, i]
+
+tau, tau_2, A = prior.transform_raw_params(
+        log_tau=prior_dict[global_param_names[0]],
+        log_delta_tau=prior_dict[global_param_names[2]],
+        a=prior_dict[global_param_names[4]]
+    )
+prior_tranf_dict = {
+    r'$\tau$': tau,
+    r'$\tau_2$': tau_2,
+    r'$A$': A
+}
+
+tau, tau_2, A = prior.transform_raw_params(
+        log_tau=posterior_dict[global_param_names[0]],
+        log_delta_tau=posterior_dict[global_param_names[2]],
+        a=posterior_dict[global_param_names[4]]
+    )
+posterior_tranf_dict = {
+    r'$\tau$': tau,
+    r'$\tau_2$': tau_2,
+    r'$A$': A
+}
+
+fig = diagnostics.pairs_posterior(
+    posterior_dict,
+    priors=prior_dict,
+)
+fig.savefig(f'plots/{score_model.name}/real_data_global_posterior.png')
+
+fig = diagnostics.pairs_posterior(
+    posterior_tranf_dict,
+    priors=prior_tranf_dict,
+)
+fig.savefig(f'plots/{score_model.name}/real_data_global_posterior_transf.png')
+
+chunk_size = 2048
+score_model.sde.s_shift_cosine = 0
+
+posterior_local_samples_real = {'log_tau_L': [], 'log_delta_tau_L': [], 'a_l': []}
+for start_idx in range(0, grid_data**2, chunk_size):
+    end_idx = min(start_idx + chunk_size, grid_data**2)
+    posterior_samples_chunk = euler_maruyama_sampling(score_model, real_data[:, start_idx:end_idx],
+                                                        conditions=posterior_global_samples_real,
+                                                        n_post_samples=n_post_samples,
+                                                        diffusion_steps=100, device=torch_device, verbose=False)
+
+    for i_k, k in enumerate(posterior_local_samples_real.keys()):
+        posterior_local_samples_real[k].append(posterior_samples_chunk[0, :, :, i_k])
+
+for k in posterior_local_samples_real.keys():
+    posterior_local_samples_real[k] = np.concatenate(posterior_local_samples_real[k], axis=1)
+
+tau, tau_2, A = prior.transform_raw_params(
+    log_tau=posterior_local_samples_real['log_tau_L'].T.reshape(n_post_samples, grid_data, grid_data),
+    log_delta_tau=posterior_local_samples_real['log_delta_tau_L'].T.reshape(n_post_samples, grid_data, grid_data),
+    a=posterior_local_samples_real['a_l'].T.reshape(n_post_samples, grid_data, grid_data),
+)
+ps = np.concatenate([tau[:, :, :, np.newaxis], tau_2[:, :, :, np.newaxis], A[:, :, :, np.newaxis]], axis=-1)
+transf_local_param_names = [r'$\tau_1^L$', r'$\tau_2^L$', r'$A^L$']
+
+med = np.median(ps, axis=0)
+std = np.std(ps, axis=0)
+visualize_simulation_output(med, title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
+                            cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median.png")
+visualize_simulation_output(std, title_prefix=['Posterior Std ' + p for p in transf_local_param_names],
+                            cmap='turbo', save_path=f"plots/{score_model.name}/real_data_std.png")
+
+fig, axis = plt.subplots(1, 5, figsize=(10, 3), tight_layout=True, sharex=True, sharey=True)
+axis = axis.flatten()
+pixel_ids = [0, 0]
+for ax in axis:
+    plot_index = np.random.randint(0, tau.shape[0])
+
+    simulations = np.array([
+        prior.simulator.decay_gen_single(
+            tau_L=tau[post_index, pixel_ids[0], pixel_ids[1]],
+            tau_L_2=tau_2[post_index, pixel_ids[0], pixel_ids[1]],
+            A_L=A[post_index, pixel_ids[0], pixel_ids[1]]
+        ) for post_index in range(tau.shape[0])
+    ])
+
+    ax.plot(real_data.reshape(grid_data, grid_data, 256)[pixel_ids[0], pixel_ids[1]], label='data')
+    ax.plot(np.median(simulations, axis=0), label='posterior median', alpha=0.8, color='orange')
+    ax.fill_between(
+        np.arange(simulations.shape[1]),
+        np.quantile(simulations, 0.025, axis=0),
+        np.quantile(simulations, 0.975, axis=0),
+        alpha=0.4,
+        color='orange',
+        label='posterior 95% CI'
+    )
+    ax.set_xlabel('Time')
+axis[0].set_ylabel('Normalized Photon Count')
+fig.legend(labels=['data', 'posterior median', 'posterior 95% CI'], bbox_to_anchor=(0.5, -0.07),
+           ncol=3, loc='lower center')
+plt.savefig(f'plots/{score_model.name}/real_data_fit.png')
+plt.close()

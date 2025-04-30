@@ -27,25 +27,22 @@ def enable_dropout(model):
             m.train()
 
 
-def expand_obs(x_obs, model, n_post_samples):
+def expand_obs(x_obs, n_post_samples):
     """
     Expand and normalize observations.
     Input is (batch_size, n_obs, ...)
     """
-    if not isinstance(x_obs, torch.Tensor):
-        x_obs = torch.tensor(x_obs, dtype=torch.float32)
-    x_obs_norm = model.prior.normalize_data(x_obs)
-    batch_size = x_obs_norm.shape[0]
-    n_obs = x_obs_norm.shape[1]
+    batch_size = x_obs.shape[0]
+    n_obs = x_obs.shape[1]
 
     ##########################
     # expand to number of posterior samples
-    x_exp = x_obs_norm.unsqueeze(1).expand(batch_size, n_post_samples, *x_obs_norm.shape[1:])
-    x_expanded = x_exp.contiguous().view(batch_size * n_post_samples * n_obs, *x_obs_norm.shape[2:])
+    x_exp = x_obs.unsqueeze(1).expand(batch_size, n_post_samples, *x_obs.shape[1:])
+    x_expanded = x_exp.contiguous().view(batch_size * n_post_samples * n_obs, *x_obs.shape[2:])
     return x_expanded
 
 
-def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, random_seed):
+def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, random_seed, device):
     """
     Initialize common parameters for sampling methods.
 
@@ -56,6 +53,7 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, 
         conditions (tensor or None): Conditioning parameters for local sampling
         sampling_arg (dict or None): Dict with arguments for the mini-batch algorithm
         random_seed (int or None): Random seed for reproducibility
+        device (str or None): Device to use for computations
 
     Returns:
         tuple: A tuple containing:
@@ -130,9 +128,37 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, 
     else:
         sampling_arg_dict['subsample'] = False
 
+    sampling_arg_dict['summary_already_applied'] = False
     if not sampling_arg_dict['subsample']:
-        x_obs = expand_obs(x_obs=x_obs, model=model, n_post_samples=n_post_samples)
         # otherwise x_obs is expanded later on a batch-wise basis
+        if not sampling_arg_dict['noisy_condition']['apply'] and not global_sampling:
+            # we can apply the summary network here already
+            print('Precomputing summaries for all observations.')
+            # normalize data
+            if not isinstance(x_obs, torch.Tensor):
+                x_obs = torch.tensor(x_obs, dtype=torch.float32)
+            x_obs_norm = model.prior.normalize_data(x_obs)
+            # reshape but do not expand yet
+            x_obs_norm = x_obs_norm.contiguous().view(x_obs.shape[0] * x_obs.shape[1], *x_obs.shape[2:])
+            # pass chunks through the model
+            n_samples_local = x_obs_norm.shape[0]
+            x_obs_list = []
+            for start_idx in range(0, n_samples_local, sampling_arg_dict['sampling_chunk_size']):
+                end_idx = min(start_idx + sampling_arg_dict['sampling_chunk_size'], n_samples_local)
+                x_temp = x_obs_norm[start_idx:end_idx]
+                x_temp = x_temp.to(device)
+                x_obs_list.append(model.summary_forward(x=x_temp))
+            x_obs_list = torch.cat(x_obs_list, dim=0)
+            # reshape again and then expand
+            x_obs_list = x_obs_list.contiguous().view(x_obs.shape[0], x_obs.shape[1], *x_obs_list.shape[1:])
+            x_obs = expand_obs(x_obs=x_obs_list, n_post_samples=n_post_samples)
+            sampling_arg_dict['summary_already_applied'] = True
+        else:
+            if not isinstance(x_obs, torch.Tensor):
+                x_obs = torch.tensor(x_obs, dtype=torch.float32)
+            x_obs = model.prior.normalize_data(x_obs)
+            x_obs = expand_obs(x_obs=x_obs, n_post_samples=n_post_samples)
+            x_obs = x_obs.to(device)
 
     # sample from latent prior for diffusion model
     if global_sampling:
@@ -211,7 +237,10 @@ def eval_compositional_score(model, theta, diffusion_time, x_obs, conditions_exp
     if sampling_arg_dict['subsample']:
         sub_x_obs = sub_sample_observations(data=x_obs, sampling_arg_dict=sampling_arg_dict)
         # prepare data
-        x_exp = expand_obs(x_obs=sub_x_obs, model=model, n_post_samples=n_post_samples)
+        if not isinstance(sub_x_obs, torch.Tensor):
+            sub_x_obs = torch.tensor(sub_x_obs, dtype=torch.float32)
+        sub_x_obs = model.prior.normalize_data(sub_x_obs)
+        x_exp = expand_obs(x_obs=sub_x_obs, n_post_samples=n_post_samples)
         x_exp = x_exp.to(theta.device)
     else:
         # data is already prepared
@@ -309,14 +338,24 @@ def eval_compositional_score(model, theta, diffusion_time, x_obs, conditions_exp
         for start_idx in range(0, n_samples_local, sampling_arg_dict['sampling_chunk_size']):
             end_idx = min(start_idx + sampling_arg_dict['sampling_chunk_size'], n_samples_local)
             # Run the sampling on the chunk
-            model_scores_chunk = model.forward_local(
-                theta_local=theta_exp[start_idx:end_idx],
-                time=t_exp[start_idx:end_idx],
-                x=x_exp[start_idx:end_idx],
-                theta_global=conditions_exp[start_idx:end_idx],
-                pred_score=True,
-                clip_x=clip_x
-            )
+            if sampling_arg_dict['summary_already_applied']:
+                model_scores_chunk = model.forward_local_without_summary(
+                    theta_local=theta_exp[start_idx:end_idx],
+                    time=t_exp[start_idx:end_idx],
+                    x_emb=x_exp[start_idx:end_idx],
+                    theta_global=conditions_exp[start_idx:end_idx],
+                    pred_score=True,
+                    clip_x=clip_x
+                )
+            else:
+                model_scores_chunk = model.forward_local(
+                    theta_local=theta_exp[start_idx:end_idx],
+                    time=t_exp[start_idx:end_idx],
+                    x=x_exp[start_idx:end_idx],
+                    theta_global=conditions_exp[start_idx:end_idx],
+                    pred_score=True,
+                    clip_x=clip_x
+                )
             model_scores_list.append(model_scores_chunk)
         # Concatenate all sample chunks along the batch dimension.
         model_scores = torch.cat(model_scores_list, dim=0)
@@ -354,7 +393,7 @@ def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
     # Initialize sampling
     theta, x_obs, conditions_exp, sampling_arg_dict, batch_size, n_obs, n_scores_update = initialize_sampling(
         model=model, x_obs=x_obs, n_post_samples=n_post_samples, conditions=conditions,
-        sampling_arg=sampling_arg, random_seed=random_seed
+        sampling_arg=sampling_arg, random_seed=random_seed, device=device
     )
     diffusion_time = generate_diffusion_time(size=diffusion_steps+1, epsilon=t_end, device=device)
     batch_size_full = batch_size * n_post_samples
@@ -365,8 +404,6 @@ def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
         if sampling_arg_dict['MC-dropout']:
             enable_dropout(model)
         theta = theta.to(device)
-        if not sampling_arg_dict['subsample']:
-            x_obs = x_obs.to(device)
         if conditions_exp is not None:
             conditions_exp = conditions_exp.to(device)
         # Reverse iterate over diffusion steps.
@@ -574,7 +611,7 @@ def adaptive_sampling(model, x_obs,
     # Initialize sampling
     theta, x_obs, conditions_exp, sampling_arg_dict, batch_size, n_obs, n_scores_update = initialize_sampling(
         model=model, x_obs=x_obs, n_post_samples=n_post_samples, conditions=conditions,
-        sampling_arg=sampling_arg, random_seed=random_seed
+        sampling_arg=sampling_arg, random_seed=random_seed, device=device
     )
     batch_size_full = batch_size * n_post_samples
 
@@ -599,8 +636,6 @@ def adaptive_sampling(model, x_obs,
             enable_dropout(model)
         theta = theta.to(device)
         theta_prev = theta_prev.to(device)
-        if not sampling_arg_dict['subsample']:
-            x_obs = x_obs.to(device)
         if conditions_exp is not None:
             conditions_exp = conditions_exp.to(device)
         total_steps = 0
@@ -716,7 +751,7 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
     # Initialize sampling
     theta, x_obs, conditions_exp, sampling_arg_dict, batch_size, n_obs, n_scores_update = initialize_sampling(
         model=model, x_obs=x_obs, n_post_samples=n_post_samples, conditions=conditions,
-        sampling_arg=sampling_arg, random_seed=random_seed
+        sampling_arg=sampling_arg, random_seed=random_seed, device=device
     )
     batch_size_full = batch_size * n_post_samples
 
@@ -726,8 +761,6 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
         if sampling_arg_dict['MC-dropout']:
             enable_dropout(model)
         theta = theta.to(device)
-        if not sampling_arg_dict['subsample']:
-            x_obs = x_obs.to(device)
         if conditions_exp is not None:
             conditions_exp = conditions_exp.to(device)
         def probability_ode(t, x):
@@ -806,7 +839,7 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
     # Initialize sampling
     theta, x_obs, conditions_exp, sampling_arg_dict, batch_size, n_obs, n_scores_update = initialize_sampling(
         model=model, x_obs=x_obs, n_post_samples=n_post_samples, conditions=conditions,
-        sampling_arg=sampling_arg, random_seed=random_seed
+        sampling_arg=sampling_arg, random_seed=random_seed, device=device
     )
     batch_size_full = batch_size * n_post_samples
     diffusion_time = generate_diffusion_time(size=diffusion_steps, epsilon=t_end, device=device)
@@ -822,8 +855,6 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
         if sampling_arg_dict['MC-dropout']:
             enable_dropout(model)
         theta = theta.to(device)
-        if not sampling_arg_dict['subsample']:
-            x_obs = x_obs.to(device)
         if not conditions_exp is None:
             conditions_exp = conditions_exp.to(device)
         # Annealed Langevin dynamics: iterate over time steps in reverse
