@@ -9,3 +9,4 @@ in contexts where you need gradients (e.g. custom training loops).
   post_vars = samples["estimates"].var(axis=1, ddof=1)
 /home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/numpy/core/_methods.py:195: RuntimeWarning: invalid value encountered in divide
   ret = um.true_divide(
+slurmstepd: error: *** JOB 20597172 ON mlgpu007 CANCELLED AT 2025-04-29T15:58:40 DUE TO TIME LIMIT ***

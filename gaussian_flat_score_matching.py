@@ -25,7 +25,7 @@ torch_device = torch.device("cuda")
 # get arguments
 max_number_of_obs = int(sys.argv[1])
 experiment_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
-noise_schedule = ['cosine', 'linear', 'edm-training', 'edm-sampling'][2]
+noise_schedule = ['cosine', 'linear', 'edm-training', 'edm-sampling'][3]
 
 variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t'] # 'damping_factor', 'damping_factor_prior'
 if max_number_of_obs > 1:

@@ -1,0 +1,74 @@
+WARNING:bayesflow:
+When using torch backend, we need to disable autograd by default to avoid excessive memory usage. Use
+
+with torch.enable_grad():
+    ...
+
+in contexts where you need gradients (e.g. custom training loops).
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/bayesflow/diagnostics/metrics/posterior_contraction.py:59: RuntimeWarning: Degrees of freedom <= 0 for slice
+  post_vars = samples["estimates"].var(axis=1, ddof=1)
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/numpy/core/_methods.py:195: RuntimeWarning: invalid value encountered in divide
+  ret = um.true_divide(
+Exp: 5 Model: 5 mini_batch
+Using EDM noise schedule with log_snr_min: -8.764053344726562, log_snr_max: 12.429216384887695
+Kernel type: variance_preserving, noise schedule: edm-sampling
+t_min: 0.0, t_max: 1.0
+alpha, sigma: (tensor(1.0000), tensor(0.0020)) (tensor(0.0125), tensor(0.9999))
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|   blocks.res_blocks.0.dense.weight   |    5376    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    5376    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|    final_projection_linear.weight    |    2560    |
+|     final_projection_linear.bias     |     10     |
++--------------------------------------+------------+
+Total Trainable Params: 276746
+gaussian_flat5_1score_model_F_variance_preserving_edm-sampling_edm
+Data Size: 1, Mini Batch: None, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 0.5945174997680887, #Steps: 164.85
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 1.7430808242152163, #Steps: 334.99
+Data Size: 10, Mini Batch: None, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 1.8309837588529048, #Steps: 40.43
+Data Size: 100, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 9.90312586777954, #Steps: 2267.39
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 18.699864930073197, #Steps: 844.33
+Data Size: 100, Mini Batch: None, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 12.564615539613166, #Steps: 301.41
+Data Size: 1000, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+Finished after 10000 steps (20000 score evals) at time 0.4553283154964447.
+Mean step size: 5.447258118078055e-05, min: 9.971059625968337e-06, max: 0.0002611482923384756
+maximum steps reached, increase number of steps.
+KL: nan, #Steps: 10000.0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+Data Size: 10000, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+Finished after 10000 steps (20000 score evals) at time 0.8096882104873657.
+Mean step size: 1.9033175988653333e-05, min: 1.1376876500435174e-05, max: 2.8397371352184564e-05
+maximum steps reached, increase number of steps.
+KL: nan, #Steps: 10000.0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+Data Size: 100000, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+Finished after 10000 steps (20000 score evals) at time 0.9766766428947449.
+Mean step size: 2.3323788784901836e-06, min: 2.6883284931500384e-07, max: 3.133008249278646e-06
+maximum steps reached, increase number of steps.
+KL: nan, #Steps: 10000.0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
