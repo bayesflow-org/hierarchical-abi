@@ -360,14 +360,14 @@ class HierarchicalScoreModel(nn.Module):
 
     def forward(self, theta_global, theta_local, time, x, pred_score, clip_x=False):  # __call__ method for the model
         """Forward pass through the global and local model. This usually only used, during training."""
-        x_emb = self.summary_net(x)
+        x_emb = self.summary_forward(x)
         if self.split_summary_vector:
             # split vector at last dimension
             local_summary = x_emb[..., :x_emb.shape[-1] // 2]
             global_summary = x_emb[..., x_emb.shape[-1] // 2:]
         else:
             global_summary = x_emb
-            local_summary = x_emb.copy()
+            local_summary = x_emb
 
         if self.amortize_n_conditions:
             global_out = self.global_model.forward(theta=theta_global, time=time, x=global_summary,
@@ -406,7 +406,7 @@ class HierarchicalScoreModel(nn.Module):
 
     def forward_global(self, theta_global, time, x, pred_score, clip_x=False):
         """Forward pass through the global model. Usually we want the score, not the predicting task from training."""
-        x_emb = self.summary_net(x)
+        x_emb = self.summary_forward(x)
         if self.split_summary_vector:
             # split vector at last dimension
             global_summary = x_emb[..., x_emb.shape[-1] // 2:]
@@ -418,18 +418,18 @@ class HierarchicalScoreModel(nn.Module):
 
     def forward_local(self, theta_local, theta_global, time, x, pred_score, clip_x=False):
         """Forward pass through the local model. Usually we want the score, not the predicting task from training."""
-        x_emb = self.summary_net(x)
+        x_emb = self.summary_forward(x)
         if self.split_summary_vector:
             # split vector at last dimension
             local_summary = x_emb[..., :x_emb.shape[-1] // 2]
         else:
-            local_summary = x_emb.copy()
+            local_summary = x_emb
 
         # during training, we looped over observations, here we expect that only one is passed
         if self.amortize_n_conditions:
             if local_summary.shape[1] > 1:
                 batch_size, n_obs = local_summary.shape[:2]
-                local_summary = local_summary.contiguous().view(batch_size*n_obs, -1)
+                local_summary = local_summary.contiguous().view(batch_size*n_obs, *local_summary.shape[2:])
             else:
                 local_summary = local_summary.squeeze(1)
         local_out = self.local_model.forward(theta=theta_local, time=time, x=local_summary,
@@ -440,7 +440,13 @@ class HierarchicalScoreModel(nn.Module):
         """
         Forward pass through the summary network.
         """
+        if self.amortize_n_conditions:
+            # reshape obs such that the summary can work with it
+            batch_size, n_obs = x.shape[:2]
+            x = x.contiguous().view(batch_size*n_obs, *x.shape[2:])
         x_emb = self.summary_net(x)
+        if self.amortize_n_conditions:
+            x_emb = x_emb.contiguous().view(batch_size, n_obs, *x_emb.shape[1:])
         return x_emb
 
     def forward_global_without_summary(self, theta_global, time, x_emb, pred_score, clip_x=False):
@@ -458,12 +464,12 @@ class HierarchicalScoreModel(nn.Module):
             # split vector at last dimension
             local_summary = x_emb[..., :x_emb.shape[-1] // 2]
         else:
-            local_summary = x_emb.copy()
+            local_summary = x_emb
         # during training, we looped over observations, here we expect that only one is passed
         if self.amortize_n_conditions:
             if local_summary.shape[1] > 1:
                 batch_size, n_obs = local_summary.shape[:2]
-                local_summary = local_summary.contiguous().view(batch_size*n_obs, -1)
+                local_summary = local_summary.contiguous().view(batch_size*n_obs, *local_summary.shape[2:])
             else:
                 local_summary = local_summary.squeeze(1)
         local_out = self.local_model.forward(theta=theta_local, time=time, x=local_summary,

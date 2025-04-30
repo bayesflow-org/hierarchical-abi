@@ -113,10 +113,8 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, 
         print('warning: number of observations is not a multiple of current_number_of_obs '
               f'dropping last {n_obs % model.current_number_of_obs} observations.')
         x_obs = x_obs[:, :n_scores_update * model.current_number_of_obs]
-    if model.max_number_of_obs > 1 and x_obs.ndim == 3:
-        x_obs = x_obs.reshape(batch_size, n_scores_update, model.current_number_of_obs, -1)
-    elif model.max_number_of_obs > 1 and x_obs.ndim == 4:
-        x_obs = x_obs.reshape(batch_size, n_scores_update, model.current_number_of_obs, x_obs.shape[2], -1)
+    if model.max_number_of_obs > 1:
+        x_obs = x_obs.reshape(batch_size, n_scores_update, model.current_number_of_obs, *x_obs.shape[2:])
 
     ###### Prepare Mini-Batching
     sampling_arg_dict = sampling_defaults.copy()
