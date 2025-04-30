@@ -101,8 +101,8 @@ score_model = HierarchicalScoreModel(
     global_summary_net=global_summary_net if isinstance(number_of_obs, list) else None,
     input_dim_x_local=global_summary_dim,
     #summary_net=local_summary_net,
-    time_embedding_local=time_embedding_local,
-    time_embedding_global=time_embedding_global,
+    #time_embedding_local=time_embedding_local,
+    #time_embedding_global=time_embedding_global,
     hidden_dim=256,
     n_blocks=5,
     max_number_of_obs=max_number_of_obs,
@@ -167,11 +167,13 @@ elif variable_of_interest == 'n_conditions':
     second_variable_of_interest = 'data_size'
 
 elif variable_of_interest == 'cosine_shift':
-    cosine_shifts = [0, -1, 1, 2, 5, 10]
+    #cosine_shifts = [0, -1, 1, 2, 5, 10]
+    cosine_shifts = [0, 5, 10]
     second_variable_of_interest = 'data_size'
 
 elif variable_of_interest == 'damping_factor_t':
-    d_factors = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.5, 0.75, 0.9, 1]
+    #d_factors = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.5, 0.75, 0.9, 1]
+    d_factors = [1e-05, 0.01, 1.0]
     second_variable_of_interest = 'data_size'
 
 elif variable_of_interest == 'compare_stan':

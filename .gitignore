@@ -9,6 +9,7 @@ Vanilla FLI.ipynb
 /vanilla_fli_fit.png
 /vanilla_fli_median.png
 /vanilla_fli_std.png
+/time-series-contour-plot.ipynb
 .venv
 
 # Ignore Python bytecode caches

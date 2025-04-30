@@ -25,9 +25,9 @@ torch_device = torch.device("cuda")
 # get arguments
 max_number_of_obs = int(sys.argv[1])
 experiment_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
-noise_schedule = ['cosine', 'linear', 'edm-training', 'edm-sampling'][3]
+noise_schedule = ['cosine', 'linear', 'edm-training', 'edm-sampling'][0]
 
-variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t'] # 'damping_factor', 'damping_factor_prior'
+variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t']
 if max_number_of_obs > 1:
     variables_of_interest = ['n_conditions']
 model_ids = np.arange(10)  # train 10 models
@@ -112,7 +112,7 @@ if not os.path.exists(f"models/{score_model.name}.pt"):
     plt.ylabel('Value')
     plt.legend()
     plt.savefig(f'plots/{score_model.name}/loss_training.png')
-    exit()
+
     # %%
 else:
     score_model.load_state_dict(
@@ -157,7 +157,8 @@ elif variable_of_interest == 'n_conditions':
     second_variable_of_interest = 'data_size'
 
 elif variable_of_interest == 'cosine_shift':
-    cosine_shifts = [0, -1, 1, 2, 5, 10]
+    #cosine_shifts = [0, -1, 1, 2, 5, 10]
+    cosine_shifts = [0, 2, 5, 10]
     second_variable_of_interest = 'data_size'
 
 elif variable_of_interest in ['damping_factor', 'damping_factor_prior', 'damping_factor_t']:
