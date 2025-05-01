@@ -61,7 +61,7 @@ hidden_dim = [256, 512]
 hidden_dim_summary = [10, 14, 18, 22, 32]
 split_summary_vector = [True, False]
 n_blocks, hidden_dim, hidden_dim_summary, split_summary_vector = list(itertools.product(n_blocks, hidden_dim, hidden_dim_summary, split_summary_vector))[experiment_id]
-summary_net = TimeSeriesNetwork(input_dim=1, recurrent_dim=256, summary_dim=hidden_dim_summary, number_of_observations=max_number_of_obs)
+summary_net = TimeSeriesNetwork(input_dim=1, recurrent_dim=256, summary_dim=hidden_dim_summary)
 
 global_summary_dim = hidden_dim_summary
 global_summary_net = ShallowSet(dim_input=hidden_dim_summary, dim_output=global_summary_dim, dim_hidden=128)

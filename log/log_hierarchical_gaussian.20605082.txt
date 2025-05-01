@@ -1,0 +1,186 @@
+WARNING:bayesflow:
+When using torch backend, we need to disable autograd by default to avoid excessive memory usage. Use
+
+with torch.enable_grad():
+    ...
+
+in contexts where you need gradients (e.g. custom training loops).
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/bayesflow/diagnostics/metrics/posterior_contraction.py:59: RuntimeWarning: Degrees of freedom <= 0 for slice
+  post_vars = samples["estimates"].var(axis=1, ddof=1)
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/numpy/core/_methods.py:195: RuntimeWarning: invalid value encountered in divide
+  ret = um.true_divide(
+Exp: 14 Model: 4 cosine_shift
+Kernel type: variance_preserving, noise schedule: cosine
+t_min: 0.00035210439818911254, t_max: 0.999647855758667
+alpha, sigma: (tensor(1.0000), tensor(0.0006)) (tensor(0.0006), tensor(1.0000))
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|   blocks.res_blocks.0.dense.weight   |    5376    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    5376    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|    final_projection_linear.weight    |    2560    |
+|     final_projection_linear.bias     |     10     |
++--------------------------------------+------------+
+Total Trainable Params: 276746
+gaussian_flat4_1score_model_v_variance_preserving_cosine_likelihood_weighting
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 129.39096982796914, #Steps: 142.78
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 2, Damping Factor: 1
+KL: 67.04910582471729, #Steps: 268.23
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 5, Damping Factor: 1
+KL: 16.854420125456556, #Steps: 95.04
+Data Size: 10, Mini Batch: 1, Conditions: 1, Cosine shift: 10, Damping Factor: 1
+KL: 5.478823242271502, #Steps: 9.29
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 21.865900246242692, #Steps: 1136.35
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 2, Damping Factor: 1
+KL: 49.720920433716365, #Steps: 992.7
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 5, Damping Factor: 1
+KL: 200.24218704437135, #Steps: 724.95
+Data Size: 100, Mini Batch: 10, Conditions: 1, Cosine shift: 10, Damping Factor: 1
+KL: 149.43169625199442, #Steps: 10.14
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+KL: 1445.9739579818424, #Steps: 6441.95
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 2, Damping Factor: 1
+KL: 1583.0096354164457, #Steps: 5484.5
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 5, Damping Factor: 1
+KL: 1967.438915252902, #Steps: 3352.11
+Data Size: 1000, Mini Batch: 100, Conditions: 1, Cosine shift: 10, Damping Factor: 1
+KL: 2021.9348498256818, #Steps: 25.76
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+Finished after 10000 steps (20000 score evals) at time 0.9988455176353455.
+Mean step size: 1.1782554090010022e-07, min: 4.2166746538896405e-08, max: 2.5057505581571604e-07
+maximum steps reached, increase number of steps.
+KL: nan, #Steps: 10000.0
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 2, Damping Factor: 1
+Finished after 10000 steps (20000 score evals) at time 0.9988486766815186.
+Mean step size: 1.1746570984736848e-07, min: 4.1005943529626165e-08, max: 3.086545916630712e-07
+maximum steps reached, increase number of steps.
+KL: nan, #Steps: 10000.0
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 5, Damping Factor: 1
+Finished after 10000 steps (20000 score evals) at time 0.9977201819419861.
+Mean step size: 2.2833869154913973e-07, min: 1.7464191870431023e-08, max: 9.684503083917662e-07
+maximum steps reached, increase number of steps.
+KL: nan, #Steps: 10000.0
+Data Size: 10000, Mini Batch: 1000, Conditions: 1, Cosine shift: 10, Damping Factor: 1
+Finished after 10000 steps (20000 score evals) at time 0.3143785893917084.
+Mean step size: 0.00013600913226159258, min: 9.864440642104455e-08, max: 0.11651059985160828
+maximum steps reached, increase number of steps.
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+LinAlg error in KL computation: Matrix is not positive definite
+KL: 793246894.4403824, #Steps: 9105.5
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 2
+smaller mini batch size already failed, skipping 1, 5
+Data Size: 100000, Mini Batch: 10000, Conditions: 1, Cosine shift: 10, Damping Factor: 1
+Finished after 10000 steps (20000 score evals) at time 0.7248473167419434.
+Mean step size: 5.370914074984541e-05, min: 3.849621954543636e-09, max: 0.002171538071706891
+maximum steps reached, increase number of steps.
+KL: nan, #Steps: 10000.0
