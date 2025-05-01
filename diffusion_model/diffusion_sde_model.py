@@ -54,6 +54,7 @@ class ScoreModel(nn.Module):
 
         self.max_number_of_obs = max_number_of_obs
         self.current_number_of_obs = max_number_of_obs
+        self.amortize_n_conditions = False if max_number_of_obs == 1 else True
 
         self.name = (f'{name_prefix}score_model_{prediction_type}_{sde.kernel_type}_{sde.noise_schedule}'
                      f'_{weighting_type}')
@@ -136,6 +137,7 @@ class ScoreModel(nn.Module):
             x = x.contiguous().view(batch_size*n_obs, *x.shape[2:])
         x_emb = self.summary_net(x)
         if self.amortize_n_conditions:
+            batch_size, n_obs = x.shape[:2]
             x_emb = x_emb.contiguous().view(batch_size, n_obs, *x_emb.shape[1:])
         return x_emb
 
@@ -454,6 +456,7 @@ class HierarchicalScoreModel(nn.Module):
             x = x.contiguous().view(batch_size*n_obs, *x.shape[2:])
         x_emb = self.summary_net(x)
         if self.amortize_n_conditions:
+            batch_size, n_obs = x.shape[:2]
             x_emb = x_emb.contiguous().view(batch_size, n_obs, *x_emb.shape[1:])
         return x_emb
 
@@ -498,7 +501,7 @@ class SDE:
 
         print(f"Kernel type: {self.kernel_type}, noise schedule: {self.noise_schedule}")
         print(f"t_min: {self.t_min}, t_max: {self.t_max}")
-        print(f'alpha, sigma:',
+        print('alpha, sigma:',
               self.kernel(log_snr=self.get_snr(t=0)),
               self.kernel(log_snr=self.get_snr(t=1)))
 
@@ -606,7 +609,6 @@ class SDE:
             # SNR = -2*rho*log(s_max + (1 - x)*(s_min - s_max))
             s_max = self.sigma_max ** (1 / self.rho)
             s_min = self.sigma_min ** (1 / self.rho)
-            # u = s_max + (1 - x)*(s_min - s_max)
             u = s_max + (1 - t_trunc) * (s_min - s_max)
             # d/dx snr = 2*rho*(s_min - s_max) / u
             dsnr_dx = 2 * self.rho * (s_min - s_max) / u
@@ -714,7 +716,7 @@ class SDE:
             beta_t = self._get_snr_derivative(t)
 
             # Compute drift f(x, t) = -0.5 * beta(t) * x
-            if not x is None:
+            if x is not None:
                 f = -0.5 * beta_t * x
 
             # Compute diffusion coefficient g(t) = sqrt(beta(t))
@@ -724,7 +726,7 @@ class SDE:
             beta_t = self._get_snr_derivative(t)
 
             # Compute drift f(x, t) = -0.5 * beta(t) * x
-            if not x is None:
+            if x is not None:
                 f = -0.5 * beta_t * x
 
             # Compute diffusion coefficient g(t) = sqrt(beta(t) * (1 - exp(-2 \int_0^t beta(s) ds)))
