@@ -109,7 +109,11 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, 
     else:
         n_scores_update = n_obs  # local sampling, so only one observation per posterior sample
 
-    if n_obs % model.current_number_of_obs != 0:
+    if n_obs < model.current_number_of_obs:
+        print('warning: number of observations is smaller than current_number_of_obs '
+              'setting current_number_of_obs to number of observations.')
+        model.current_number_of_obs = n_obs
+    elif n_obs % model.current_number_of_obs != 0:
         print('warning: number of observations is not a multiple of current_number_of_obs '
               f'dropping last {n_obs % model.current_number_of_obs} observations.')
         x_obs = x_obs[:, :n_scores_update * model.current_number_of_obs]

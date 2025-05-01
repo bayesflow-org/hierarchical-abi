@@ -131,13 +131,13 @@ class ScoreModel(nn.Module):
 
     def summary_forward(self, x):
         """Forward pass through the summary network."""
-        batch_size, n_obs = x.shape[:2]
-        if self.amortize_n_conditions:
-            # reshape obs such that the summary can work with it
-            x = x.contiguous().view(batch_size*n_obs, *x.shape[2:])
+        #batch_size, n_obs = x.shape[:2]
+        #if self.amortize_n_conditions:
+        #    # reshape obs such that the summary can work with it
+        #    x = x.contiguous().view(batch_size*n_obs, *x.shape[2:])
         x_emb = self.summary_net(x)
-        if self.amortize_n_conditions:
-            x_emb = x_emb.contiguous().view(batch_size, n_obs, *x_emb.shape[1:])
+        #if self.amortize_n_conditions:
+        #    x_emb = x_emb.contiguous().view(batch_size, n_obs, *x_emb.shape[1:])
         return x_emb
 
     def forward_global(self, theta_global, time, x, pred_score, clip_x=False, x_emb=None):
