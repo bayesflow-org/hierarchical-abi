@@ -226,7 +226,7 @@ grid_data = 512
 global_param_names = prior.global_param_names
 local_param_names = prior.get_local_param_names(grid_data * grid_data)
 
-binned_data = np.load('problems/fli/exp_binned_data.npy')[:grid_data, :grid_data]
+binned_data = np.load('problems/FLI/exp_binned_data.npy')[:grid_data, :grid_data]
 real_data = binned_data.reshape(1, grid_data * grid_data, 256, 1) / np.max(binned_data)
 
 plt.imshow(np.mean(binned_data, axis=-1), cmap='turbo')

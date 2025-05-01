@@ -69,7 +69,7 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, 
         torch.manual_seed(random_seed)
 
     global_sampling = True
-    if not conditions is None:
+    if conditions is not None:
         global_sampling = False
         model.current_number_of_obs = 1  # local sampling, so only one observation per posterior sample
     else:
@@ -288,10 +288,11 @@ def eval_compositional_score(model, theta, diffusion_time, x_obs, conditions_exp
             end_idx = min(start_idx + sampling_arg_dict['sampling_chunk_size'], n_samples_global)
             # Run the sampling on the chunk
             if sampling_arg_dict['summary_already_applied']:
-                model_scores_chunk = model.forward_global_without_summary(
+                model_scores_chunk = model.forward_global(
                     theta_global=theta_exp[start_idx:end_idx],
                     time=t_exp[start_idx:end_idx],
                     x_emb=x_exp[start_idx:end_idx],
+                    x=None,
                     pred_score=True,
                     clip_x=clip_x
                 )
@@ -331,10 +332,11 @@ def eval_compositional_score(model, theta, diffusion_time, x_obs, conditions_exp
             end_idx = min(start_idx + sampling_arg_dict['sampling_chunk_size'], n_samples_global)
             # Run the sampling on the chunk
             if sampling_arg_dict['summary_already_applied']:
-                model_scores_chunk = model.forward_global_without_summary(
+                model_scores_chunk = model.forward_global(
                     theta_global=theta[start_idx:end_idx],
                     time=t_exp[start_idx:end_idx],
                     x_emb=x_exp[start_idx:end_idx],
+                    x=None,
                     pred_score=True,
                     clip_x=clip_x
                 )
@@ -363,10 +365,11 @@ def eval_compositional_score(model, theta, diffusion_time, x_obs, conditions_exp
             end_idx = min(start_idx + sampling_arg_dict['sampling_chunk_size'], n_samples_local)
             # Run the sampling on the chunk
             if sampling_arg_dict['summary_already_applied']:
-                model_scores_chunk = model.forward_local_without_summary(
+                model_scores_chunk = model.forward_local(
                     theta_local=theta_exp[start_idx:end_idx],
                     time=t_exp[start_idx:end_idx],
                     x_emb=x_exp[start_idx:end_idx],
+                    x=None,
                     theta_global=conditions_exp[start_idx:end_idx],
                     pred_score=True,
                     clip_x=clip_x
@@ -649,7 +652,7 @@ def adaptive_sampling(model, x_obs,
         # abs error tolerance grows with the dimension
         e_abs = 0.01 * np.sqrt(theta.shape[-1])
     e_abs_tensor = torch.full((batch_size_full, 1), e_abs, dtype=torch.float32, device=device)
-    if not conditions is None:
+    if conditions is not None:
         e_abs_tensor = e_abs_tensor[:, None]
     theta_prev = theta
 
@@ -879,7 +882,7 @@ def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
         if sampling_arg_dict['MC-dropout']:
             enable_dropout(model)
         theta = theta.to(device)
-        if not conditions_exp is None:
+        if conditions_exp is not None:
             conditions_exp = conditions_exp.to(device)
         # Annealed Langevin dynamics: iterate over time steps in reverse
         progress_bar = tqdm(total=diffusion_steps*langevin_steps, disable=not verbose)

@@ -29,7 +29,7 @@ class ScoreModel(nn.Module):
             name_prefix (str): Prefix for the name of the model. Default is ''.
             time_embedding (nn.Module): Time embedding module. Default is nn.Identity.
             summary_net (nn.Module, None): Summary network. Default is nn.Identity.
-            full_res_layer (bool): Whether to connect the last layer as residual block. Default is False.
+            full_res_layer (bool): Whether to connect the last layer as a residual block. Default is False.
     """
     def __init__(self,
                  input_dim_theta, input_dim_x,
@@ -128,12 +128,20 @@ class ScoreModel(nn.Module):
             - 1
         )
 
-    def forward_global(self, theta_global, time, x, pred_score, clip_x=False):
-        return self.forward(theta=theta_global, time=time, x=x, conditions=None, pred_score=pred_score, clip_x=clip_x)
+    def summary_forward(self, x):
+        """Forward pass through the summary network."""
+        if self.amortize_n_conditions:
+            # reshape obs such that the summary can work with it
+            batch_size, n_obs = x.shape[:2]
+            x = x.contiguous().view(batch_size*n_obs, *x.shape[2:])
+        x_emb = self.summary_net(x)
+        if self.amortize_n_conditions:
+            x_emb = x_emb.contiguous().view(batch_size, n_obs, *x_emb.shape[1:])
+        return x_emb
 
-    def forward_global_without_summary(self, theta_global, time, x_emb, pred_score, clip_x=False):
-        return self.forward(theta=theta_global, time=time, x=None, x_emb=x_emb, conditions=None,
-                            pred_score=pred_score, clip_x=clip_x)
+    def forward_global(self, theta_global, time, x, pred_score, clip_x=False, x_emb=None):
+        return self.forward(theta=theta_global, time=time, x=x, x_emb=x_emb,
+                            conditions=None, pred_score=pred_score, clip_x=clip_x)
 
     def forward(self, theta, time, x, conditions=None, pred_score=False, clip_x=False, x_emb=None):
         """
@@ -145,7 +153,7 @@ class ScoreModel(nn.Module):
             x (torch.Tensor or None): Input x tensor of shape (batch_size, input_dim_x).
             x_emb (torch.Tensor or None): Input x tensor of shape (batch_size, input_dim_x). Can be None.
             conditions (torch.Tensor or None): Input condition tensor of shape (batch_size, input_dim_condition). Can be None.
-            pred_score (bool): Whether to predict the score (True) or the whatever is specified in prediction_type (False).
+            pred_score (bool): Whether to predict the score (True) or whatever is specified in prediction_type (False).
             clip_x (bool): Whether to clip the output x.
 
         Returns:
@@ -359,7 +367,7 @@ class HierarchicalScoreModel(nn.Module):
         print(self.name)
 
     def forward(self, theta_global, theta_local, time, x, pred_score, clip_x=False):  # __call__ method for the model
-        """Forward pass through the global and local model. This usually only used, during training."""
+        """Forward pass through the global and local model. This usually only used during training."""
         x_emb = self.summary_forward(x)
         if self.split_summary_vector:
             # split vector at last dimension
@@ -404,9 +412,10 @@ class HierarchicalScoreModel(nn.Module):
                                                  conditions=theta_global, pred_score=pred_score, clip_x=clip_x)
         return global_out, local_out
 
-    def forward_global(self, theta_global, time, x, pred_score, clip_x=False):
+    def forward_global(self, theta_global, time, x, pred_score, x_emb=None, clip_x=False):
         """Forward pass through the global model. Usually we want the score, not the predicting task from training."""
-        x_emb = self.summary_forward(x)
+        if x_emb is None:
+            x_emb = self.summary_forward(x)
         if self.split_summary_vector:
             # split vector at last dimension
             global_summary = x_emb[..., x_emb.shape[-1] // 2:]
@@ -416,11 +425,12 @@ class HierarchicalScoreModel(nn.Module):
                                                conditions=None, pred_score=pred_score, clip_x=clip_x)
         return global_out
 
-    def forward_local(self, theta_local, theta_global, time, x, pred_score, clip_x=False):
+    def forward_local(self, theta_local, theta_global, time, x, pred_score, x_emb=None, clip_x=False):
         """Forward pass through the local model. Usually we want the score, not the predicting task from training."""
-        x_emb = self.summary_forward(x)
+        if x_emb is None:
+            x_emb = self.summary_forward(x)
         if self.split_summary_vector:
-            # split vector at last dimension
+            # split vector at the last dimension
             local_summary = x_emb[..., :x_emb.shape[-1] // 2]
         else:
             local_summary = x_emb
@@ -437,9 +447,7 @@ class HierarchicalScoreModel(nn.Module):
         return local_out
 
     def summary_forward(self, x):
-        """
-        Forward pass through the summary network.
-        """
+        """Forward pass through the summary network."""
         if self.amortize_n_conditions:
             # reshape obs such that the summary can work with it
             batch_size, n_obs = x.shape[:2]
@@ -448,34 +456,6 @@ class HierarchicalScoreModel(nn.Module):
         if self.amortize_n_conditions:
             x_emb = x_emb.contiguous().view(batch_size, n_obs, *x_emb.shape[1:])
         return x_emb
-
-    def forward_global_without_summary(self, theta_global, time, x_emb, pred_score, clip_x=False):
-        if self.split_summary_vector:
-            # split vector at last dimension
-            global_summary = x_emb[..., x_emb.shape[-1] // 2:]
-        else:
-            global_summary = x_emb
-        global_out = self.global_model.forward(theta=theta_global, time=time, x=global_summary,
-                                               conditions=None, pred_score=pred_score, clip_x=clip_x)
-        return global_out
-
-    def forward_local_without_summary(self, theta_local, theta_global, time, x_emb, pred_score, clip_x=False):
-        if self.split_summary_vector:
-            # split vector at last dimension
-            local_summary = x_emb[..., :x_emb.shape[-1] // 2]
-        else:
-            local_summary = x_emb
-        # during training, we looped over observations, here we expect that only one is passed
-        if self.amortize_n_conditions:
-            if local_summary.shape[1] > 1:
-                batch_size, n_obs = local_summary.shape[:2]
-                local_summary = local_summary.contiguous().view(batch_size*n_obs, *local_summary.shape[2:])
-            else:
-                local_summary = local_summary.squeeze(1)
-        local_out = self.local_model.forward(theta=theta_local, time=time, x=local_summary,
-                                             conditions=theta_global, pred_score=pred_score, clip_x=clip_x)
-        return local_out
-
 
 
 class SDE:
