@@ -22,4 +22,4 @@ source /home/jarruda_hpc/hierarchical-abi/env_marvin.sh
 python3.11 /home/jarruda_hpc/hierarchical-abi/gaussian_flat_score_matching.py 100
 #python3.11 /home/jarruda_hpc/hierarchical-abi/ar\(1\)_score_matching.py 1
 #python3.11 /home/jarruda_hpc/hierarchical-abi/ar\(1\)_score_matching.py 100
-#python3.11 /home/jarruda_hpc/hierarchical-abi/fli\ score\ matching.py 
+#python3.11 /home/jarruda_hpc/hierarchical-abi/fli\ score\ matching.py
