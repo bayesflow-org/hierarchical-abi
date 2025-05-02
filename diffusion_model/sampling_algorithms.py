@@ -178,10 +178,24 @@ def sub_sample_observations(data, sampling_arg_dict):
     """
     Subsample observations for the score update with x shape: (batch_shape, n_obs, ...)
     """
-    # sample indices
-    rand_obs_indx = np.random.permutation(data.shape[1])
-    # get subsampled data
-    data_sub = data[:, rand_obs_indx[:sampling_arg_dict['size']]]
+    n_obs = data.shape[1]
+    size = sampling_arg_dict['size']
+    if 'sampling_weights' in sampling_arg_dict:
+        weights = sampling_arg_dict['sampling_weights']
+        if weights.shape[0] != n_obs:
+            raise ValueError(f"sampling_weights length {weights.shape[0]} != number of observations {n_obs}")
+        # ensure non-negative
+        if np.any(weights < 0):
+            raise ValueError("sampling_weights must be non-negative")
+        # normalize to sum to 1 (if not already)
+        total = weights.sum()
+        probs = weights / total
+        chosen_idx = np.random.choice(n_obs, size=size, replace=False, p=probs)
+    else:
+        # sample indices
+        rand_obs_indx = np.random.permutation(n_obs)
+        # get subsampled data
+        data_sub = data[:, rand_obs_indx[:size]]
     return data_sub
 
 

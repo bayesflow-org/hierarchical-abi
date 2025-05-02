@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
-from scipy.special import expit
 import itertools
 
 os.environ['KERAS_BACKEND'] = 'torch'
@@ -136,12 +135,14 @@ local_param_names = prior.get_local_param_names(n_local_samples)
 score_model.current_number_of_obs = max_number_of_obs
 print(valid_data.shape, score_model.current_number_of_obs)
 #%%
-t1_value = 0.0009
-t0_value = 1
+#t1_value = 0.0009
+#t0_value = 1
+t1_value = 0.01
+t0_value = 0.05
 sampling_arg = {
     'size': 10,
-    'damping_factor': lambda t: (1-torch.ones_like(t)) * 1/n_local_samples + 0.01,
-    #'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
+    #'damping_factor': lambda t: (1-torch.ones_like(t)) * 1/n_local_samples + 0.01,
+    'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
 }
 
 #%%
@@ -164,7 +165,7 @@ score_model.sde.s_shift_cosine = 0
 score_model.current_number_of_obs = 1
 posterior_local_samples_valid = euler_maruyama_sampling(score_model, valid_data[:, :12],
                                                         n_post_samples=n_post_samples, conditions=conditions_global,
-                                                        diffusion_steps=200, device=torch_device, verbose=False)
+                                                        diffusion_steps=300, device=torch_device, verbose=False)
 #%%
 fig = diagnostics.recovery(posterior_local_samples_valid.reshape(valid_data.shape[0], n_post_samples, -1)[:, :, :12],
                           np.array(valid_prior_local).reshape(valid_data.shape[0], -1)[:, :12],
@@ -247,7 +248,7 @@ score_model.sde.s_shift_cosine = 0
 posterior_local_samples_real = euler_maruyama_sampling(score_model, real_data,
                                                         conditions=posterior_global_samples_real,
                                                         n_post_samples=n_post_samples,
-                                                        diffusion_steps=100, device=torch_device, verbose=True)
+                                                        diffusion_steps=300, device=torch_device, verbose=False)
 
 tau, tau_2, A = prior.transform_raw_params(
     log_tau=posterior_local_samples_real[0, :, :, 0].reshape(n_post_samples, grid_data, grid_data),
@@ -260,8 +261,12 @@ transf_local_param_names = [r'$\tau_1^L$', r'$\tau_2^L$', r'$A^L$']
 med = np.median(ps, axis=0)
 std = np.std(ps, axis=0)
 visualize_simulation_output(med, title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
-                            cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median.png")
+                            cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_same.png")
 visualize_simulation_output(std, title_prefix=['Posterior Std ' + p for p in transf_local_param_names],
+                            cmap='turbo', save_path=f"plots/{score_model.name}/real_data_std_same.png")
+visualize_simulation_output(med, title_prefix=['Posterior Median ' + p for p in transf_local_param_names], same_scale=False,
+                            cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median.png")
+visualize_simulation_output(std, title_prefix=['Posterior Std ' + p for p in transf_local_param_names], same_scale=False,
                             cmap='turbo', save_path=f"plots/{score_model.name}/real_data_std.png")
 
 fig, axis = plt.subplots(1, 5, figsize=(10, 3), tight_layout=True, sharex=True, sharey=True)
