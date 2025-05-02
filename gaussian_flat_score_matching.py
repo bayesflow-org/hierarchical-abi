@@ -149,7 +149,8 @@ data_sizes = np.array([1, 10, 100, 1000, 10000, 100000])
 
 if variable_of_interest == 'mini_batch':
     # Set up your data sizes and mini-batch parameters.
-    mini_batch = [1, 10, 100, 1000, 10000, None]
+    #mini_batch = [1, 10, 100, 1000, 10000, None]
+    mini_batch = [1, 10, 100, None]
     second_variable_of_interest = 'data_size'
 
 elif variable_of_interest == 'n_conditions':
@@ -162,7 +163,8 @@ elif variable_of_interest == 'cosine_shift':
     second_variable_of_interest = 'data_size'
 
 elif variable_of_interest in ['damping_factor', 'damping_factor_prior', 'damping_factor_t']:
-    d_factors = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.5, 0.75, 0.9, 1]
+    #d_factors = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.5, 0.75, 0.9, 1]
+    d_factors = [1e-05, 0.01, 0.1, 1.0]
     second_variable_of_interest = 'data_size'
 else:
     raise ValueError('Unknown variable_of_interest')

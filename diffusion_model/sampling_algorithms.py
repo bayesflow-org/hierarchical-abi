@@ -141,15 +141,7 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, 
             x_obs_norm = model.prior.normalize_data(x_obs)
             # reshape but do not expand yet
             x_obs_norm = x_obs_norm.contiguous().view(x_obs.shape[0] * x_obs.shape[1], *x_obs.shape[2:])
-            # pass chunks through the model
-            n_samples_local = x_obs_norm.shape[0]
-            x_obs_list = []
-            for start_idx in range(0, n_samples_local, sampling_arg_dict['sampling_chunk_size']):
-                end_idx = min(start_idx + sampling_arg_dict['sampling_chunk_size'], n_samples_local)
-                x_temp = x_obs_norm[start_idx:end_idx]
-                x_temp = x_temp.to(device)
-                x_obs_list.append(model.summary_forward(x=x_temp))
-            x_obs_list = torch.cat(x_obs_list, dim=0)
+            x_obs_list = model.summary_forward(x=x_obs_norm, chunk_size=sampling_arg_dict['sampling_chunk_size'], device=device)
             # reshape again and then expand
             x_obs_list = x_obs_list.contiguous().view(x_obs.shape[0], x_obs.shape[1], *x_obs_list.shape[1:])
             x_obs = expand_obs(x_obs=x_obs_list, n_post_samples=n_post_samples)
@@ -244,7 +236,7 @@ def eval_compositional_score(model, theta, diffusion_time, x_obs, conditions_exp
         if not sampling_arg_dict['noisy_condition']['apply']:
             sub_x_obs_collapsed = sub_x_obs.contiguous().view(sub_x_obs.shape[0] * sub_x_obs.shape[1], *sub_x_obs.shape[2:])
             sub_x_obs_collapsed = sub_x_obs_collapsed.to(theta.device)
-            x_sum = model.summary_forward(x=sub_x_obs_collapsed)
+            x_sum = model.summary_forward(x=sub_x_obs_collapsed, chunk_size=sampling_arg_dict['sampling_chunk_size'], device=theta.device)
             x_sum = x_sum.contiguous().view(sub_x_obs.shape[0], sub_x_obs.shape[1], *x_sum.shape[1:])
             x_exp = expand_obs(x_obs=x_sum, n_post_samples=n_post_samples)
             sampling_arg_dict['summary_already_applied'] = True
@@ -841,7 +833,7 @@ def probability_ode_solving(model, x_obs, n_post_samples=1, conditions=None,
 
 
 def langevin_sampling(model, x_obs, n_post_samples, conditions=None,
-                      diffusion_steps=1000, langevin_steps=10, step_size_factor=0.3, t_end=0,
+                      diffusion_steps=300, langevin_steps=5, step_size_factor=0.1, t_end=0,
                       sampling_arg=None,
                       random_seed=None, device=None, verbose=False):
     """

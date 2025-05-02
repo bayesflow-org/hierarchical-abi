@@ -126,35 +126,30 @@ score_model.eval()
 #%% md
 # # Validation
 #%%
-n_local_samples = 10*max_number_of_obs
+n_local_samples = 1024*max_number_of_obs
 valid_prior_global, valid_prior_local, valid_data = generate_synthetic_data(prior=prior, n_data=100,
                                                                             n_local_samples=n_local_samples,
                                                                             random_seed=0)
 n_post_samples = 100
 global_param_names = prior.global_param_names
 local_param_names = prior.get_local_param_names(n_local_samples)
-#score_model.current_number_of_obs = 4  # we can choose here, how many observations are passed together through the score
 score_model.current_number_of_obs = max_number_of_obs
 print(valid_data.shape, score_model.current_number_of_obs)
 #%%
-mini_batch_size = 10
-t1_value = 0.01
+t1_value = 0.0009
 t0_value = 1
 sampling_arg = {
-    'size': mini_batch_size,
+    'size': 10,
     'sampling_chunk_size': 512,
-    #'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
+    'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
 }
-#plt.plot(torch.linspace(0, 1, 100), mini_batch_arg['damping_factor'](torch.linspace(0, 1, 100)))
-#plt.show()
 
-t0_value, t1_value
 #%%
-#score_model.sde.s_shift_cosine = 4
+score_model.sde.s_shift_cosine = 0
 posterior_global_samples_valid = euler_maruyama_sampling(score_model, valid_data,
                                                    n_post_samples=n_post_samples,
                                                    sampling_arg=sampling_arg,
-                                                   diffusion_steps=500,
+                                                   diffusion_steps=1000,
                                                    device=torch_device, verbose=False)
 #%%
 fig = diagnostics.recovery(posterior_global_samples_valid, np.array(valid_prior_global), variable_names=global_param_names)
@@ -242,13 +237,14 @@ sampling_arg = {
     'damping_factor': lambda t: (torch.ones_like(t) / real_data.shape[1] * 100) * (t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t)),
     #'damping_factor': lambda t: (1-torch.ones_like(t)) / real_data.shape[1] + 0.1,
     #'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
+    'sampling_chunk_size': 512
 }
-score_model.sde.s_shift_cosine = 3.5
+score_model.sde.s_shift_cosine = 0
 
 posterior_global_samples_real = euler_maruyama_sampling(score_model, real_data,
                                                          n_post_samples=n_post_samples,
                                                          sampling_arg=sampling_arg,
-                                                         diffusion_steps=800, device=torch_device, verbose=False)
+                                                         diffusion_steps=1000, device=torch_device, verbose=False)
 
 prior_dict = {}
 posterior_dict = {}

@@ -129,15 +129,19 @@ class ScoreModel(nn.Module):
             - 1
         )
 
-    def summary_forward(self, x):
-        """Forward pass through the summary network."""
-        #batch_size, n_obs = x.shape[:2]
-        #if self.amortize_n_conditions:
-        #    # reshape obs such that the summary can work with it
-        #    x = x.contiguous().view(batch_size*n_obs, *x.shape[2:])
-        x_emb = self.summary_net(x)
-        #if self.amortize_n_conditions:
-        #    x_emb = x_emb.contiguous().view(batch_size, n_obs, *x_emb.shape[1:])
+    def summary_forward(self, x, chunk_size, device):
+        """Forward pass through the summary network. If amortize_n_conditions, the network should be able to handle it."""
+        # pass only chunks through the model
+        batch_size, n_obs = x.shape[:2]
+        x_list = []
+        for start_idx in range(0, batch_size, chunk_size):
+            end_idx = min(start_idx + chunk_size, batch_size)
+            x_temp = x[start_idx:end_idx]
+            x_temp = x_temp.to(device)
+            # pass through the summary network
+            x_emb = self.summary_net(x_temp)
+            x_list.append(x_emb)
+        x_emb = torch.cat(x_list, dim=0)
         return x_emb
 
     def forward_global(self, theta_global, time, x, pred_score, clip_x=False, x_emb=None):
@@ -369,7 +373,7 @@ class HierarchicalScoreModel(nn.Module):
 
     def forward(self, theta_global, theta_local, time, x, pred_score, clip_x=False):  # __call__ method for the model
         """Forward pass through the global and local model. This usually only used during training."""
-        x_emb = self.summary_forward(x)
+        x_emb = self.summary_forward(x, chunk_size=x.shape[0], device=theta_global.device)
         if self.split_summary_vector:
             # split vector at last dimension
             local_summary = x_emb[..., :x_emb.shape[-1] // 2]
@@ -416,7 +420,7 @@ class HierarchicalScoreModel(nn.Module):
     def forward_global(self, theta_global, time, x, pred_score, x_emb=None, clip_x=False):
         """Forward pass through the global model. Usually we want the score, not the predicting task from training."""
         if x_emb is None:
-            x_emb = self.summary_forward(x)
+            x_emb = self.summary_forward(x, chunk_size=x.shape[0], device=theta_global.device)
         if self.split_summary_vector:
             # split vector at last dimension
             global_summary = x_emb[..., x_emb.shape[-1] // 2:]
@@ -429,7 +433,7 @@ class HierarchicalScoreModel(nn.Module):
     def forward_local(self, theta_local, theta_global, time, x, pred_score, x_emb=None, clip_x=False):
         """Forward pass through the local model. Usually we want the score, not the predicting task from training."""
         if x_emb is None:
-            x_emb = self.summary_forward(x)
+            x_emb = self.summary_forward(x, chunk_size=x.shape[0], device=theta_global.device)
         if self.split_summary_vector:
             # split vector at the last dimension
             local_summary = x_emb[..., :x_emb.shape[-1] // 2]
@@ -447,15 +451,25 @@ class HierarchicalScoreModel(nn.Module):
                                              conditions=theta_global, pred_score=pred_score, clip_x=clip_x)
         return local_out
 
-    def summary_forward(self, x):
-        """Forward pass through the summary network."""
+    def summary_forward(self, x, chunk_size, device):
+        """Forward pass through the summary network. This network is always applied to the single input x."""
+        # pass only chunks through the model
         batch_size, n_obs = x.shape[:2]
-        if self.amortize_n_conditions:
-            # reshape obs such that the summary can work with it
-            x = x.contiguous().view(batch_size*n_obs, *x.shape[2:])
-        x_emb = self.summary_net(x)
-        if self.amortize_n_conditions:
-            x_emb = x_emb.contiguous().view(batch_size, n_obs, *x_emb.shape[1:])
+        x_list = []
+        for start_idx in range(0, batch_size, chunk_size):
+            end_idx = min(start_idx + chunk_size, batch_size)
+            x_temp = x[start_idx:end_idx]
+            x_temp = x_temp.to(device)
+            # pass through the summary network
+            if self.amortize_n_conditions:
+                # reshape obs such that the summary can work with it
+                x_temp = x_temp.contiguous().view(batch_size * n_obs, *x_temp.shape[2:])
+                x_emb = self.summary_net(x_temp)
+                x_emb = x_emb.contiguous().view(batch_size, n_obs, *x_emb.shape[1:])
+            else:
+                x_emb = self.summary_net(x_temp)
+            x_list.append(x_emb)
+        x_emb = torch.cat(x_list, dim=0)
         return x_emb
 
 
