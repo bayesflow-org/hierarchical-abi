@@ -179,10 +179,11 @@ global_param_names = prior.global_param_names
 local_param_names = prior.get_local_param_names(grid_data * grid_data)
 
 binned_data = np.load('problems/FLI/exp_binned_data.npy')[:grid_data, :grid_data]
-real_data = binned_data.reshape(1, grid_data * grid_data, 256, 1) / np.max(binned_data)
+binned_data = binned_data.reshape(1, grid_data * grid_data, 256, 1) / np.max(binned_data)
 
-data = np.load('problems/FLI/final_Data.npy')[0, :grid_data, :grid_data]
-binary_mask = (np.sum(data, axis=-1) != 0) * 1
+data = np.load('problems/FLI/final_Data.npy')[:, :grid_data, :grid_data]
+data = data.reshape(1, grid_data * grid_data, 256, 1) / np.max(data)
+binary_mask = (np.sum(data, axis=2) != 0) * 1
 
 for i, real_data in enumerate([binned_data, data]):
 
