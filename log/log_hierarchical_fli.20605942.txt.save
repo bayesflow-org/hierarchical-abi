@@ -1,207 +1,0 @@
-rxWARNING:bayesflow:
-When using torch backend, we need to disable autograd by default to avoid excessive memory usage. Use
-
-with torch.enable_grad():
-    ...
-
-in contexts where you need gradients (e.g. custom training loops).
-Kernel type: variance_preserving, noise schedule: cosine
-t_min: 0.00035210439818911254, t_max: 0.999647855758667
-alpha, sigma: (tensor(1.0000), tensor(0.0006)) (tensor(0.0006), tensor(1.0000))
-+--------------------------------------+------------+
-|               Modules                | Parameters |
-+--------------------------------------+------------+
-|   blocks.res_blocks.0.dense.weight   |    4096    |
-|    blocks.res_blocks.0.dense.bias    |    256     |
-| blocks.res_blocks.0.projector.weight |    4096    |
-|   blocks.res_blocks.1.dense.weight   |   65536    |
-|    blocks.res_blocks.1.dense.bias    |    256     |
-|   blocks.res_blocks.2.dense.weight   |   65536    |
-|    blocks.res_blocks.2.dense.bias    |    256     |
-|   blocks.res_blocks.3.dense.weight   |   65536    |
-|    blocks.res_blocks.3.dense.bias    |    256     |
-|   blocks.res_blocks.4.dense.weight   |   65536    |
-|    blocks.res_blocks.4.dense.bias    |    256     |
-|    final_projection_linear.weight    |    1536    |
-|     final_projection_linear.bias     |     6      |
-+--------------------------------------+------------+
-Total Trainable Params: 273158
-FLI_1_18_256_5_split_TimeSeriesNetwork_global_score_model_v_variance_preserving_cosine_likelihood_weighting
-+--------------------------------------+------------+
-|               Modules                | Parameters |
-+--------------------------------------+------------+
-|   blocks.res_blocks.0.dense.weight   |    4864    |
-|    blocks.res_blocks.0.dense.bias    |    256     |
-| blocks.res_blocks.0.projector.weight |    4864    |
-|   blocks.res_blocks.1.dense.weight   |   65536    |
-|    blocks.res_blocks.1.dense.bias    |    256     |
-|   blocks.res_blocks.2.dense.weight   |   65536    |
-|    blocks.res_blocks.2.dense.bias    |    256     |
-|   blocks.res_blocks.3.dense.weight   |   65536    |
-|    blocks.res_blocks.3.dense.bias    |    256     |
-|   blocks.res_blocks.4.dense.weight   |   65536    |
-|    blocks.res_blocks.4.dense.bias    |    256     |
-|    final_projection_linear.weight    |    768     |
-|     final_projection_linear.bias     |     3      |
-+--------------------------------------+------------+
-Total Trainable Params: 273923
-FLI_1_18_256_5_split_TimeSeriesNetwork_local_score_model_v_variance_preserving_cosine_likelihood_weighting
-+-----------------------------------------------------------+------------+
-|                          Modules                          | Parameters |
-+-----------------------------------------------------------+------------+
-|              summary_net.conv_blocks.0.weight             |     96     |
-|               summary_net.conv_blocks.0.bias              |     32     |
-|           summary_net.recurrent.skip_conv.weight          |   16384    |
-|            summary_net.recurrent.skip_conv.bias           |    128     |
-|        summary_net.recurrent.recurrent.weight_ih_l0       |   12288    |
-|        summary_net.recurrent.recurrent.weight_hh_l0       |   49152    |
-|         summary_net.recurrent.recurrent.bias_ih_l0        |    384     |
-|         summary_net.recurrent.recurrent.bias_hh_l0        |    384     |
-|    summary_net.recurrent.recurrent.weight_ih_l0_reverse   |   12288    |
-|    summary_net.recurrent.recurrent.weight_hh_l0_reverse   |   49152    |
-|     summary_net.recurrent.recurrent.bias_ih_l0_reverse    |    384     |
-|     summary_net.recurrent.recurrent.bias_hh_l0_reverse    |    384     |
-|     summary_net.recurrent.skip_recurrent.weight_ih_l0     |   49152    |
-|     summary_net.recurrent.skip_recurrent.weight_hh_l0     |   49152    |
-|      summary_net.recurrent.skip_recurrent.bias_ih_l0      |    384     |
-|      summary_net.recurrent.skip_recurrent.bias_hh_l0      |    384     |
-| summary_net.recurrent.skip_recurrent.weight_ih_l0_reverse |   49152    |
-| summary_net.recurrent.skip_recurrent.weight_hh_l0_reverse |   49152    |
-|  summary_net.recurrent.skip_recurrent.bias_ih_l0_reverse  |    384     |
-|  summary_net.recurrent.skip_recurrent.bias_hh_l0_reverse  |    384     |
-|            summary_net.output_projector.weight            |    9216    |
-|             summary_net.output_projector.bias             |     18     |
-|       global_model.blocks.res_blocks.0.dense.weight       |    4096    |
-|        global_model.blocks.res_blocks.0.dense.bias        |    256     |
-|     global_model.blocks.res_blocks.0.projector.weight     |    4096    |
-|       global_model.blocks.res_blocks.1.dense.weight       |   65536    |
-|        global_model.blocks.res_blocks.1.dense.bias        |    256     |
-|       global_model.blocks.res_blocks.2.dense.weight       |   65536    |
-|        global_model.blocks.res_blocks.2.dense.bias        |    256     |
-|       global_model.blocks.res_blocks.3.dense.weight       |   65536    |
-|        global_model.blocks.res_blocks.3.dense.bias        |    256     |
-|       global_model.blocks.res_blocks.4.dense.weight       |   65536    |
-|        global_model.blocks.res_blocks.4.dense.bias        |    256     |
-|        global_model.final_projection_linear.weight        |    1536    |
-|         global_model.final_projection_linear.bias         |     6      |
-|        local_model.blocks.res_blocks.0.dense.weight       |    4864    |
-|         local_model.blocks.res_blocks.0.dense.bias        |    256     |
-|      local_model.blocks.res_blocks.0.projector.weight     |    4864    |
-|        local_model.blocks.res_blocks.1.dense.weight       |   65536    |
-|         local_model.blocks.res_blocks.1.dense.bias        |    256     |
-|        local_model.blocks.res_blocks.2.dense.weight       |   65536    |
-|         local_model.blocks.res_blocks.2.dense.bias        |    256     |
-|        local_model.blocks.res_blocks.3.dense.weight       |   65536    |
-|         local_model.blocks.res_blocks.3.dense.bias        |    256     |
-|        local_model.blocks.res_blocks.4.dense.weight       |   65536    |
-|         local_model.blocks.res_blocks.4.dense.bias        |    256     |
-|         local_model.final_projection_linear.weight        |    768     |
-|          local_model.final_projection_linear.bias         |     3      |
-+-----------------------------------------------------------+------------+
-Total Trainable Params: 895515
-FLI_1_18_256_5_split_TimeSeriesNetwork_hierarchical_score_model_v_variance_preserving_cosine_likelihood_weighting
-Training v-model for 3000 epochs with learning rate 0.0005 and likelihood_weighting weighting.
-Epoch 1/3000, Loss: 32.5060, Valid Loss: 30.1654Epoch 2/3000, Loss: 32.8269, Valid Loss: 36.0856Epoch 3/3000, Loss: 30.3526, Valid Loss: 28.2377Epoch 4/3000, Loss: 28.0690, Valid Loss: 40.7842Epoch 5/3000, Loss: 31.2985, Valid Loss: 40.2556Epoch 6/3000, Loss: 31.0679, Valid Loss: 33.0428Epoch 7/3000, Loss: 30.4197, Valid Loss: 30.9843Epoch 8/3000, Loss: 30.9094, Valid Loss: 28.8672Epoch 9/3000, Loss: 30.9922, Valid Loss: 31.3122Epoch 10/3000, Loss: 28.5907, Valid Loss: 35.4161Epoch 11/3000, Loss: 29.3462, Valid Loss: 28.5646Epoch 12/3000, Loss: 29.7923, Valid Loss: 30.1069Epoch 13/3000, Loss: 30.4303, Valid Loss: 31.2123Epoch 14/3000, Loss: 30.8129, Valid Loss: 29.2629Epoch 15/3000, Loss: 28.5737, Valid Loss: 41.6621Epoch 16/3000, Loss: 30.6201, Valid Loss: 25.7553Epoch 17/3000, Loss: 30.9195, Valid Loss: 27.5781Epoch 18/3000, Loss: 31.7402, Valid Loss: 27.9219Epoch 19/3000, Loss: 29.4355, Valid Loss: 23.3575Epoch 20/3000, Loss: 29.7893, Valid Loss: 27.1128Epoch 21/3000, Loss: 29.4722, Valid Loss: 40.6157Epoch 22/3000, Loss: 30.7988, Valid Loss: 28.0325Epoch 23/3000, Loss: 29.9984, Valid Loss: 24.2495Epoch 24/3000, Loss: 29.9613, Valid Loss: 24.8549Epoch 25/3000, Loss: 30.2674, Valid Loss: 31.5470Epoch 26/3000, Loss: 29.2610, Valid Loss: 34.0635Epoch 27/3000, Loss: 28.8722, Valid Loss: 33.0887Epoch 28/3000, Loss: 30.1627, Valid Loss: 26.4015Epoch 29/3000, Loss: 29.5405, Valid Loss: 32.5300Epoch 30/3000, Loss: 29.1712, Valid Loss: 27.0903Epoch 31/3000, Loss: 29.2943,rxWARNING:bayesflow:
-When using torch backend, we need to disable autograd by default to avoid excessive memory usage. Use
-
-with torch.enable_grad():
-    ...
-
-in contexts where you need gradients (e.g. custom training loops).
-Kernel type: variance_preserving, noise schedule: cosine
-t_min: 0.00035210439818911254, t_max: 0.999647855758667
-alpha, sigma: (tensor(1.0000), tensor(0.0006)) (tensor(0.0006), tensor(1.0000))
-+--------------------------------------+------------+
-|               Modules                | Parameters |
-+--------------------------------------+------------+
-|   blocks.res_blocks.0.dense.weight   |    4096    |
-|    blocks.res_blocks.0.dense.bias    |    256     |
-| blocks.res_blocks.0.projector.weight |    4096    |
-|   blocks.res_blocks.1.dense.weight   |   65536    |
-|    blocks.res_blocks.1.dense.bias    |    256     |
-|   blocks.res_blocks.2.dense.weight   |   65536    |
-|    blocks.res_blocks.2.dense.bias    |    256     |
-|   blocks.res_blocks.3.dense.weight   |   65536    |
-|    blocks.res_blocks.3.dense.bias    |    256     |
-|   blocks.res_blocks.4.dense.weight   |   65536    |
-|    blocks.res_blocks.4.dense.bias    |    256     |
-|    final_projection_linear.weight    |    1536    |
-|     final_projection_linear.bias     |     6      |
-+--------------------------------------+------------+
-Total Trainable Params: 273158
-FLI_1_18_256_5_split_TimeSeriesNetwork_global_score_model_v_variance_preserving_cosine_likelihood_weighting
-+--------------------------------------+------------+
-|               Modules                | Parameters |
-+--------------------------------------+------------+
-|   blocks.res_blocks.0.dense.weight   |    4864    |
-|    blocks.res_blocks.0.dense.bias    |    256     |
-| blocks.res_blocks.0.projector.weight |    4864    |
-|   blocks.res_blocks.1.dense.weight   |   65536    |
-|    blocks.res_blocks.1.dense.bias    |    256     |
-|   blocks.res_blocks.2.dense.weight   |   65536    |
-|    blocks.res_blocks.2.dense.bias    |    256     |
-|   blocks.res_blocks.3.dense.weight   |   65536    |
-|    blocks.res_blocks.3.dense.bias    |    256     |
-|   blocks.res_blocks.4.dense.weight   |   65536    |
-|    blocks.res_blocks.4.dense.bias    |    256     |
-|    final_projection_linear.weight    |    768     |
-|     final_projection_linear.bias     |     3      |
-+--------------------------------------+------------+
-Total Trainable Params: 273923
-FLI_1_18_256_5_split_TimeSeriesNetwork_local_score_model_v_variance_preserving_cosine_likelihood_weighting
-+-----------------------------------------------------------+------------+
-|                          Modules                          | Parameters |
-+-----------------------------------------------------------+------------+
-|              summary_net.conv_blocks.0.weight             |     96     |
-|               summary_net.conv_blocks.0.bias              |     32     |
-|           summary_net.recurrent.skip_conv.weight          |   16384    |
-|            summary_net.recurrent.skip_conv.bias           |    128     |
-|        summary_net.recurrent.recurrent.weight_ih_l0       |   12288    |
-|        summary_net.recurrent.recurrent.weight_hh_l0       |   49152    |
-|         summary_net.recurrent.recurrent.bias_ih_l0        |    384     |
-|         summary_net.recurrent.recurrent.bias_hh_l0        |    384     |
-|    summary_net.recurrent.recurrent.weight_ih_l0_reverse   |   12288    |
-|    summary_net.recurrent.recurrent.weight_hh_l0_reverse   |   49152    |
-|     summary_net.recurrent.recurrent.bias_ih_l0_reverse    |    384     |
-|     summary_net.recurrent.recurrent.bias_hh_l0_reverse    |    384     |
-|     summary_net.recurrent.skip_recurrent.weight_ih_l0     |   49152    |
-|     summary_net.recurrent.skip_recurrent.weight_hh_l0     |   49152    |
-|      summary_net.recurrent.skip_recurrent.bias_ih_l0      |    384     |
-|      summary_net.recurrent.skip_recurrent.bias_hh_l0      |    384     |
-| summary_net.recurrent.skip_recurrent.weight_ih_l0_reverse |   49152    |
-| summary_net.recurrent.skip_recurrent.weight_hh_l0_reverse |   49152    |
-|  summary_net.recurrent.skip_recurrent.bias_ih_l0_reverse  |    384     |
-|  summary_net.recurrent.skip_recurrent.bias_hh_l0_reverse  |    384     |
-|            summary_net.output_projector.weight            |    9216    |
-|             summary_net.output_projector.bias             |     18     |
-|       global_model.blocks.res_blocks.0.dense.weight       |    4096    |
-|        global_model.blocks.res_blocks.0.dense.bias        |    256     |
-|     global_model.blocks.res_blocks.0.projector.weight     |    4096    |
-|       global_model.blocks.res_blocks.1.dense.weight       |   65536    |
-|        global_model.blocks.res_blocks.1.dense.bias        |    256     |
-|       global_model.blocks.res_blocks.2.dense.weight       |   65536    |
-|        global_model.blocks.res_blocks.2.dense.bias        |    256     |
-|       global_model.blocks.res_blocks.3.dense.weight       |   65536    |
-|        global_model.blocks.res_blocks.3.dense.bias        |    256     |
-|       global_model.blocks.res_blocks.4.dense.weight       |   65536    |
-|        global_model.blocks.res_blocks.4.dense.bias        |    256     |
-|        global_model.final_projection_linear.weight        |    1536    |
-|         global_model.final_projection_linear.bias         |     6      |
-|        local_model.blocks.res_blocks.0.dense.weight       |    4864    |
-|         local_model.blocks.res_blocks.0.dense.bias        |    256     |
-|      local_model.blocks.res_blocks.0.projector.weight     |    4864    |
-|        local_model.blocks.res_blocks.1.dense.weight       |   65536    |
-|         local_model.blocks.res_blocks.1.dense.bias        |    256     |
-|        local_model.blocks.res_blocks.2.dense.weight       |   65536    |
-|         local_model.blocks.res_blocks.2.dense.bias        |    256     |
-|        local_model.blocks.res_blocks.3.dense.weight       |   65536    |
-|         local_model.blocks.res_blocks.3.dense.bias        |    256     |
-|        local_model.blocks.res_blocks.4.dense.weight       |   65536    |
-|         local_model.blocks.res_blocks.4.dense.bias        |    256     |
-|         local_model.final_projection_linear.weight        |    768     |
-|          local_model.final_projection_linear.bias         |     3      |
-+-----------------------------------------------------------+------------+
-Total Trainable Params: 895515
-FLI_1_18_256_5_split_TimeSeriesNetwork_hierarchical_score_model_v_variance_preserving_cosine_likelihood_weighting
-Training v-model for 3000 epochs with learning rate 0.0005 and likelihood_weighting weighting.
-Epoch 1/3000, Loss: 32.5060, Valid Loss: 30.1654Epoch 2/3000, Loss: 32.8269, Valid Loss: 36.0856Epoch 3/3000, Loss: 30.3526, Valid Loss: 28.2377Epoch 4/3000, Loss: 28.0690, Valid Loss: 40.7842Epoch 5/3000, Loss: 31.2985, Valid Loss: 40.2556Epoch 6/3000, Loss: 31.0679, Valid Loss: 33.0428Epoch 7/3000, Loss: 30.4197, Valid Loss: 30.9843Epoch 8/3000, Loss: 30.9094, Valid Loss: 28.8672Epoch 9/3000, Loss: 30.9922, Valid Loss: 31.3122Epoch 10/3000, Loss: 28.5907, Valid Loss: 35.4161Epoch 11/3000, Loss: 29.3462, Valid Loss: 28.5646Epoch 12/3000, Loss: 29.7923, Valid Loss: 30.1069Epoch 13/3000, Loss: 30.4303, Valid Loss: 31.2123Epoch 14/3000, Loss: 30.8129, Valid Loss: 29.2629Epoch 15/3000, Loss: 28.5737, Valid Loss: 41.6621Epoch 16/3000, Loss: 30.6201, Valid Loss: 25.7553Epoch 17/3000, Loss: 30.9195, Valid Loss: 27.5781Epoch 18/3000, Loss: 31.7402, Valid Loss: 27.9219Epoch 19/3000, Loss: 29.4355, Valid Loss: 23.3575Epoch 20/3000, Loss: 29.7893, Valid Loss: 27.1128Epoch 21/3000, Loss: 29.4722, Valid Loss: 40.6157Epoch 22/3000, Loss: 30.7988, Valid Loss: 28.0325Epoch 23/3000, Loss: 29.9984, Valid Loss: 24.2495Epoch 24/3000, Loss: 29.9613, Valid Loss: 24.8549Epoch 25/3000, Loss: 30.2674, Valid Loss: 31.5470Epoch 26/3000, Loss: 29.2610, Valid Loss: 34.0635Epoch 27/3000, Loss: 28.8722, Valid Loss: 33.0887Epoch 28/3000, Loss: 30.1627, Valid Loss: 26.4015Epoch 29/3000, Loss: 29.5405, Valid Loss: 32.5300Epoch 30/3000, Loss: 29.1712, Valid Loss: 27.0903Epoch 31/3000, Loss: 29.2943,
