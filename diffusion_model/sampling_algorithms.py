@@ -192,10 +192,11 @@ def sub_sample_observations(data, sampling_arg_dict):
         probs = weights / total
         chosen_idx = np.random.choice(n_obs, size=size, replace=False, p=probs)
     else:
-        # sample indices
-        rand_obs_indx = np.random.permutation(n_obs)
-        # get subsampled data
-        data_sub = data[:, rand_obs_indx[:size]]
+        # uniform sampling without replacement
+        perm = np.random.permutation(n_obs)
+        chosen_idx = perm[:size]
+    # slice out the chosen observations
+    data_sub = data[:, chosen_idx]
     return data_sub
 
 

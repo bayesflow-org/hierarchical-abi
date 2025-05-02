@@ -19,7 +19,7 @@ from diffusion_model import HierarchicalScoreModel, SDE, euler_maruyama_sampling
 from diffusion_model.helper_networks import GaussianFourierProjection, ShallowSet
 from diffusion_model.bayesflow_summary_nets import TimeSeriesNetwork
 from problems.fli import FLIProblem, FLI_Prior, generate_synthetic_data
-from problems import plot_shrinkage, visualize_simulation_output
+from problems import visualize_simulation_output
 #%%
 torch_device = torch.device("cuda")
 #%%
@@ -181,121 +181,127 @@ local_param_names = prior.get_local_param_names(grid_data * grid_data)
 binned_data = np.load('problems/FLI/exp_binned_data.npy')[:grid_data, :grid_data]
 real_data = binned_data.reshape(1, grid_data * grid_data, 256, 1) / np.max(binned_data)
 
-t1_value = 0.0009
-t0_value = 1
-n_post_samples = 100
-sampling_arg = {
-    'size': 2,
-    #'damping_factor': lambda t: (torch.ones_like(t) / real_data.shape[1] * 100) * (t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t)),
-    #'damping_factor': lambda t: (1-torch.ones_like(t)) / real_data.shape[1] + 0.1,
-    #'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
-    #'damping_factor': lambda t: (1-torch.ones_like(t)) * 1/(grid_data**2) * 0.0001 + 0.001,
-    #'damping_factor': lambda t: torch.ones_like(t) * 1/(grid_data**2) + 0.1,
-    'damping_factor': lambda t: torch.ones_like(t) * 1e-10 + 0.0001,
-    #'damping_factor': lambda t: (1-torch.ones_like(t)) * 1e-7 + 2e-4,
-    #'sampling_chunk_size': 512,
-}
-score_model.sde.s_shift_cosine = 0
+data = np.load('problems/FLI/final_Data.npy')[0, :grid_data, :grid_data]
+binary_mask = (np.sum(data, axis=-1) != 0) * 1
 
-posterior_global_samples_real = euler_maruyama_sampling(score_model, real_data,
-                                                         n_post_samples=n_post_samples,
-                                                         sampling_arg=sampling_arg,
-                                                         diffusion_steps=1000, device=torch_device, verbose=False)
+for i, real_data in enumerate([binned_data, data]):
 
-prior_dict = {}
-posterior_dict = {}
-prior_tranf_dict = {}
-posterior_tranf_dict = {}
-for i in range(len(global_param_names)):
-    prior_dict[global_param_names[i]] = valid_prior_global[:, i]
-    posterior_dict[global_param_names[i]] = posterior_global_samples_real[0, :, i]
+    t1_value = 0.0009
+    t0_value = 1
+    n_post_samples = 100
+    sampling_arg = {
+        'size': 10,
+        #'damping_factor': lambda t: (torch.ones_like(t) / real_data.shape[1] * 100) * (t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t)),
+        #'damping_factor': lambda t: (1-torch.ones_like(t)) / real_data.shape[1] + 0.1,
+        #'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
+        #'damping_factor': lambda t: (1-torch.ones_like(t)) * 1/(grid_data**2) * 0.0001 + 0.001,
+        #'damping_factor': lambda t: torch.ones_like(t) * 1/(grid_data**2) + 0.1,
+        'damping_factor': lambda t: torch.ones_like(t) * 1e-10 + 0.0001,
+        #'damping_factor': lambda t: (1-torch.ones_like(t)) * 1e-7 + 2e-4,
+        #'sampling_chunk_size': 512,
+        "sampling_weights": binary_mask.reshape(-1),
+    }
+    score_model.sde.s_shift_cosine = 0
 
-tau, tau_2, A = prior.transform_raw_params(
-        log_tau=prior_dict[global_param_names[0]],
-        log_delta_tau=prior_dict[global_param_names[2]],
-        a=prior_dict[global_param_names[4]]
+    posterior_global_samples_real = euler_maruyama_sampling(score_model, real_data,
+                                                             n_post_samples=n_post_samples,
+                                                             sampling_arg=sampling_arg,
+                                                             diffusion_steps=1000, device=torch_device, verbose=False)
+
+    prior_dict = {}
+    posterior_dict = {}
+    prior_tranf_dict = {}
+    posterior_tranf_dict = {}
+    for i in range(len(global_param_names)):
+        prior_dict[global_param_names[i]] = valid_prior_global[:, i]
+        posterior_dict[global_param_names[i]] = posterior_global_samples_real[0, :, i]
+
+    tau, tau_2, A = prior.transform_raw_params(
+            log_tau=prior_dict[global_param_names[0]],
+            log_delta_tau=prior_dict[global_param_names[2]],
+            a=prior_dict[global_param_names[4]]
+        )
+    prior_tranf_dict = {
+        r'$\tau$': tau,
+        r'$\tau_2$': tau_2,
+        r'$A$': A
+    }
+
+    tau, tau_2, A = prior.transform_raw_params(
+            log_tau=posterior_dict[global_param_names[0]],
+            log_delta_tau=posterior_dict[global_param_names[2]],
+            a=posterior_dict[global_param_names[4]]
+        )
+    posterior_tranf_dict = {
+        r'$\tau$': tau,
+        r'$\tau_2$': tau_2,
+        r'$A$': A
+    }
+
+    fig = diagnostics.pairs_posterior(
+        posterior_dict,
+        priors=prior_dict,
     )
-prior_tranf_dict = {
-    r'$\tau$': tau,
-    r'$\tau_2$': tau_2,
-    r'$A$': A
-}
+    fig.savefig(f'plots/{score_model.name}/real_data_global_posterior_{i}.png')
 
-tau, tau_2, A = prior.transform_raw_params(
-        log_tau=posterior_dict[global_param_names[0]],
-        log_delta_tau=posterior_dict[global_param_names[2]],
-        a=posterior_dict[global_param_names[4]]
+    fig = diagnostics.pairs_posterior(
+        posterior_tranf_dict,
+        priors=prior_tranf_dict,
     )
-posterior_tranf_dict = {
-    r'$\tau$': tau,
-    r'$\tau_2$': tau_2,
-    r'$A$': A
-}
+    fig.savefig(f'plots/{score_model.name}/real_data_global_posterior_transf_{i}.png')
 
-fig = diagnostics.pairs_posterior(
-    posterior_dict,
-    priors=prior_dict,
-)
-fig.savefig(f'plots/{score_model.name}/real_data_global_posterior.png')
+    score_model.sde.s_shift_cosine = 0
+    posterior_local_samples_real = euler_maruyama_sampling(score_model, real_data,
+                                                            conditions=posterior_global_samples_real,
+                                                            n_post_samples=n_post_samples,
+                                                            diffusion_steps=300, device=torch_device, verbose=False)
 
-fig = diagnostics.pairs_posterior(
-    posterior_tranf_dict,
-    priors=prior_tranf_dict,
-)
-fig.savefig(f'plots/{score_model.name}/real_data_global_posterior_transf.png')
-
-score_model.sde.s_shift_cosine = 0
-posterior_local_samples_real = euler_maruyama_sampling(score_model, real_data,
-                                                        conditions=posterior_global_samples_real,
-                                                        n_post_samples=n_post_samples,
-                                                        diffusion_steps=300, device=torch_device, verbose=False)
-
-tau, tau_2, A = prior.transform_raw_params(
-    log_tau=posterior_local_samples_real[0, :, :, 0].reshape(n_post_samples, grid_data, grid_data),
-    log_delta_tau=posterior_local_samples_real[0, :, :, 1].reshape(n_post_samples, grid_data, grid_data),
-    a=posterior_local_samples_real[0, :, :, 2].reshape(n_post_samples, grid_data, grid_data),
-)
-ps = np.concatenate([tau[:, :, :, np.newaxis], tau_2[:, :, :, np.newaxis], A[:, :, :, np.newaxis]], axis=-1)
-transf_local_param_names = [r'$\tau_1^L$', r'$\tau_2^L$', r'$A^L$']
-
-med = np.median(ps, axis=0)
-std = np.std(ps, axis=0)
-visualize_simulation_output(med, title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
-                            cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_same.png")
-visualize_simulation_output(std, title_prefix=['Posterior Std ' + p for p in transf_local_param_names],
-                            cmap='turbo', save_path=f"plots/{score_model.name}/real_data_std_same.png")
-visualize_simulation_output(med, title_prefix=['Posterior Median ' + p for p in transf_local_param_names], same_scale=False,
-                            cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median.png")
-visualize_simulation_output(std, title_prefix=['Posterior Std ' + p for p in transf_local_param_names], same_scale=False,
-                            cmap='turbo', save_path=f"plots/{score_model.name}/real_data_std.png")
-
-fig, axis = plt.subplots(1, 5, figsize=(10, 3), tight_layout=True, sharex=True, sharey=True)
-axis = axis.flatten()
-pixel_ids = [0, 0]
-for ax in axis:
-    plot_index = np.random.randint(0, tau.shape[0])
-
-    simulations = np.array([
-        prior.simulator.decay_gen_single(
-            tau_L=tau[post_index, pixel_ids[0], pixel_ids[1]],
-            tau_L_2=tau_2[post_index, pixel_ids[0], pixel_ids[1]],
-            A_L=A[post_index, pixel_ids[0], pixel_ids[1]]
-        ) for post_index in range(tau.shape[0])
-    ])
-
-    ax.plot(real_data.reshape(grid_data, grid_data, 256)[pixel_ids[0], pixel_ids[1]], label='data')
-    ax.plot(np.median(simulations, axis=0), label='posterior median', alpha=0.8, color='orange')
-    ax.fill_between(
-        np.arange(simulations.shape[1]),
-        np.quantile(simulations, 0.025, axis=0),
-        np.quantile(simulations, 0.975, axis=0),
-        alpha=0.4,
-        color='orange',
-        label='posterior 95% CI'
+    tau, tau_2, A = prior.transform_raw_params(
+        log_tau=posterior_local_samples_real[0, :, :, 0].reshape(n_post_samples, grid_data, grid_data),
+        log_delta_tau=posterior_local_samples_real[0, :, :, 1].reshape(n_post_samples, grid_data, grid_data),
+        a=posterior_local_samples_real[0, :, :, 2].reshape(n_post_samples, grid_data, grid_data),
     )
-    ax.set_xlabel('Time')
-axis[0].set_ylabel('Normalized Photon Count')
-fig.legend(labels=['data', 'posterior median', 'posterior 95% CI'], bbox_to_anchor=(0.5, -0.07),
-           ncol=3, loc='lower center')
-plt.savefig(f'plots/{score_model.name}/real_data_fit.png')
-plt.close()
+    ps = np.concatenate([tau[:, :, :, np.newaxis], tau_2[:, :, :, np.newaxis], A[:, :, :, np.newaxis]], axis=-1)
+    transf_local_param_names = [r'$\tau_1^L$', r'$\tau_2^L$', r'$A^L$']
+
+    med = np.median(ps, axis=0)
+    std = np.std(ps, axis=0)
+    visualize_simulation_output(med, title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
+                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_same_{i}.png")
+    visualize_simulation_output(std, title_prefix=['Posterior Std ' + p for p in transf_local_param_names],
+                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_std_same_{i}.png")
+    visualize_simulation_output(med, title_prefix=['Posterior Median ' + p for p in transf_local_param_names], same_scale=False,
+                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_{i}.png")
+    visualize_simulation_output(std, title_prefix=['Posterior Std ' + p for p in transf_local_param_names], same_scale=False,
+                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_std_{i}.png")
+
+    fig, axis = plt.subplots(1, 5, figsize=(10, 3), tight_layout=True, sharex=True, sharey=True)
+    axis = axis.flatten()
+    pixel_ids = [0, 0]
+    for ax in axis:
+        plot_index = np.random.randint(0, tau.shape[0])
+
+        simulations = np.array([
+            prior.simulator.decay_gen_single(
+                tau_L=tau[post_index, pixel_ids[0], pixel_ids[1]],
+                tau_L_2=tau_2[post_index, pixel_ids[0], pixel_ids[1]],
+                A_L=A[post_index, pixel_ids[0], pixel_ids[1]]
+            ) for post_index in range(tau.shape[0])
+        ])
+
+        ax.plot(real_data.reshape(grid_data, grid_data, 256)[pixel_ids[0], pixel_ids[1]], label='data')
+        ax.plot(np.median(simulations, axis=0), label='posterior median', alpha=0.8, color='orange')
+        ax.fill_between(
+            np.arange(simulations.shape[1]),
+            np.quantile(simulations, 0.025, axis=0),
+            np.quantile(simulations, 0.975, axis=0),
+            alpha=0.4,
+            color='orange',
+            label='posterior 95% CI'
+        )
+        ax.set_xlabel('Time')
+    axis[0].set_ylabel('Normalized Photon Count')
+    fig.legend(labels=['data', 'posterior median', 'posterior 95% CI'], bbox_to_anchor=(0.5, -0.07),
+               ncol=3, loc='lower center')
+    plt.savefig(f'plots/{score_model.name}/real_data_fit_{i}.png')
+    plt.close()
