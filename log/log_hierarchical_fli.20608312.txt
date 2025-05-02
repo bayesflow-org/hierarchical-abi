@@ -1,0 +1,114 @@
+WARNING:bayesflow:
+When using torch backend, we need to disable autograd by default to avoid excessive memory usage. Use
+
+with torch.enable_grad():
+    ...
+
+in contexts where you need gradients (e.g. custom training loops).
+Kernel type: variance_preserving, noise schedule: cosine
+t_min: 0.00035210439818911254, t_max: 0.999647855758667
+alpha, sigma: (tensor(1.0000), tensor(0.0006)) (tensor(0.0006), tensor(1.0000))
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|   blocks.res_blocks.0.dense.weight   |    4096    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    4096    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|   blocks.res_blocks.5.dense.weight   |   65536    |
+|    blocks.res_blocks.5.dense.bias    |    256     |
+|    final_projection_linear.weight    |    1536    |
+|     final_projection_linear.bias     |     6      |
++--------------------------------------+------------+
+Total Trainable Params: 338950
+FLI_1_18_256_6_split_TimeSeriesNetwork_global_score_model_v_variance_preserving_cosine_likelihood_weighting
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|   blocks.res_blocks.0.dense.weight   |    4864    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    4864    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|   blocks.res_blocks.5.dense.weight   |   65536    |
+|    blocks.res_blocks.5.dense.bias    |    256     |
+|    final_projection_linear.weight    |    768     |
+|     final_projection_linear.bias     |     3      |
++--------------------------------------+------------+
+Total Trainable Params: 339715
+FLI_1_18_256_6_split_TimeSeriesNetwork_local_score_model_v_variance_preserving_cosine_likelihood_weighting
++-----------------------------------------------------------+------------+
+|                          Modules                          | Parameters |
++-----------------------------------------------------------+------------+
+|              summary_net.conv_blocks.0.weight             |     96     |
+|               summary_net.conv_blocks.0.bias              |     32     |
+|           summary_net.recurrent.skip_conv.weight          |   16384    |
+|            summary_net.recurrent.skip_conv.bias           |    128     |
+|        summary_net.recurrent.recurrent.weight_ih_l0       |   12288    |
+|        summary_net.recurrent.recurrent.weight_hh_l0       |   49152    |
+|         summary_net.recurrent.recurrent.bias_ih_l0        |    384     |
+|         summary_net.recurrent.recurrent.bias_hh_l0        |    384     |
+|    summary_net.recurrent.recurrent.weight_ih_l0_reverse   |   12288    |
+|    summary_net.recurrent.recurrent.weight_hh_l0_reverse   |   49152    |
+|     summary_net.recurrent.recurrent.bias_ih_l0_reverse    |    384     |
+|     summary_net.recurrent.recurrent.bias_hh_l0_reverse    |    384     |
+|     summary_net.recurrent.skip_recurrent.weight_ih_l0     |   49152    |
+|     summary_net.recurrent.skip_recurrent.weight_hh_l0     |   49152    |
+|      summary_net.recurrent.skip_recurrent.bias_ih_l0      |    384     |
+|      summary_net.recurrent.skip_recurrent.bias_hh_l0      |    384     |
+| summary_net.recurrent.skip_recurrent.weight_ih_l0_reverse |   49152    |
+| summary_net.recurrent.skip_recurrent.weight_hh_l0_reverse |   49152    |
+|  summary_net.recurrent.skip_recurrent.bias_ih_l0_reverse  |    384     |
+|  summary_net.recurrent.skip_recurrent.bias_hh_l0_reverse  |    384     |
+|            summary_net.output_projector.weight            |    9216    |
+|             summary_net.output_projector.bias             |     18     |
+|       global_model.blocks.res_blocks.0.dense.weight       |    4096    |
+|        global_model.blocks.res_blocks.0.dense.bias        |    256     |
+|     global_model.blocks.res_blocks.0.projector.weight     |    4096    |
+|       global_model.blocks.res_blocks.1.dense.weight       |   65536    |
+|        global_model.blocks.res_blocks.1.dense.bias        |    256     |
+|       global_model.blocks.res_blocks.2.dense.weight       |   65536    |
+|        global_model.blocks.res_blocks.2.dense.bias        |    256     |
+|       global_model.blocks.res_blocks.3.dense.weight       |   65536    |
+|        global_model.blocks.res_blocks.3.dense.bias        |    256     |
+|       global_model.blocks.res_blocks.4.dense.weight       |   65536    |
+|        global_model.blocks.res_blocks.4.dense.bias        |    256     |
+|       global_model.blocks.res_blocks.5.dense.weight       |   65536    |
+|        global_model.blocks.res_blocks.5.dense.bias        |    256     |
+|        global_model.final_projection_linear.weight        |    1536    |
+|         global_model.final_projection_linear.bias         |     6      |
+|        local_model.blocks.res_blocks.0.dense.weight       |    4864    |
+|         local_model.blocks.res_blocks.0.dense.bias        |    256     |
+|      local_model.blocks.res_blocks.0.projector.weight     |    4864    |
+|        local_model.blocks.res_blocks.1.dense.weight       |   65536    |
+|         local_model.blocks.res_blocks.1.dense.bias        |    256     |
+|        local_model.blocks.res_blocks.2.dense.weight       |   65536    |
+|         local_model.blocks.res_blocks.2.dense.bias        |    256     |
+|        local_model.blocks.res_blocks.3.dense.weight       |   65536    |
+|         local_model.blocks.res_blocks.3.dense.bias        |    256     |
+|        local_model.blocks.res_blocks.4.dense.weight       |   65536    |
+|         local_model.blocks.res_blocks.4.dense.bias        |    256     |
+|        local_model.blocks.res_blocks.5.dense.weight       |   65536    |
+|         local_model.blocks.res_blocks.5.dense.bias        |    256     |
+|         local_model.final_projection_linear.weight        |    768     |
+|          local_model.final_projection_linear.bias         |     3      |
++-----------------------------------------------------------+------------+
+Total Trainable Params: 1027099
+FLI_1_18_256_6_split_TimeSeriesNetwork_hierarchical_score_model_v_variance_preserving_cosine_likelihood_weighting
+torch.Size([100, 1024, 256, 1]) 1
+applying summary network to observations before sampling, might take a while...
+applying summary network to observations before sampling, might take a while...
+  0%|          | 0/100 [00:00<?, ?it/s]  1%|          | 1/100 [00:09<15:54,  9.64s/it]  2%|▏         | 2/100 [00:19<15:42,  9.61s/it]  3%|▎         | 3/100 [00:28<15:30,  9.59s/it]  4%|▍         | 4/100 [00:38<15:18,  9.57s/it]  5%|▌         | 5/100 [00:48<15:16,  9.64s/it]  6%|▌         | 6/100 [00:57<15:04,  9.62s/it]  7%|▋         | 7/100 [01:07<14:53,  9.61s/it]  8%|▊         | 8/100 [01:16<14:42,  9.59s/it]  9%|▉         | 9/100 [01:26<14:32,  9.59s/it] 10%|█         | 10/100 [01:35<14:22,  9.58s/it] 11%|█         | 11/100 [01:45<14:13,  9.59s/it] 12%|█▏        | 12/100 [01:55<14:03,  9.58s/it] 13%|█▎        | 13/100 [02:04<13:53,  9.59s/it] 14%|█▍        | 14/100 [02:14<13:44,  9.58s/it] 15%|█▌        | 15/100 [02:23<13:33,  9.58s/it] 16%|█▌        | 16/100 [02:33<13:24,  9.58s/it] 17%|█▋        | 17/100 [02:43<13:15,  9.58s/it] 18%|█▊        | 18/100 [02:52<13:05,  9.58s/it] 19%|█▉        | 19/100 [03:02<12:55,  9.58s/it] 20%|██        | 20/100 [03:11<12:45,  9.57s/it] 21%|██        | 21/100 [03:21<12:35,  9.56s/it] 22%|██▏       | 22/100 [03:30<12:25,  9.56s/it] 23%|██▎       | 23/100 [03:40<12:16,  9.57s/it] 24%|██▍       | 24/100 [03:50<12:12,  9.63s/it] 25%|██▌       | 25/100 [03:59<12:01,  9.61s/it] 26%|██▌       | 26/100 [04:09<11:50,  9.60s/it] 27%|██▋       | 27/100 [04:18<11:40,  9.59s/it] 28%|██▊       | 28/100 [04:28<11:30,  9.60s/it] 29%|██▉       | 29/100 [04:38<11:20,  9.59s/it] 30%|███       | 30/100 [04:47<11:10,  9.58s/it] 31%|███       | 31/100 [04:57<11:01,  9.59s/it] 32%|███▏      | 32/100 [05:06<10:51,  9.58s/it] 33%|███▎      | 33/100 [05:16<10:41,  9.57s/it] 34%|███▍      | 34/100 [05:25<10:31,  9.57s/it] 35%|███▌      | 35/100 [05:35<10:22,  9.57s/it] 36%|███▌      | 36/100 [05:45<10:12,  9.57s/it] 37%|███▋      | 37/100 [05:54<10:03,  9.57s/it] 38%|███▊      | 38/100 [06:04<09:53,  9.57s/it] 39%|███▉      | 39/100 [06:13<09:44,  9.57s/it] 40%|████      | 40/100 [06:23<09:34,  9.57s/it] 41%|████      | 41/100 [06:32<09:24,  9.57s/it] 42%|████▏     | 42/100 [06:42<09:19,  9.65s/it] 43%|████▎     | 43/100 [06:52<09:08,  9.62s/it] 44%|████▍     | 44/100 [07:01<08:58,  9.61s/it] 45%|████▌     | 45/100 [07:11<08:47,  9.60s/it] 46%|████▌     | 46/100 [07:21<08:37,  9.59s/it] 47%|████▋     | 47/100 [07:30<08:27,  9.58s/it] 48%|████▊     | 48/100 [07:40<08:18,  9.58s/it] 49%|████▉     | 49/100 [07:49<08:08,  9.57s/it] 50%|█████     | 50/100 [07:59<07:58,  9.58s/it] 51%|█████     | 51/100 [08:08<07:49,  9.57s/it] 52%|█████▏    | 52/100 [08:18<07:39,  9.57s/it] 53%|█████▎    | 53/100 [08:28<07:29,  9.57s/it] 54%|█████▍    | 54/100 [08:37<07:20,  9.57s/it] 55%|█████▌    | 55/100 [08:47<07:10,  9.57s/it] 56%|█████▌    | 56/100 [08:56<07:01,  9.57s/it] 57%|█████▋    | 57/100 [09:06<06:51,  9.56s/it] 58%|█████▊    | 58/100 [09:15<06:41,  9.56s/it] 59%|█████▉    | 59/100 [09:25<06:32,  9.57s/it] 60%|██████    | 60/100 [09:35<06:22,  9.57s/it] 61%|██████    | 61/100 [09:44<06:15,  9.63s/it] 62%|██████▏   | 62/100 [09:54<06:05,  9.62s/it] 63%|██████▎   | 63/100 [10:03<05:55,  9.60s/it] 64%|██████▍   | 64/100 [10:13<05:45,  9.59s/it] 65%|██████▌   | 65/100 [10:23<05:35,  9.59s/it] 66%|██████▌   | 66/100 [10:32<05:26,  9.59s/it] 67%|██████▋   | 67/100 [10:42<05:16,  9.58s/it] 68%|██████▊   | 68/100 [10:51<05:06,  9.57s/it] 69%|██████▉   | 69/100 [11:01<04:56,  9.57s/it] 70%|███████   | 70/100 [11:10<04:46,  9.55s/it] 71%|███████   | 71/100 [11:20<04:37,  9.56s/it] 72%|███████▏  | 72/100 [11:30<04:27,  9.56s/it] 73%|███████▎  | 73/100 [11:39<04:18,  9.56s/it] 74%|███████▍  | 74/100 [11:49<04:08,  9.56s/it] 75%|███████▌  | 75/100 [11:58<03:59,  9.57s/it] 76%|███████▌  | 76/100 [12:08<03:49,  9.56s/it] 77%|███████▋  | 77/100 [12:17<03:40,  9.57s/it] 78%|███████▊  | 78/100 [12:27<03:30,  9.57s/it] 79%|███████▉  | 79/100 [12:37<03:22,  9.63s/it] 80%|████████  | 80/100 [12:46<03:12,  9.61s/it] 81%|████████  | 81/100 [12:56<03:02,  9.59s/it] 82%|████████▏ | 82/100 [13:05<02:52,  9.59s/it] 83%|████████▎ | 83/100 [13:15<02:42,  9.58s/it] 84%|████████▍ | 84/100 [13:25<02:33,  9.57s/it] 85%|████████▌ | 85/100 [13:34<02:23,  9.57s/it] 86%|████████▌ | 86/100 [13:44<02:13,  9.56s/it] 87%|████████▋ | 87/100 [13:53<02:04,  9.56s/it] 88%|████████▊ | 88/100 [14:03<01:54,  9.55s/it] 89%|████████▉ | 89/100 [14:12<01:45,  9.55s/it] 90%|█████████ | 90/100 [14:22<01:35,  9.56s/it] 91%|█████████ | 91/100 [14:31<01:26,  9.56s/it] 92%|█████████▏| 92/100 [14:41<01:16,  9.56s/it] 93%|█████████▎| 93/100 [14:51<01:06,  9.56s/it] 94%|█████████▍| 94/100 [15:00<00:57,  9.57s/it] 95%|█████████▌| 95/100 [15:10<00:47,  9.57s/it] 96%|█████████▌| 96/100 [15:19<00:38,  9.57s/it] 97%|█████████▋| 97/100 [15:29<00:28,  9.57s/it] 98%|█████████▊| 98/100 [15:39<00:19,  9.65s/it] 99%|█████████▉| 99/100 [15:48<00:09,  9.63s/it]100%|██████████| 100/100 [15:58<00:00,  9.60s/it]100%|██████████| 100/100 [15:58<00:00,  9.58s/it]
