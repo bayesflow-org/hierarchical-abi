@@ -135,6 +135,7 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, 
         # otherwise x_obs is expanded later on a batch-wise basis
         if not sampling_arg_dict['noisy_condition']['apply']:
             # we can apply the summary network here already
+            print('applying summary network to observations before sampling, might take a while...')
             # normalize data
             if not isinstance(x_obs, torch.Tensor):
                 x_obs = torch.tensor(x_obs, dtype=torch.float32)

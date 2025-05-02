@@ -140,8 +140,8 @@ t1_value = 0.0009
 t0_value = 1
 sampling_arg = {
     'size': 10,
-    'sampling_chunk_size': 512,
-    'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
+    'damping_factor': lambda t: (1-torch.ones_like(t)) * 1/n_local_samples + 0.01,
+    #'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
 }
 
 #%%
@@ -170,51 +170,7 @@ fig = diagnostics.recovery(posterior_local_samples_valid.reshape(valid_data.shap
                           np.array(valid_prior_local).reshape(valid_data.shape[0], -1),
                           variable_names=local_param_names)
 fig.savefig(f'plots/{score_model.name}/recovery_local.png')
-#%%
-plot_shrinkage(posterior_global_samples_valid[:12], posterior_local_samples_valid[:12], min_max=(-10, 10))
-#%%
-valid_id = 0
-print('Global Estimates')
-print('mu:', np.median(posterior_global_samples_valid[valid_id, :, 0]), np.std(posterior_global_samples_valid[valid_id, :, 0]))
-print('log sigma:', np.median(posterior_global_samples_valid[valid_id, :, 1]), np.std(posterior_global_samples_valid[valid_id, :, 1]))
-print('True')
-print('mu:', valid_prior_global[valid_id][0].item())
-print('log sigma:', valid_prior_global[valid_id][1].item())
-#%%
-n_grid = int(np.sqrt(n_local_samples))
-ps = posterior_local_samples_valid[valid_id, :, :n_grid*n_grid].reshape(n_post_samples, n_grid, n_grid, 3).copy()
-true = valid_prior_local[valid_id, :n_grid*n_grid].numpy().copy().reshape(n_grid, n_grid, 3)
-ps[:, :, :, 0] = np.exp(ps[:, :, :, 0])
-true[:, :, 0] = np.exp(true[:, :, 0])
-ps[:, :, :, 1] = ps[:, :, :, 0] + np.exp(ps[:, :, :, 1])
-true[:, :, 1] = true[:, :, 0] + np.exp(true[:, :, 1])
-ps[:, :, :, 2] = expit(ps[:, :, :, 2])
-true[:, :, 2] = expit(true[:, :, 2])
-transf_local_param_names = [r'$\tau_1^L$', r'$\tau_2^L$', r'$A^L$']
 
-med = np.median(ps, axis=0)
-std = np.std(ps, axis=0)
-error = (med-true)**2
-visualize_simulation_output(med, title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
-                            cmap='turbo', save_path=f"plots/{score_model.name}/simulation_median_{valid_id}.png")
-visualize_simulation_output(true, title_prefix=['True ' + p for p in transf_local_param_names],
-                            cmap='turbo', save_path=f"plots/{score_model.name}/simulation_true_{valid_id}.png")
-
-visualize_simulation_output(std, title_prefix=['Posterior Std ' + p for p in transf_local_param_names],
-                            cmap='turbo', save_path=f"plots/{score_model.name}/simulation_std_{valid_id}.png")
-visualize_simulation_output(error, title_prefix=['Error ' + p for p in transf_local_param_names],
-                            cmap='turbo', save_path=f"plots/{score_model.name}/simulation_error_{valid_id}.png")
-#%%
-fig, ax = plt.subplots(1, 3, figsize=(12, 4), tight_layout=True)
-for i in range(3):
-    ax[i].errorbar(x=true[:, :, i].flatten(), y=med[:, :, i].flatten(), yerr=1.96*std[:, :, i].flatten(), fmt='o')
-    #ax[i].plot([np.min(true[:, :, i]), np.max(true[:, :, i])], [np.min(true[:, :, i]), np.max(true[:, :, i])], 'k--')
-    ax[i].axhline(np.median(posterior_global_samples_valid[valid_id, :, i], axis=0), color='red', linestyle='--',
-                label='Global posterior mean', alpha=0.75)
-    ax[i].set_ylabel('Prediction')
-    ax[i].set_xlabel('True')
-    ax[i].legend()
-plt.show()
 #%% Real data
 
 grid_data = 512
@@ -224,20 +180,19 @@ local_param_names = prior.get_local_param_names(grid_data * grid_data)
 binned_data = np.load('problems/FLI/exp_binned_data.npy')[:grid_data, :grid_data]
 real_data = binned_data.reshape(1, grid_data * grid_data, 256, 1) / np.max(binned_data)
 
-plt.imshow(np.mean(binned_data, axis=-1), cmap='turbo')
-plt.colorbar()
-#plt.savefig('plots/FLI_exp_binned_data.png')
-plt.show()
-
-t1_value = 0.5
+t1_value = 0.0009
 t0_value = 1
 n_post_samples = 100
 sampling_arg = {
-    'size': 10,
-    'damping_factor': lambda t: (torch.ones_like(t) / real_data.shape[1] * 100) * (t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t)),
+    'size': 2,
+    #'damping_factor': lambda t: (torch.ones_like(t) / real_data.shape[1] * 100) * (t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t)),
     #'damping_factor': lambda t: (1-torch.ones_like(t)) / real_data.shape[1] + 0.1,
     #'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
-    'sampling_chunk_size': 512
+    #'damping_factor': lambda t: (1-torch.ones_like(t)) * 1/(grid_data**2) * 0.0001 + 0.001,
+    #'damping_factor': lambda t: torch.ones_like(t) * 1/(grid_data**2) + 0.1,
+    'damping_factor': lambda t: torch.ones_like(t) * 1e-10 + 0.0001,
+    #'damping_factor': lambda t: (1-torch.ones_like(t)) * 1e-7 + 2e-4,
+    #'sampling_chunk_size': 512,
 }
 score_model.sde.s_shift_cosine = 0
 
@@ -288,27 +243,16 @@ fig = diagnostics.pairs_posterior(
 )
 fig.savefig(f'plots/{score_model.name}/real_data_global_posterior_transf.png')
 
-chunk_size = 2048
 score_model.sde.s_shift_cosine = 0
-
-posterior_local_samples_real = {'log_tau_L': [], 'log_delta_tau_L': [], 'a_l': []}
-for start_idx in range(0, grid_data**2, chunk_size):
-    end_idx = min(start_idx + chunk_size, grid_data**2)
-    posterior_samples_chunk = euler_maruyama_sampling(score_model, real_data[:, start_idx:end_idx],
+posterior_local_samples_real = euler_maruyama_sampling(score_model, real_data,
                                                         conditions=posterior_global_samples_real,
                                                         n_post_samples=n_post_samples,
-                                                        diffusion_steps=100, device=torch_device, verbose=False)
-
-    for i_k, k in enumerate(posterior_local_samples_real.keys()):
-        posterior_local_samples_real[k].append(posterior_samples_chunk[0, :, :, i_k])
-
-for k in posterior_local_samples_real.keys():
-    posterior_local_samples_real[k] = np.concatenate(posterior_local_samples_real[k], axis=1)
+                                                        diffusion_steps=100, device=torch_device, verbose=True)
 
 tau, tau_2, A = prior.transform_raw_params(
-    log_tau=posterior_local_samples_real['log_tau_L'].T.reshape(n_post_samples, grid_data, grid_data),
-    log_delta_tau=posterior_local_samples_real['log_delta_tau_L'].T.reshape(n_post_samples, grid_data, grid_data),
-    a=posterior_local_samples_real['a_l'].T.reshape(n_post_samples, grid_data, grid_data),
+    log_tau=posterior_local_samples_real[0, :, :, 0].reshape(n_post_samples, grid_data, grid_data),
+    log_delta_tau=posterior_local_samples_real[0, :, :, 1].reshape(n_post_samples, grid_data, grid_data),
+    a=posterior_local_samples_real[0, :, :, 2].reshape(n_post_samples, grid_data, grid_data),
 )
 ps = np.concatenate([tau[:, :, :, np.newaxis], tau_2[:, :, :, np.newaxis], A[:, :, :, np.newaxis]], axis=-1)
 transf_local_param_names = [r'$\tau_1^L$', r'$\tau_2^L$', r'$A^L$']
