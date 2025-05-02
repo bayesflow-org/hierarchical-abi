@@ -185,7 +185,7 @@ data = np.load('problems/FLI/final_Data.npy')[:, :grid_data, :grid_data]
 data = data.reshape(1, grid_data * grid_data, 256, 1) / np.max(data)
 binary_mask = (np.sum(data, axis=2) != 0) * 1
 
-for i, real_data in enumerate([binned_data, data]):
+for j, real_data in enumerate([binned_data, data]):
 
     t1_value = 0.0009
     t0_value = 1
@@ -243,13 +243,13 @@ for i, real_data in enumerate([binned_data, data]):
         posterior_dict,
         priors=prior_dict,
     )
-    fig.savefig(f'plots/{score_model.name}/real_data_global_posterior_{i}.png')
+    fig.savefig(f'plots/{score_model.name}/real_data_global_posterior_{j}.png')
 
     fig = diagnostics.pairs_posterior(
         posterior_tranf_dict,
         priors=prior_tranf_dict,
     )
-    fig.savefig(f'plots/{score_model.name}/real_data_global_posterior_transf_{i}.png')
+    fig.savefig(f'plots/{score_model.name}/real_data_global_posterior_transf_{j}.png')
 
     score_model.sde.s_shift_cosine = 0
     posterior_local_samples_real = euler_maruyama_sampling(score_model, real_data,
@@ -268,15 +268,15 @@ for i, real_data in enumerate([binned_data, data]):
     med = np.median(ps, axis=0)
     std = np.std(ps, axis=0)
     visualize_simulation_output(med, title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
-                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_same_{i}.png")
+                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_same_{j}.png")
     visualize_simulation_output(std, title_prefix=['Posterior Std ' + p for p in transf_local_param_names],
-                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_std_same_{i}.png")
+                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_std_same_{j}.png")
     visualize_simulation_output(med, title_prefix=['Posterior Median ' + p for p in transf_local_param_names], same_scale=False,
-                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_{i}.png")
+                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_{j}.png")
     visualize_simulation_output(std, title_prefix=['Posterior Std ' + p for p in transf_local_param_names], same_scale=False,
-                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_std_{i}.png")
-    np.save(f'plots/{score_model.name}/fli_local_median_{i}', med)
-    np.save(f'plots/{score_model.name}/fli_local_std_{i}', std)
+                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_std_{j}.png")
+    np.save(f'plots/{score_model.name}/fli_local_median_{j}', med)
+    np.save(f'plots/{score_model.name}/fli_local_std_{j}', std)
 
     fig, axis = plt.subplots(1, 5, figsize=(10, 3), tight_layout=True, sharex=True, sharey=True)
     axis = axis.flatten()
@@ -306,5 +306,5 @@ for i, real_data in enumerate([binned_data, data]):
     axis[0].set_ylabel('Normalized Photon Count')
     fig.legend(labels=['data', 'posterior median', 'posterior 95% CI'], bbox_to_anchor=(0.5, -0.07),
                ncol=3, loc='lower center')
-    plt.savefig(f'plots/{score_model.name}/real_data_fit_{i}.png')
+    plt.savefig(f'plots/{score_model.name}/real_data_fit_{j}.png')
     plt.close()
