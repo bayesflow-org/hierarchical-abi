@@ -162,13 +162,13 @@ fig.savefig(f'plots/{score_model.name}/ecdf_global.png')
 conditions_global = (np.median(posterior_global_samples_valid, axis=0), posterior_global_samples_valid)[1]
 score_model.sde.s_shift_cosine = 0
 score_model.current_number_of_obs = 1
-posterior_local_samples_valid = euler_maruyama_sampling(score_model, valid_data,
+posterior_local_samples_valid = euler_maruyama_sampling(score_model, valid_data[:, :12],
                                                         n_post_samples=n_post_samples, conditions=conditions_global,
                                                         diffusion_steps=200, device=torch_device, verbose=False)
 #%%
-fig = diagnostics.recovery(posterior_local_samples_valid.reshape(valid_data.shape[0], n_post_samples, -1),
-                          np.array(valid_prior_local).reshape(valid_data.shape[0], -1),
-                          variable_names=local_param_names)
+fig = diagnostics.recovery(posterior_local_samples_valid.reshape(valid_data.shape[0], n_post_samples, -1)[:, :, :12],
+                          np.array(valid_prior_local).reshape(valid_data.shape[0], -1)[:, :12],
+                          variable_names=local_param_names[:12])
 fig.savefig(f'plots/{score_model.name}/recovery_local.png')
 
 #%% Real data
