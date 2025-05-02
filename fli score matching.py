@@ -275,6 +275,8 @@ for i, real_data in enumerate([binned_data, data]):
                                 cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_{i}.png")
     visualize_simulation_output(std, title_prefix=['Posterior Std ' + p for p in transf_local_param_names], same_scale=False,
                                 cmap='turbo', save_path=f"plots/{score_model.name}/real_data_std_{i}.png")
+    np.save(f'plots/{score_model.name}/fli_local_median_{i}', med)
+    np.save(f'plots/{score_model.name}/fli_local_std_{i}', std)
 
     fig, axis = plt.subplots(1, 5, figsize=(10, 3), tight_layout=True, sharex=True, sharey=True)
     axis = axis.flatten()
