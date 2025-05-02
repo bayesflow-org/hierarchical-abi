@@ -133,25 +133,20 @@ def initialize_sampling(model, x_obs, n_post_samples, conditions, sampling_arg, 
     sampling_arg_dict['summary_already_applied'] = False
     if not sampling_arg_dict['subsample']:
         # otherwise x_obs is expanded later on a batch-wise basis
-        if not sampling_arg_dict['noisy_condition']['apply']:
-            # we can apply the summary network here already
-            print('applying summary network to observations before sampling, might take a while...')
-            # normalize data
-            if not isinstance(x_obs, torch.Tensor):
-                x_obs = torch.tensor(x_obs, dtype=torch.float32)
-            x_obs_norm = model.prior.normalize_data(x_obs)
-            # reshape but do not expand yet
-            x_obs_norm = x_obs_norm.contiguous().view(x_obs.shape[0] * x_obs.shape[1], *x_obs.shape[2:])
-            x_obs_list = model.summary_forward(x=x_obs_norm, chunk_size=sampling_arg_dict['sampling_chunk_size'], device=device)
-            # reshape again and then expand
-            x_obs_list = x_obs_list.contiguous().view(x_obs.shape[0], x_obs.shape[1], *x_obs_list.shape[1:])
-            x_obs = expand_obs(x_obs=x_obs_list, n_post_samples=n_post_samples)
-            sampling_arg_dict['summary_already_applied'] = True
-        else:
-            # prepare data
-            if not isinstance(x_obs, torch.Tensor):
-                x_obs = torch.tensor(x_obs, dtype=torch.float32)
-            x_obs = model.prior.normalize_data(x_obs)
+        # we can apply the summary network here already
+        print('applying summary network to observations before sampling, might take a while...')
+        # normalize data
+        if not isinstance(x_obs, torch.Tensor):
+            x_obs = torch.tensor(x_obs, dtype=torch.float32)
+        x_obs_norm = model.prior.normalize_data(x_obs)
+        # reshape but do not expand yet
+        x_obs_norm = x_obs_norm.contiguous().view(x_obs.shape[0] * x_obs.shape[1], *x_obs.shape[2:])
+        x_obs_list = model.summary_forward(x=x_obs_norm, chunk_size=sampling_arg_dict['sampling_chunk_size'], device=device)
+        # reshape again and then expand
+        x_obs_list = x_obs_list.contiguous().view(x_obs.shape[0], x_obs.shape[1], *x_obs_list.shape[1:])
+        x_obs = expand_obs(x_obs=x_obs_list, n_post_samples=n_post_samples)
+        sampling_arg_dict['summary_already_applied'] = True
+
     else:
         # prepare data
         if not isinstance(x_obs, torch.Tensor):
@@ -249,17 +244,12 @@ def eval_compositional_score(model, theta, diffusion_time, x_obs, conditions_exp
     # subsample observations for the score update
     if sampling_arg_dict['subsample']:
         sub_x_obs = sub_sample_observations(data=x_obs, sampling_arg_dict=sampling_arg_dict)
-        if not sampling_arg_dict['noisy_condition']['apply']:
-            sub_x_obs_collapsed = sub_x_obs.contiguous().view(sub_x_obs.shape[0] * sub_x_obs.shape[1], *sub_x_obs.shape[2:])
-            sub_x_obs_collapsed = sub_x_obs_collapsed.to(theta.device)
-            x_sum = model.summary_forward(x=sub_x_obs_collapsed, chunk_size=sampling_arg_dict['sampling_chunk_size'], device=theta.device)
-            x_sum = x_sum.contiguous().view(sub_x_obs.shape[0], sub_x_obs.shape[1], *x_sum.shape[1:])
-            x_exp = expand_obs(x_obs=x_sum, n_post_samples=n_post_samples)
-            sampling_arg_dict['summary_already_applied'] = True
-        else:
-            x_exp = expand_obs(x_obs=sub_x_obs, n_post_samples=n_post_samples)
-            x_exp = x_exp.to(theta.device)
-            sampling_arg_dict['summary_already_applied'] = False
+        sub_x_obs_collapsed = sub_x_obs.contiguous().view(sub_x_obs.shape[0] * sub_x_obs.shape[1], *sub_x_obs.shape[2:])
+        sub_x_obs_collapsed = sub_x_obs_collapsed.to(theta.device)
+        x_sum = model.summary_forward(x=sub_x_obs_collapsed, chunk_size=sampling_arg_dict['sampling_chunk_size'], device=theta.device)
+        x_sum = x_sum.contiguous().view(sub_x_obs.shape[0], sub_x_obs.shape[1], *x_sum.shape[1:])
+        x_exp = expand_obs(x_obs=x_sum, n_post_samples=n_post_samples)
+        sampling_arg_dict['summary_already_applied'] = True
     else:
         # data is already prepared
         x_exp = x_obs
@@ -268,7 +258,7 @@ def eval_compositional_score(model, theta, diffusion_time, x_obs, conditions_exp
     t_exp = diffusion_time.unsqueeze(1).expand(-1, sampling_arg_dict['size'], -1).contiguous().view(-1, 1)
 
     if sampling_arg_dict['noisy_condition']['apply']:
-        # mean and std on clean data
+        # mean and std on clean data (might be summarized already)
         #x_mean_clean = torch.mean(x_exp, dim=1, keepdim=True)
         #x_std_clean = torch.std(x_exp, dim=1, keepdim=True)
 

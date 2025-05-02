@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import itertools
+from scipy.stats import median_abs_deviation as mad
 
 os.environ['KERAS_BACKEND'] = 'torch'
 from bayesflow import diagnostics
@@ -266,15 +267,15 @@ for j, real_data in enumerate([binned_data, data]):
     transf_local_param_names = [r'$\tau_1^L$', r'$\tau_2^L$', r'$A^L$']
 
     med = np.median(ps, axis=0)
-    std = np.std(ps, axis=0)
+    posterior_mad = mad(ps, axis=0)
     visualize_simulation_output(med, title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
                                 cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_same_{j}.png")
-    visualize_simulation_output(std, title_prefix=['Posterior Std ' + p for p in transf_local_param_names],
-                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_std_same_{j}.png")
+    visualize_simulation_output(posterior_mad, title_prefix=['Posterior MAD ' + p for p in transf_local_param_names],
+                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_mad_same_{j}.png")
     visualize_simulation_output(med, title_prefix=['Posterior Median ' + p for p in transf_local_param_names], same_scale=False,
                                 cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_{j}.png")
-    visualize_simulation_output(std, title_prefix=['Posterior Std ' + p for p in transf_local_param_names], same_scale=False,
-                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_std_{j}.png")
+    visualize_simulation_output(posterior_mad, title_prefix=['Posterior MAD ' + p for p in transf_local_param_names], same_scale=False,
+                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_mad_{j}.png")
     np.save(f'plots/{score_model.name}/fli_local_median_{j}', med)
     np.save(f'plots/{score_model.name}/fli_local_std_{j}', std)
 
