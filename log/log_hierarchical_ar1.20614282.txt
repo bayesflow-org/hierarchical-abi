@@ -1,0 +1,155 @@
+WARNING:bayesflow:
+When using torch backend, we need to disable autograd by default to avoid excessive memory usage. Use
+
+with torch.enable_grad():
+    ...
+
+in contexts where you need gradients (e.g. custom training loops).
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/bayesflow/diagnostics/metrics/posterior_contraction.py:59: RuntimeWarning: Degrees of freedom <= 0 for slice
+  post_vars = samples["estimates"].var(axis=1, ddof=1)
+/home/jarruda_hpc/.conda/envs/habi/lib/python3.11/site-packages/numpy/core/_methods.py:195: RuntimeWarning: invalid value encountered in divide
+  ret = um.true_divide(
+Exp: 8 Model: 8 mini_batch
+Kernel type: variance_preserving, noise schedule: cosine
+t_min: 0.00035210439818911254, t_max: 0.999647855758667
+alpha, sigma: (tensor(1.0000), tensor(0.0006)) (tensor(0.0006), tensor(1.0000))
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|   blocks.res_blocks.0.dense.weight   |    2304    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    2304    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|    final_projection_linear.weight    |    768     |
+|     final_projection_linear.bias     |     3      |
++--------------------------------------+------------+
+Total Trainable Params: 268803
+ar1_8_1global_score_model_v_variance_preserving_cosine_likelihood_weighting
++--------------------------------------+------------+
+|               Modules                | Parameters |
++--------------------------------------+------------+
+|   blocks.res_blocks.0.dense.weight   |    2560    |
+|    blocks.res_blocks.0.dense.bias    |    256     |
+| blocks.res_blocks.0.projector.weight |    2560    |
+|   blocks.res_blocks.1.dense.weight   |   65536    |
+|    blocks.res_blocks.1.dense.bias    |    256     |
+|   blocks.res_blocks.2.dense.weight   |   65536    |
+|    blocks.res_blocks.2.dense.bias    |    256     |
+|   blocks.res_blocks.3.dense.weight   |   65536    |
+|    blocks.res_blocks.3.dense.bias    |    256     |
+|   blocks.res_blocks.4.dense.weight   |   65536    |
+|    blocks.res_blocks.4.dense.bias    |    256     |
+|    final_projection_linear.weight    |    256     |
+|     final_projection_linear.bias     |     1      |
++--------------------------------------+------------+
+Total Trainable Params: 268801
+ar1_8_1local_score_model_v_variance_preserving_cosine_likelihood_weighting
++---------------------------------------------------+------------+
+|                      Modules                      | Parameters |
++---------------------------------------------------+------------+
+|   global_model.blocks.res_blocks.0.dense.weight   |    2304    |
+|    global_model.blocks.res_blocks.0.dense.bias    |    256     |
+| global_model.blocks.res_blocks.0.projector.weight |    2304    |
+|   global_model.blocks.res_blocks.1.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.1.dense.bias    |    256     |
+|   global_model.blocks.res_blocks.2.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.2.dense.bias    |    256     |
+|   global_model.blocks.res_blocks.3.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.3.dense.bias    |    256     |
+|   global_model.blocks.res_blocks.4.dense.weight   |   65536    |
+|    global_model.blocks.res_blocks.4.dense.bias    |    256     |
+|    global_model.final_projection_linear.weight    |    768     |
+|     global_model.final_projection_linear.bias     |     3      |
+|    local_model.blocks.res_blocks.0.dense.weight   |    2560    |
+|     local_model.blocks.res_blocks.0.dense.bias    |    256     |
+|  local_model.blocks.res_blocks.0.projector.weight |    2560    |
+|    local_model.blocks.res_blocks.1.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.1.dense.bias    |    256     |
+|    local_model.blocks.res_blocks.2.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.2.dense.bias    |    256     |
+|    local_model.blocks.res_blocks.3.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.3.dense.bias    |    256     |
+|    local_model.blocks.res_blocks.4.dense.weight   |   65536    |
+|     local_model.blocks.res_blocks.4.dense.bias    |    256     |
+|     local_model.final_projection_linear.weight    |    256     |
+|      local_model.final_projection_linear.bias     |     1      |
++---------------------------------------------------+------------+
+Total Trainable Params: 537604
+ar1_8_1hierarchical_score_model_v_variance_preserving_cosine_likelihood_weighting
+Model loaded
+mini_batch
+Data Size: 16, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+global sampling
+Finished after 10000 steps (20000 score evals) at time 0.9202779531478882.
+Mean step size: 7.974704637279528e-06, min: 2.477237899256579e-07, max: 0.00012320200039539486
+maximum steps reached, increase number of steps.
+local sampling
+applying summary network to observations before sampling, might take a while...
+global shapes (100, 5, 3) (100, 3)
+local shapes (100, 5, 16) (100, 16)
+Data Size: 16, Mini Batch: 10, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+global sampling
+Finished after 10000 steps (20000 score evals) at time 0.7219966053962708.
+Mean step size: 2.780880165664853e-05, min: 7.633215659552661e-07, max: 0.0007206613081507385
+maximum steps reached, increase number of steps.
+local sampling
+applying summary network to observations before sampling, might take a while...
+global shapes (100, 2, 3) (100, 3)
+local shapes (100, 2, 16) (100, 16)
+Data Size: 16, Mini Batch: None, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+global sampling
+applying summary network to observations before sampling, might take a while...
+applying summary network to observations before sampling, might take a while...
+Finished after 10000 steps (20000 score evals) at time 0.7601131796836853.
+Mean step size: 2.3995575711853674e-05, min: 4.272916669378901e-07, max: 0.00044668931514024734
+maximum steps reached, increase number of steps.
+local sampling
+applying summary network to observations before sampling, might take a while...
+global shapes (100, 2, 3) (100, 3)
+local shapes (100, 2, 16) (100, 16)
+Data Size: 256, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+global sampling
+Finished after 10000 steps (20000 score evals) at time 0.6993408799171448.
+Mean step size: 3.007772280917496e-05, min: 9.862632168733398e-07, max: 8.69655268616043e-05
+maximum steps reached, increase number of steps.
+local sampling
+applying summary network to observations before sampling, might take a while...
+max steps reached
+global shapes (100, 1, 3) (100, 3)
+local shapes (100, 1, 256) (100, 256)
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+Data Size: 4096, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+global sampling
+Finished after 10000 steps (20000 score evals) at time 0.996097207069397.
+Mean step size: 3.9081515334173745e-07, min: 5.976384187533768e-08, max: 1.5123240473258193e-06
+maximum steps reached, increase number of steps.
+local sampling
+applying summary network to observations before sampling, might take a while...
+max steps reached
+global shapes (100, 1, 3) (100, 3)
+local shapes (100, 1, 4096) (100, 4096)
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+Data Size: 16384, Mini Batch: 1, Conditions: 1, Cosine shift: 0, Damping Factor: 1
+global sampling
+Finished after 10000 steps (20000 score evals) at time 0.9996429681777954.
+Mean step size: 3.4634787524909395e-08, min: 1.6320386819757005e-08, max: 8.176633770062836e-08
+maximum steps reached, increase number of steps.
+local sampling
+applying summary network to observations before sampling, might take a while...
+max steps reached
+global shapes (100, 1, 3) (100, 3)
+local shapes (100, 1, 16384) (100, 16384)
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
+smaller mini batch size already failed, skipping 1, 0
