@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import ListedColormap
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
@@ -37,7 +38,7 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
     n_cols = n_time_points
     n_rows = 1
 
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(3 * n_cols, 3 * n_rows))
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(3 * n_cols, 3 * n_rows), tight_layout=True)
     # Flatten axes array in case it's 2D.
     axes = axes.flatten()
 
@@ -57,13 +58,18 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
             ax.set_title(title_prefix[i])
         else:
             ax.set_title(f"{title_prefix} {i}")
-        fig.colorbar(im, ax=ax)
+        # create an axes on the right side of ax. The width of cax will be 5%
+        # of ax and the padding between cax and ax will be fixed at 0.05 inch.
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        fig.colorbar(im, cax=cax)
+        ax.set_xticks([])
+        ax.set_yticks([])
 
     # Hide any unused subplots.
     for j in range(n_time_points, len(axes)):
         axes[j].axis('off')
 
-    plt.tight_layout()
     if save_path is not None:
         plt.savefig(save_path, bbox_inches="tight")
     plt.show()

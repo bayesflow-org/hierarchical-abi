@@ -8,7 +8,7 @@ problems/grid/
 Vanilla FLI.ipynb
 /vanilla_fli_fit.png
 /vanilla_fli_median.png
-/vanilla_fli_std.png
+/vanilla_fli_mad.png
 /time-series-contour-plot.ipynb
 .venv
 

@@ -458,14 +458,15 @@ class HierarchicalScoreModel(nn.Module):
         x_list = []
         for start_idx in range(0, batch_size, chunk_size):
             end_idx = min(start_idx + chunk_size, batch_size)
+            current_chunk_size = end_idx - start_idx
             x_temp = x[start_idx:end_idx]
             x_temp = x_temp.to(device)
             # pass through the summary network
             if self.amortize_n_conditions:
                 # reshape obs such that the summary can work with it
-                x_temp = x_temp.contiguous().view(batch_size * n_obs, *x_temp.shape[2:])
+                x_temp = x_temp.contiguous().view(current_chunk_size * n_obs, *x_temp.shape[2:])
                 x_emb = self.summary_net(x_temp)
-                x_emb = x_emb.contiguous().view(batch_size, n_obs, *x_emb.shape[1:])
+                x_emb = x_emb.contiguous().view(current_chunk_size, n_obs, *x_emb.shape[1:])
             else:
                 x_emb = self.summary_net(x_temp)
             x_list.append(x_emb)

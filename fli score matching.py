@@ -180,13 +180,18 @@ global_param_names = prior.global_param_names
 local_param_names = prior.get_local_param_names(grid_data * grid_data)
 
 binned_data = np.load('problems/FLI/exp_binned_data.npy')[:grid_data, :grid_data]
-binned_data = binned_data.reshape(1, grid_data * grid_data, 256, 1) / np.max(binned_data)
+binned_data = binned_data.reshape(1, grid_data * grid_data, 256, 1)
 
 data = np.load('problems/FLI/final_Data.npy')[:, :grid_data, :grid_data]
-data = data.reshape(1, grid_data * grid_data, 256, 1) / np.max(data)
-binary_mask = (np.sum(data, axis=2) != 0) * 1
+data = data.reshape(1, grid_data * grid_data, 256, 1)
+cut_off = 17
+binary_mask = (np.sum(data, axis=(1,2)) > cut_off)
 
 for j, real_data in enumerate([binned_data, data]):
+
+    norm = np.max(real_data, axis=1, keepdims=True)
+    norm[~binary_mask] = 1
+    real_data = real_data / norm
 
     t1_value = 0.0009
     t0_value = 1
@@ -201,7 +206,7 @@ for j, real_data in enumerate([binned_data, data]):
         'damping_factor': lambda t: torch.ones_like(t) * 1e-10 + 0.0001,
         #'damping_factor': lambda t: (1-torch.ones_like(t)) * 1e-7 + 2e-4,
         #'sampling_chunk_size': 512,
-        "sampling_weights": binary_mask.reshape(-1),
+        "sampling_weights": binary_mask,
     }
     score_model.sde.s_shift_cosine = 0
 
@@ -268,21 +273,26 @@ for j, real_data in enumerate([binned_data, data]):
 
     med = np.median(ps, axis=0)
     posterior_mad = mad(ps, axis=0)
-    visualize_simulation_output(med, title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
-                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_same_{j}.png")
-    visualize_simulation_output(posterior_mad, title_prefix=['Posterior MAD ' + p for p in transf_local_param_names],
-                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_mad_same_{j}.png")
-    visualize_simulation_output(med, title_prefix=['Posterior Median ' + p for p in transf_local_param_names], same_scale=False,
+    visualize_simulation_output(med*binary_mask.reshape(grid_data, grid_data, 1), title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
                                 cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_{j}.png")
-    visualize_simulation_output(posterior_mad, title_prefix=['Posterior MAD ' + p for p in transf_local_param_names], same_scale=False,
+    visualize_simulation_output(posterior_mad*binary_mask.reshape(grid_data, grid_data, 1), title_prefix=['Posterior MAD ' + p for p in transf_local_param_names],
                                 cmap='turbo', save_path=f"plots/{score_model.name}/real_data_mad_{j}.png")
+    visualize_simulation_output(med*binary_mask.reshape(grid_data, grid_data, 1), title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
+                                scales=[(0,1), (0, 2), (0,1)],
+                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_scales_{j}.png")
+    visualize_simulation_output(posterior_mad*binary_mask.reshape(grid_data, grid_data, 1), title_prefix=['Posterior MAD ' + p for p in transf_local_param_names],
+                                scales=[(0,1), (0, 2), (0,1)],
+                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_mad_scales_{j}.png")
     np.save(f'plots/{score_model.name}/fli_local_median_{j}', med)
-    np.save(f'plots/{score_model.name}/fli_local_std_{j}', std)
+    np.save(f'plots/{score_model.name}/fli_local_mad_{j}', posterior_mad)
 
     fig, axis = plt.subplots(1, 5, figsize=(10, 3), tight_layout=True, sharex=True, sharey=True)
     axis = axis.flatten()
-    pixel_ids = [0, 0]
     for ax in axis:
+        while True:
+            pixel_ids = [np.random.randint(0, grid_data), np.random.randint(0, grid_data)]
+            if binary_mask.reshape(grid_data, grid_data)[pixel_ids[0], pixel_ids[1]]:
+                break  # only plot meaningful data
         plot_index = np.random.randint(0, tau.shape[0])
 
         simulations = np.array([

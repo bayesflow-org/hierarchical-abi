@@ -57,6 +57,10 @@ class Simulator:
 
         # truncated from below
         dec_conv = np.maximum(dec_conv, 0) / 3.5
+
+        # scale output
+        #dec_conv = dec_conv * np.random.randint(1, 8)
+        #dec_conv = np.round(dec_conv, 0)
         return dec_conv
 
     @staticmethod
