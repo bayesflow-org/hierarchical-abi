@@ -3,7 +3,8 @@ import numpy as np
 from matplotlib.colors import ListedColormap
 
 
-def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis", same_scale=True, save_path=None):
+def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
+                                same_scale=True, scales=None, save_path=None):
     """
     Visualize the full simulation trajectory on a grid of subplots.
 
@@ -15,6 +16,7 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
         title_prefix (str, list): Prefix for subplot titles.
         cmap (str): Colormap for imshow when visualizing 2D grid outputs.
         same_scale (bool): Whether to use the same color scale for all subplots.
+        scales (list): List of tuples specifying the color scale for each subplot.
         save_path (str): Path to save the figure.
     """
     if sim_output.ndim == 2:
@@ -43,7 +45,11 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
         ax = axes[i]
         # Check if the grid is 1D or 2D.
         # 2D grid: shape (n_grid, n_grid, n_time_points)
-        if same_scale:
+        if scales is not None:
+            # Use provided scales
+            vmin, vmax = scales[i]
+            im = ax.imshow(sim_output[:, :, i], cmap=cmap, vmin=vmin, vmax=vmax)
+        elif same_scale:
             im = ax.imshow(sim_output[:, :, i], cmap=cmap, vmin=sim_output.min(), vmax=sim_output.max())
         else:
             im = ax.imshow(sim_output[:, :, i], cmap=cmap)

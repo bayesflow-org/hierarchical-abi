@@ -295,7 +295,8 @@ elif variable_of_interest == 'compare_stan':
                                                            diffusion_steps=300,
                                                            device=torch_device, verbose=False)
 
-    posterior_local_samples_test = score_model.prior.transform_local_params(posterior_local_samples_test)
+    posterior_local_samples_test = score_model.prior.transform_local_params(beta=posterior_global_samples_test[..., 1:2],
+                                                                            eta_raw=posterior_local_samples_test[..., 0])
     np.save(f'problems/ar1/posterior_local_samples_test_grid{N}.npy', posterior_local_samples_test)
 
     fig = diagnostics.recovery(posterior_local_samples_test.reshape(test_data.shape[0], n_post_samples, -1)[:, :, :12],
@@ -396,7 +397,8 @@ elif variable_of_interest == 'max_results':
                                                            diffusion_steps=300,
                                                            device=torch_device, verbose=False)
 
-    posterior_local_samples_test = score_model.prior.transform_local_params(posterior_local_samples_test)
+    posterior_local_samples_test = score_model.prior.transform_local_params(beta=posterior_global_samples_test[..., 1:2],
+                                                                            eta_raw=posterior_local_samples_test[..., 0])
 
     np.save(f'problems/ar1/posterior_global_samples_test_grid{n_grid}.npy', posterior_global_samples_test)
     np.save(f'problems/ar1/posterior_local_samples_test_grid{n_grid}.npy', posterior_local_samples_test)
@@ -527,7 +529,8 @@ for n in data_sizes:
                                                       diffusion_steps=200, random_seed=experiment_id,
                                                       device=torch_device, verbose=False)
 
-            test_local_samples = score_model.prior.transform_local_params(test_local_samples)[..., 0]
+            test_local_samples = score_model.prior.transform_local_params(beta=test_global_samples[..., 1:2],
+                                                                          eta_raw=test_local_samples[..., 0])
 
         except torch.OutOfMemoryError as e:
             print(e)

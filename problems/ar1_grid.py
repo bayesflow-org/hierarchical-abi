@@ -107,13 +107,13 @@ class Prior:
     def _sample_local(self, n_local_samples=1):
         # Sample local parameters
         eta_raw = np.random.normal(loc=0, scale=np.exp(self.log_sigma), size=n_local_samples)
-        eta = self.transform_local_params(self.beta + eta_raw)
+        eta = self.transform_local_params(beta=self.beta, eta_raw=eta_raw)
         return dict(eta=eta, eta_raw=eta_raw)
 
     @staticmethod
-    def transform_local_params(local_params):
+    def transform_local_params(beta, eta_raw):
         # transform raw local parameters
-        return 2*expit(local_params)-1
+        return 2*expit(beta + eta_raw)-1
 
     @staticmethod
     def back_transform_local_params(local_params):
