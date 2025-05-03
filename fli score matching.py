@@ -185,11 +185,11 @@ binned_data = binned_data.reshape(1, grid_data * grid_data, 256, 1)
 data = np.load('problems/FLI/final_Data.npy')[:, :grid_data, :grid_data]
 data = data.reshape(1, grid_data * grid_data, 256, 1)
 cut_off = 17
-binary_mask = (np.sum(data, axis=(1,2)) > cut_off)
+binary_mask = (np.sum(data, axis=2, keepdims=True) > cut_off)
 
 for j, real_data in enumerate([binned_data, data]):
 
-    norm = np.max(real_data, axis=1, keepdims=True)
+    norm = np.max(real_data, axis=2, keepdims=True)
     norm[~binary_mask] = 1
     real_data = real_data / norm
 
@@ -206,7 +206,7 @@ for j, real_data in enumerate([binned_data, data]):
         'damping_factor': lambda t: torch.ones_like(t) * 1e-10 + 0.0001,
         #'damping_factor': lambda t: (1-torch.ones_like(t)) * 1e-7 + 2e-4,
         #'sampling_chunk_size': 512,
-        "sampling_weights": binary_mask * 1,
+        "sampling_weights": binary_mask.flatten() * 1,
     }
     score_model.sde.s_shift_cosine = 0
 
