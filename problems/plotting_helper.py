@@ -5,7 +5,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
-                                same_scale=True, scales=None, save_path=None):
+                                same_scale=True, scales=None, mask=None, save_path=None):
     """
     Visualize the full simulation trajectory on a grid of subplots.
 
@@ -18,6 +18,7 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
         cmap (str): Colormap for imshow when visualizing 2D grid outputs.
         same_scale (bool): Whether to use the same color scale for all subplots.
         scales (list): List of tuples specifying the color scale for each subplot.
+        mask (np.ndarray): Binary 2D mask of shape (n_grid, n_grid) where 0 indicates blacked-out areas.
         save_path (str): Path to save the figure.
     """
     if sim_output.ndim == 2:
@@ -44,16 +45,21 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
 
     for i in range(n_time_points):
         ax = axes[i]
+        img = sim_output[:, :, i].copy()
+
         # Check if the grid is 1D or 2D.
         # 2D grid: shape (n_grid, n_grid, n_time_points)
+        if mask is not None:
+            # Set masked regions to a distinct value (black later via colormap)
+            img[~mask] = np.nan
         if scales is not None:
             # Use provided scales
             vmin, vmax = scales[i]
-            im = ax.imshow(sim_output[:, :, i], cmap=cmap, vmin=vmin, vmax=vmax)
+            im = ax.imshow(img, cmap=cmap, vmin=vmin, vmax=vmax)
         elif same_scale:
-            im = ax.imshow(sim_output[:, :, i], cmap=cmap, vmin=sim_output.min(), vmax=sim_output.max())
+            im = ax.imshow(img, cmap=cmap, vmin=sim_output.min(), vmax=sim_output.max())
         else:
-            im = ax.imshow(sim_output[:, :, i], cmap=cmap)
+            im = ax.imshow(img, cmap=cmap)
         if isinstance(title_prefix, list):
             ax.set_title(title_prefix[i])
         else:

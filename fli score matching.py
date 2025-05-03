@@ -36,7 +36,7 @@ current_sde = SDE(
 )
 
 dataset = FLIProblem(
-    n_data=20000,
+    n_data=50000,
     prior=prior,
     sde=current_sde,
     online_learning=True,
@@ -59,7 +59,7 @@ dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=Fals
 n_blocks = [5, 6]
 hidden_dim = [256, 512]
 hidden_dim_summary = [10, 14, 18, 22, 32]
-split_summary_vector = [True, False]
+split_summary_vector = [True] #, False]
 n_blocks, hidden_dim, hidden_dim_summary, split_summary_vector = list(itertools.product(n_blocks, hidden_dim, hidden_dim_summary, split_summary_vector))[experiment_id]
 summary_net = TimeSeriesNetwork(input_dim=1, recurrent_dim=256, summary_dim=hidden_dim_summary)
 
@@ -93,7 +93,8 @@ score_model = HierarchicalScoreModel(
     sde=current_sde,
     weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
     prior=prior,
-    name_prefix=f'FLI_{max_number_of_obs}_{hidden_dim_summary}_{hidden_dim}_{n_blocks}{"_split" if split_summary_vector else ""}_{summary_net.name}_',
+    dropout_rate=0.1,
+    name_prefix=f'FLI_new_prior_{max_number_of_obs}_{hidden_dim_summary}_{hidden_dim}_{n_blocks}{"_split" if split_summary_vector else ""}_{summary_net.name}_',
     split_summary_vector=split_summary_vector
 )
 
@@ -273,14 +274,22 @@ for j, real_data in enumerate([binned_data, data]):
 
     med = np.median(ps, axis=0)
     posterior_mad = mad(ps, axis=0)
-    visualize_simulation_output(med*binary_mask.reshape(grid_data, grid_data, 1), title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
+    visualize_simulation_output(med,
+                                mask=binary_mask.reshape(grid_data, grid_data),
+                                title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
                                 cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_{j}.png")
-    visualize_simulation_output(posterior_mad*binary_mask.reshape(grid_data, grid_data, 1), title_prefix=['Posterior MAD ' + p for p in transf_local_param_names],
+    visualize_simulation_output(posterior_mad,
+                                mask=binary_mask.reshape(grid_data, grid_data),
+                                title_prefix=['Posterior MAD ' + p for p in transf_local_param_names],
                                 cmap='turbo', save_path=f"plots/{score_model.name}/real_data_mad_{j}.png")
-    visualize_simulation_output(med*binary_mask.reshape(grid_data, grid_data, 1), title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
+    visualize_simulation_output(med,
+                                mask=binary_mask.reshape(grid_data, grid_data),
+                                title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
                                 scales=[(0,1), (0, 2), (0,1)],
                                 cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_scales_{j}.png")
-    visualize_simulation_output(posterior_mad*binary_mask.reshape(grid_data, grid_data, 1), title_prefix=['Posterior MAD ' + p for p in transf_local_param_names],
+    visualize_simulation_output(posterior_mad,
+                                mask=binary_mask.reshape(grid_data, grid_data),
+                                title_prefix=['Posterior MAD ' + p for p in transf_local_param_names],
                                 scales=[(0,1), (0, 2), (0,1)],
                                 cmap='turbo', save_path=f"plots/{score_model.name}/real_data_mad_scales_{j}.png")
     np.save(f'plots/{score_model.name}/fli_local_median_{j}', med)

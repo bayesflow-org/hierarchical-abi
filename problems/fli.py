@@ -39,7 +39,9 @@ class Simulator:
         return scale * self.noise[i, j]
 
     def decay_gen_single(self, tau_L, tau_L_2, A_L):
-        cropped_pIRF = self._random_crop(self.pIRF, crop_size=(1, 1))  / self.max_pIRF
+        #cropped_pIRF = self._random_crop(self.pIRF, crop_size=(1, 1)) / self.max_pIRF
+        cropped_pIRF = self._random_crop(self.pIRF, crop_size=(1, 1))
+        cropped_pIRF = cropped_pIRF / np.sum(cropped_pIRF)
         a1, b1, c1 = np.shape(cropped_pIRF)
         t = np.linspace(0, c1 * (self.gw * (10 ** -3)), c1)
         A = A_L * np.exp(-t / tau_L)
@@ -50,15 +52,18 @@ class Simulator:
         dec_conv = self._conv_dec(dec, irf_out)
 
         # add noise
+        #img = np.random.randint(0, high=25)
+        #dec_conv = np.round(np.random.poisson(dec_conv * img), 0)
         dec_conv += self._sample_noise()
 
         # normalise output
         #dec_conv = self._norm1D(dec_conv)
 
         # truncated from below
-        dec_conv = np.maximum(dec_conv, 0) / 3.5
+        dec_conv = np.maximum(dec_conv, 0) #/ 3.5
 
         # scale output
+        dec_conv = self._norm1D(dec_conv)
         #dec_conv = dec_conv * np.random.randint(1, 8)
         #dec_conv = np.round(dec_conv, 0)
         return dec_conv
@@ -108,7 +113,7 @@ class FLI_Prior:
         self.a_std_hyperprior_std = 0.5
 
         if self.parameterization == 'difference':
-            self.tau1_mean_hyperprior_mean = np.log(0.2)
+            self.tau1_mean_hyperprior_mean = np.log(0.7)
             self.tau1_mean_hyperprior_std = 0.7  # 1
             self.tau1_std_hyperprior_mean = -1
             self.tau1_std_hyperprior_std = 0.5  # 1
