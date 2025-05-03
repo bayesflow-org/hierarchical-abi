@@ -206,7 +206,7 @@ for j, real_data in enumerate([binned_data, data]):
         'damping_factor': lambda t: torch.ones_like(t) * 1e-10 + 0.0001,
         #'damping_factor': lambda t: (1-torch.ones_like(t)) * 1e-7 + 2e-4,
         #'sampling_chunk_size': 512,
-        "sampling_weights": binary_mask,
+        "sampling_weights": binary_mask * 1,
     }
     score_model.sde.s_shift_cosine = 0
 
