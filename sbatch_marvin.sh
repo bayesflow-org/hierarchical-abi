@@ -4,10 +4,10 @@
 #SBATCH --nodes 1
 #SBATCH --cpus-per-task 1
 #SBATCH --mem-per-cpu 100GB
-#SBATCH --partition mlgpu_medium
+#SBATCH --partition mlgpu_long
 #SBATCH --gpus 1
-#SBATCH --time 1-00:00:00
-#SBATCH --array=0-39
+#SBATCH --time 3-00:00:00
+#SBATCH --array=0-19
 #SBATCH --depend=afterany:20608877
 #SBATCH --mail-type=END
 #SBATCH --mail-user=jonas.arruda@uni-bonn.de
