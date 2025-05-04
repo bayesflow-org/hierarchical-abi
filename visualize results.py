@@ -4,6 +4,8 @@
 import os
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+
 import numpy as np
 import pandas as pd
 #%% md
@@ -27,7 +29,6 @@ colors_all = ['#a6cee3', '#1f77b4', '#b2df8a', '#33a02c', '#fb9a99', '#e31a1c', 
 handles_all = []
 labels_all = []
 
-import matplotlib as mpl
 
 # Set global font sizes
 mpl.rcParams.update({
