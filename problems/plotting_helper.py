@@ -79,7 +79,7 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
         axes[j].axis('off')
 
     if save_path is not None:
-        plt.savefig(save_path, bbox_inches="tight")
+        plt.savefig(save_path, bbox_inches="tight", transparent=True)
     plt.show()
     return
 
