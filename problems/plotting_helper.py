@@ -52,6 +52,7 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
         if mask is not None:
             # Set masked regions to a distinct value (black later via colormap)
             img[~mask] = np.nan
+            cmap.set_bad(color="black")
         if scales is not None:
             # Use provided scales
             vmin, vmax = scales[i]

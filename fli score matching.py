@@ -128,7 +128,7 @@ score_model.eval()
 # # Validation
 #%%
 n_local_samples = 1024*max_number_of_obs
-valid_prior_global, valid_prior_local, valid_data = generate_synthetic_data(prior=prior, n_data=100,
+valid_prior_global, valid_prior_local, valid_data = generate_synthetic_data(prior=prior, n_data=200,
                                                                             n_local_samples=n_local_samples,
                                                                             random_seed=0)
 n_post_samples = 100
@@ -196,9 +196,9 @@ for j, real_data in enumerate([binned_data, data]):
 
     t1_value = 0.0009
     t0_value = 1
-    n_post_samples = 100
+    n_post_samples = 200
     sampling_arg = {
-        'size': 10,
+        'size': 100,
         #'damping_factor': lambda t: (torch.ones_like(t) / real_data.shape[1] * 100) * (t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t)),
         #'damping_factor': lambda t: (1-torch.ones_like(t)) / real_data.shape[1] + 0.1,
         #'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t),
