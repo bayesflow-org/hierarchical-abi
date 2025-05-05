@@ -269,8 +269,10 @@ for j, real_data in enumerate([binned_data, data]):
         log_delta_tau=posterior_local_samples_real[0, :, :, 1].reshape(n_post_samples, grid_data, grid_data),
         a=posterior_local_samples_real[0, :, :, 2].reshape(n_post_samples, grid_data, grid_data),
     )
-    ps = np.concatenate([tau[:, :, :, np.newaxis], tau_2[:, :, :, np.newaxis], A[:, :, :, np.newaxis]], axis=-1)
-    transf_local_param_names = [r'$\tau_1^L$', r'$\tau_2^L$', r'$A^L$']
+    tau_mean = A * tau + (1 - A) * tau_2
+    ps = np.concatenate([tau[:, :, :, np.newaxis], tau_2[:, :, :, np.newaxis], A[:, :, :, np.newaxis],
+                         tau_mean[:, :, :, np.newaxis]], axis=-1)
+    transf_local_param_names = [r'$\tau_1^L$', r'$\tau_2^L$', r'$A^L$', r'$\tau^\text{mean}$']
 
     med = np.median(ps, axis=0)
     posterior_mad = mad(ps, axis=0)
