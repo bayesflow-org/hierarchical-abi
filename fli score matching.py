@@ -128,7 +128,7 @@ score_model.eval()
 # # Validation
 #%%
 n_local_samples = 1024*max_number_of_obs
-valid_prior_global, valid_prior_local, valid_data = generate_synthetic_data(prior=prior, n_data=200,
+valid_prior_global, valid_prior_local, valid_data = generate_synthetic_data(prior=prior, n_data=100,
                                                                             n_local_samples=n_local_samples,
                                                                             random_seed=0)
 n_post_samples = 100
