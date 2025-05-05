@@ -32,13 +32,13 @@ labels_all = []
 
 # Set global font sizes
 mpl.rcParams.update({
-    "font.size": 14,            # Base font size
-    "axes.titlesize": 16,       # Axes title
-    "axes.labelsize": 14,       # Axes labels
-    "xtick.labelsize": 12,      # Tick labels
-    "ytick.labelsize": 12,
+    "font.size": 12,            # Base font size
+    "axes.titlesize": 12,       # Axes title
+    "axes.labelsize": 12,       # Axes labels
+    "xtick.labelsize": 10,      # Tick labels
+    "ytick.labelsize": 10,
     "legend.fontsize": 12,
-    "figure.titlesize": 16
+    "figure.titlesize": 12
 })
 
 if problem_id == 0:
@@ -59,7 +59,7 @@ else:
 if not os.path.exists('plots/'+score_model_name):
     os.makedirs('plots/'+score_model_name)
 
-fig, axis_full = plt.subplots(nrows=2, ncols=5, sharex=True, sharey='col', figsize=(15, 6), tight_layout=True)
+fig, axis_full = plt.subplots(nrows=2, ncols=5, sharex=True, sharey='col', figsize=(12, 1.9*2), constrained_layout=True)
 for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
     colors = colors_all[c*3+1:]
     variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t']
@@ -106,7 +106,7 @@ for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
         metrics = {
             'kl': 'KL Divergence',
             'median_rmse': 'RMSE',
-            'contractions': 'Posterior Contraction',
+            'contractions': 'Posterior\nContraction',
             'c_error': 'Calibration Error'
         }
 
@@ -121,10 +121,10 @@ for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
         metrics = {
             'rmse_global': 'RMSE Global',
             'c_error_global': 'Calibration Error Global',
-            'contractions_global': 'Posterior Contraction Global',
+            'contractions_global': 'Contraction Global',
             'rmse_local': 'RMSE Local',
             #'c_error_local': 'Calibration Error Local',
-            'contractions_local': 'Posterior Contraction Local'
+            'contractions_local': 'Contraction Local'
         }
 
         # Define the metrics to plot: key is dataframe column, value is label for y-axis.
@@ -193,12 +193,15 @@ for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
         h = ax.errorbar(second_variable_of_interest_values, medians, yerr=mads, fmt='o-', capsize=5, label=f'{mb}', alpha=0.75, color=colors[i])
         if variable_of_interest == 'cosine_shift':
             labels.append(f'$s={mb}$')
-        else:
+        elif variable_of_interest == 'damping_factor_t':
             labels.append(f'$d_1={mb}$')
+        else:
+            labels.append(f'{mb}')
         handles.append(h)
 
     ax.axhline(max_steps, color='k', linestyle='--')
     ax.text(1, max_steps-3500, "Maximal Number of Steps", fontsize=8, color='k')
+    ax.grid(True, which='major', linestyle='--', linewidth=0.5)
 
     # Center the x-axis ticks and label them.
     ax.set_xticks(x)
@@ -268,12 +271,14 @@ for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
             ax[j].set_xscale('log')
         if metric == 'kl':
             ax[j].set_yscale('log')
+            ax[j].grid(True, which='major', linestyle='--', linewidth=0.5)
         else:
             ax[j].set_ylim(y_limits[metric])
+            ax[j].grid(True, which='both', linestyle='--', linewidth=0.5)
     handles_all += handles[:5]
     labels_all += labels[:5]
 fig.legend(handles=handles_all, labels=labels_all, ncols=len(labels_all), frameon=False,
-            loc='center', bbox_to_anchor=(0.5, 0.))
+            loc='center', bbox_to_anchor=(0.5, -0.03))
 if save_plots:
     fig.savefig(f'plots/{score_model_name}/paper_figure.pdf', bbox_inches='tight', transparent=True)
 plt.close()
