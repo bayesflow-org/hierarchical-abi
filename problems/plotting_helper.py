@@ -57,8 +57,10 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
         if scales is not None:
             # Use provided scales
             vmin, vmax = scales[i]
+            cmap.set_under(color='black')
             im = ax.imshow(img, cmap=cmap, vmin=vmin, vmax=vmax)
         elif same_scale:
+            cmap.set_under(color='black')
             im = ax.imshow(img, cmap=cmap, vmin=sim_output.min(), vmax=sim_output.max())
         else:
             im = ax.imshow(img, cmap=cmap)

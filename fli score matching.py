@@ -279,21 +279,21 @@ for j, real_data in enumerate([binned_data, data]):
     visualize_simulation_output(med,
                                 mask=binary_mask.reshape(grid_data, grid_data),
                                 title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
-                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_{j}.pdf")
+                                cmap='jet', save_path=f"plots/{score_model.name}/real_data_median_{j}.pdf")
     visualize_simulation_output(posterior_mad,
                                 mask=binary_mask.reshape(grid_data, grid_data),
                                 title_prefix=['Posterior MAD ' + p for p in transf_local_param_names],
-                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_mad_{j}.pdf")
+                                cmap='jet', save_path=f"plots/{score_model.name}/real_data_mad_{j}.pdf")
     visualize_simulation_output(med,
                                 mask=binary_mask.reshape(grid_data, grid_data),
                                 title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
                                 scales=[(0,1), (0, 2), (0,1)],
-                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_median_scales_{j}.pdf")
+                                cmap='jet', save_path=f"plots/{score_model.name}/real_data_median_scales_{j}.pdf")
     visualize_simulation_output(posterior_mad,
                                 mask=binary_mask.reshape(grid_data, grid_data),
                                 title_prefix=['Posterior MAD ' + p for p in transf_local_param_names],
                                 scales=[(0,1), (0, 2), (0,1)],
-                                cmap='turbo', save_path=f"plots/{score_model.name}/real_data_mad_scales_{j}.pdf")
+                                cmap='jet', save_path=f"plots/{score_model.name}/real_data_mad_scales_{j}.pdf")
     np.save(f'plots/{score_model.name}/fli_local_median_{j}', med)
     np.save(f'plots/{score_model.name}/fli_local_mad_{j}', posterior_mad)
 
