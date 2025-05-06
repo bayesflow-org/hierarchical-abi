@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 
 from diffusion_model import HierarchicalScoreModel, SDE, euler_maruyama_sampling, train_score_model
 from diffusion_model.helper_networks import GaussianFourierProjection, ShallowSet
-from diffusion_model.bayesflow_summary_nets import TimeSeriesNetwork
+from diffusion_model.time_series_summary_nets import TimeSeriesNetwork
 from problems.fli import FLIProblem, FLI_Prior, generate_synthetic_data
 from problems import visualize_simulation_output
 #%%
@@ -31,8 +31,8 @@ max_number_of_obs = number_of_obs if isinstance(number_of_obs, int) else max(num
 experiment_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
 
 current_sde = SDE(
-    kernel_type=['variance_preserving', 'sub_variance_preserving'][0],
-    noise_schedule=['linear', 'cosine', 'flow_matching'][1]
+    kernel_type='variance_preserving',
+    noise_schedule='cosine'
 )
 
 dataset = FLIProblem(
@@ -66,17 +66,6 @@ summary_net = TimeSeriesNetwork(input_dim=1, recurrent_dim=256, summary_dim=hidd
 global_summary_dim = hidden_dim_summary
 global_summary_net = ShallowSet(dim_input=hidden_dim_summary, dim_output=global_summary_dim, dim_hidden=128)
 
-time_embedding_local = nn.Sequential(
-    GaussianFourierProjection(8),
-    nn.Linear(8, 8),
-    nn.Mish()
-)
-time_embedding_global = nn.Sequential(
-    GaussianFourierProjection(8),
-    nn.Linear(8, 8),
-    nn.Mish()
-)
-
 score_model = HierarchicalScoreModel(
     input_dim_theta_global=prior.n_params_global,
     input_dim_theta_local=prior.n_params_local,
@@ -84,17 +73,15 @@ score_model = HierarchicalScoreModel(
     input_dim_x_local=hidden_dim_summary,
     summary_net=summary_net,
     global_summary_net=global_summary_net if isinstance(number_of_obs, list) else None,
-    #time_embedding_local=time_embedding_local,
-    #time_embedding_global=time_embedding_global,
     hidden_dim=hidden_dim,
     n_blocks=n_blocks,
     max_number_of_obs=max_number_of_obs,
-    prediction_type=['score', 'e', 'x', 'v'][3],
+    prediction_type='v',
     sde=current_sde,
-    weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
+    weighting_type='likelihood_weighting',
     prior=prior,
     dropout_rate=0.1,
-    name_prefix=f'FLI_new_prior_{max_number_of_obs}_{hidden_dim_summary}_{hidden_dim}_{n_blocks}{"_split" if split_summary_vector else ""}_{summary_net.name}_',
+    name_prefix=f'FLI_{max_number_of_obs}_{hidden_dim_summary}_{hidden_dim}_{n_blocks}{"_split" if split_summary_vector else ""}_{summary_net.name}_',
     split_summary_vector=split_summary_vector
 )
 

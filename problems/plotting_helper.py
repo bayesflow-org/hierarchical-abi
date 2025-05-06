@@ -43,6 +43,7 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(3 * n_cols, 3 * n_rows), tight_layout=True)
     # Flatten axes array in case it's 2D.
     axes = axes.flatten()
+    cmap = plt.get_cmap(cmap).copy()
 
     for i in range(n_time_points):
         ax = axes[i]
@@ -53,7 +54,6 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
         if mask is not None:
             # Set masked regions to a distinct value (black later via colormap)
             img[~mask] = np.nan
-            cmap = plt.get_cmap(cmap).copy()
             cmap.set_bad(color="black")
         if scales is not None:
             # Use provided scales

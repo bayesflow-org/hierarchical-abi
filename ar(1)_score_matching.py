@@ -18,7 +18,7 @@ from bayesflow import diagnostics
 from torch.utils.data import DataLoader
 
 from diffusion_model import HierarchicalScoreModel, SDE, euler_maruyama_sampling, adaptive_sampling, train_score_model
-from diffusion_model.helper_networks import GaussianFourierProjection, ShallowSet
+from diffusion_model.helper_networks import ShallowSet
 from problems.ar1_grid import AR1GridProblem, Prior
 import optuna
 
@@ -48,8 +48,8 @@ if max_number_of_obs == 1:
 else:
     number_of_obs = [1, 4, 8, 16, 64, 128]
 current_sde = SDE(
-    kernel_type=['variance_preserving', 'sub_variance_preserving'][0],
-    noise_schedule=['linear', 'cosine', 'flow_matching'][1]
+    kernel_type='variance_preserving',
+    noise_schedule='cosine'
 )
 
 dataset = AR1GridProblem(
@@ -79,19 +79,6 @@ dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=Fals
 global_summary_dim = 5
 obs_n_time_steps = 0
 global_summary_net = ShallowSet(dim_input=5, dim_output=global_summary_dim, dim_hidden=128)
-#local_summary_net = GRUEncoder(input_size=1, summary_dim=5, num_layers=1, hidden_size=16, dropout=0)
-
-time_dim = 8
-time_embedding_local = nn.Sequential(
-    GaussianFourierProjection(time_dim),
-    nn.Linear(time_dim, time_dim),
-    nn.Mish()
-)
-time_embedding_global = nn.Sequential(
-    GaussianFourierProjection(time_dim),
-    nn.Linear(time_dim, time_dim),
-    nn.Mish()
-)
 
 max_number_of_obs = max(number_of_obs) if isinstance(number_of_obs, list) else number_of_obs
 score_model = HierarchicalScoreModel(
@@ -100,15 +87,12 @@ score_model = HierarchicalScoreModel(
     input_dim_x_global=global_summary_dim,
     global_summary_net=global_summary_net if isinstance(number_of_obs, list) else None,
     input_dim_x_local=global_summary_dim,
-    #summary_net=local_summary_net,
-    #time_embedding_local=time_embedding_local,
-    #time_embedding_global=time_embedding_global,
     hidden_dim=256,
     n_blocks=5,
     max_number_of_obs=max_number_of_obs,
-    prediction_type=['score', 'e', 'x', 'v'][3],
+    prediction_type='v',
     sde=current_sde,
-    weighting_type=[None, 'likelihood_weighting', 'flow_matching', 'sigmoid'][1],
+    weighting_type='likelihood_weighting',
     prior=prior,
     dropout_rate=0.1,
     name_prefix=f'ar1_{model_id}_{max_number_of_obs}'

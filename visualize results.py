@@ -200,7 +200,7 @@ for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
         handles.append(h)
 
     ax.axhline(max_steps, color='k', linestyle='--')
-    ax.text(1, max_steps-3500, "Maximal Number of Steps", fontsize=8, color='k')
+    ax.text(1, max_steps-5000, "Max Steps", fontsize=10, color='k')
     ax.grid(True, which='major', linestyle='--', linewidth=0.5)
 
     # Center the x-axis ticks and label them.
