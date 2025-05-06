@@ -277,56 +277,23 @@ for j, real_data in enumerate([binned_data, data]):
     med = np.median(ps, axis=0)
     posterior_mad = mad(ps, axis=0)
     visualize_simulation_output(med,
-                                mask=binary_mask.reshape(grid_data, grid_data),
+                                mask=binary_mask.reshape(grid_data, grid_data), add_scale_bar=True,
                                 title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
                                 cmap='jet', save_path=f"plots/{score_model.name}/real_data_median_{j}.pdf")
     visualize_simulation_output(posterior_mad,
-                                mask=binary_mask.reshape(grid_data, grid_data),
+                                mask=binary_mask.reshape(grid_data, grid_data), add_scale_bar=True,
                                 title_prefix=['Posterior MAD ' + p for p in transf_local_param_names],
                                 cmap='jet', save_path=f"plots/{score_model.name}/real_data_mad_{j}.pdf")
     visualize_simulation_output(med,
                                 mask=binary_mask.reshape(grid_data, grid_data),
                                 title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
-                                scales=[(0,1), (0, 2), (0,1), (0, 2)],
+                                scales=[(0,1), (0, 2), (0,1), (0, 2)], add_scale_bar=True,
                                 cmap='jet', save_path=f"plots/{score_model.name}/real_data_median_scales_{j}.pdf")
     visualize_simulation_output(posterior_mad,
                                 mask=binary_mask.reshape(grid_data, grid_data),
                                 title_prefix=['Posterior MAD ' + p for p in transf_local_param_names],
-                                scales=[(0,1), (0, 2), (0,1), (0, 2)],
+                                scales=[(0,1), (0, 2), (0,1), (0, 2)], add_scale_bar=True,
                                 cmap='jet', save_path=f"plots/{score_model.name}/real_data_mad_scales_{j}.pdf")
     np.save(f'plots/{score_model.name}/fli_local_median_{j}', med)
     np.save(f'plots/{score_model.name}/fli_local_mad_{j}', posterior_mad)
 
-    fig, axis = plt.subplots(1, 5, figsize=(10, 3), tight_layout=True, sharex=True, sharey=True)
-    axis = axis.flatten()
-    for ax in axis:
-        while True:
-            pixel_ids = [np.random.randint(0, grid_data), np.random.randint(0, grid_data)]
-            if binary_mask.reshape(grid_data, grid_data)[pixel_ids[0], pixel_ids[1]]:
-                break  # only plot meaningful data
-        plot_index = np.random.randint(0, tau.shape[0])
-
-        simulations = np.array([
-            prior.simulator.decay_gen_single(
-                tau_L=tau[post_index, pixel_ids[0], pixel_ids[1]],
-                tau_L_2=tau_2[post_index, pixel_ids[0], pixel_ids[1]],
-                A_L=A[post_index, pixel_ids[0], pixel_ids[1]]
-            ) for post_index in range(tau.shape[0])
-        ])
-
-        ax.plot(real_data.reshape(grid_data, grid_data, 256)[pixel_ids[0], pixel_ids[1]], label='data')
-        ax.plot(np.median(simulations, axis=0), label='posterior median', alpha=0.8, color='orange')
-        ax.fill_between(
-            np.arange(simulations.shape[1]),
-            np.quantile(simulations, 0.025, axis=0),
-            np.quantile(simulations, 0.975, axis=0),
-            alpha=0.4,
-            color='orange',
-            label='posterior 95% CI'
-        )
-        ax.set_xlabel('Time')
-    axis[0].set_ylabel('Normalized Photon Count')
-    fig.legend(labels=['data', 'posterior median', 'posterior 95% CI'], bbox_to_anchor=(0.5, -0.07),
-               ncol=3, loc='lower center')
-    plt.savefig(f'plots/{score_model.name}/real_data_fit_{j}.pdf')
-    plt.close()

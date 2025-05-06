@@ -5,7 +5,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
-                                same_scale=True, scales=None, mask=None, save_path=None):
+                                same_scale=True, scales=None, mask=None, save_path=None, add_scale_bar=False):
     """
     Visualize the full simulation trajectory on a grid of subplots.
 
@@ -20,6 +20,7 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
         scales (list): List of tuples specifying the color scale for each subplot.
         mask (np.ndarray): Binary 2D mask of shape (n_grid, n_grid) where 0 indicates blacked-out areas.
         save_path (str): Path to save the figure.
+        add_scale_bar (bool): Whether to add a scale bar to the plots.
     """
     if sim_output.ndim == 2:
         # (n_grid, n_time_points)
@@ -75,6 +76,23 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
         fig.colorbar(im, cax=cax)
         ax.set_xticks([])
         ax.set_yticks([])
+
+        if add_scale_bar:
+            # Define the pixel-to-micron ratio
+            microns_per_pixel = 0.1  # 0.1 µm per pixel ⇒ 10 µm = 100 pixels
+            scale_bar_length_um = 10
+            scale_bar_length_px = int(scale_bar_length_um / microns_per_pixel)
+
+            # Position the scale bar in the upper-right corner
+            x0 = img.shape[1] - scale_bar_length_px - 10  # 10 px from right edge
+            y0 = 40  # 40 px from upper edge
+
+            # Add the scale bar
+            ax.hlines(y=y0, xmin=x0, xmax=x0 + scale_bar_length_px, color='white', linewidth=2)
+
+            # Add label
+            ax.text(x0 + scale_bar_length_px / 2, y0 - 5, f'{scale_bar_length_um} µm',
+                    color='white', ha='center', va='bottom', fontsize=8)
 
     # Hide any unused subplots.
     for j in range(n_time_points, len(axes)):

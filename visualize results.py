@@ -194,7 +194,7 @@ for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
         if variable_of_interest == 'cosine_shift':
             labels.append(f'$s={mb}$')
         elif variable_of_interest == 'damping_factor_t':
-            labels.append(f'$d_1={mb}$')
+            labels.append(f'$d_1={np.round(np.sqrt(mb), 3)}$')  # we used a factor 2 in the damping function
         else:
             labels.append(f'{mb}')
         handles.append(h)
