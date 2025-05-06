@@ -149,31 +149,31 @@ sampling_arg = {
 
 #%%
 score_model.sde.s_shift_cosine = 0
-posterior_global_samples_valid = euler_maruyama_sampling(score_model, valid_data,
-                                                   n_post_samples=n_post_samples,
-                                                   sampling_arg=sampling_arg,
-                                                   diffusion_steps=1000,
-                                                   device=torch_device, verbose=False)
-#%%
-fig = diagnostics.recovery(posterior_global_samples_valid, np.array(valid_prior_global), variable_names=global_param_names)
-fig.savefig(f'plots/{score_model.name}/recovery_global.pdf')
-
-fig = diagnostics.calibration_ecdf(posterior_global_samples_valid, np.array(valid_prior_global),
-                          difference=True, variable_names=global_param_names)
-fig.savefig(f'plots/{score_model.name}/ecdf_global.pdf')
-#%%
-conditions_global = (np.median(posterior_global_samples_valid, axis=0), posterior_global_samples_valid)[1]
-score_model.sde.s_shift_cosine = 0
-score_model.current_number_of_obs = 1
-posterior_local_samples_valid = euler_maruyama_sampling(score_model, valid_data[:, :12],
-                                                        n_post_samples=n_post_samples, conditions=conditions_global,
-                                                        diffusion_steps=300, device=torch_device, verbose=False)
-#%%
-fig = diagnostics.recovery(posterior_local_samples_valid.reshape(valid_data.shape[0], n_post_samples, -1)[:, :, :12],
-                          np.array(valid_prior_local).reshape(valid_data.shape[0], -1)[:, :12],
-                          variable_names=local_param_names[:12])
-fig.savefig(f'plots/{score_model.name}/recovery_local.pdf')
-
+#posterior_global_samples_valid = euler_maruyama_sampling(score_model, valid_data,
+#                                                   n_post_samples=n_post_samples,
+#                                                   sampling_arg=sampling_arg,
+#                                                   diffusion_steps=1000,
+#                                                   device=torch_device, verbose=False)
+##%%
+#fig = diagnostics.recovery(posterior_global_samples_valid, np.array(valid_prior_global), variable_names=global_param_names)
+#fig.savefig(f'plots/{score_model.name}/recovery_global.pdf')
+#
+#fig = diagnostics.calibration_ecdf(posterior_global_samples_valid, np.array(valid_prior_global),
+#                          difference=True, variable_names=global_param_names)
+#fig.savefig(f'plots/{score_model.name}/ecdf_global.pdf')
+##%%
+#conditions_global = (np.median(posterior_global_samples_valid, axis=0), posterior_global_samples_valid)[1]
+#score_model.sde.s_shift_cosine = 0
+#score_model.current_number_of_obs = 1
+#posterior_local_samples_valid = euler_maruyama_sampling(score_model, valid_data[:, :12],
+#                                                        n_post_samples=n_post_samples, conditions=conditions_global,
+#                                                        diffusion_steps=300, device=torch_device, verbose=False)
+##%%
+#fig = diagnostics.recovery(posterior_local_samples_valid.reshape(valid_data.shape[0], n_post_samples, -1)[:, :, :12],
+#                          np.array(valid_prior_local).reshape(valid_data.shape[0], -1)[:, :12],
+#                          variable_names=local_param_names[:12])
+#fig.savefig(f'plots/{score_model.name}/recovery_local.pdf')
+#
 #%% Real data
 
 grid_data = 512
@@ -297,3 +297,21 @@ for j, real_data in enumerate([binned_data, data]):
     np.save(f'plots/{score_model.name}/fli_local_median_{j}', med)
     np.save(f'plots/{score_model.name}/fli_local_mad_{j}', posterior_mad)
 
+    visualize_simulation_output(med,
+                               	mask=binary_mask.reshape(grid_data, grid_data), add_scale_bar=True,
+                               	title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
+                               	cmap='jet', save_path=f"plots/{score_model.name}/real_data_median_{j}.png")
+    visualize_simulation_output(posterior_mad,
+                               	mask=binary_mask.reshape(grid_data, grid_data), add_scale_bar=True,
+                               	title_prefix=['Posterior MAD ' + p for p in transf_local_param_names],
+                               	cmap='jet', save_path=f"plots/{score_model.name}/real_data_mad_{j}.png")
+    visualize_simulation_output(med,
+                               	mask=binary_mask.reshape(grid_data, grid_data),
+                               	title_prefix=['Posterior Median ' + p for p in transf_local_param_names],
+                               	scales=[(0,1), (0, 2), (0,1), (0, 2)], add_scale_bar=True,
+                               	cmap='jet', save_path=f"plots/{score_model.name}/real_data_median_scales_{j}.png")
+    visualize_simulation_output(posterior_mad,
+                                mask=binary_mask.reshape(grid_data, grid_data),
+                               	title_prefix=['Posterior MAD ' + p for p in transf_local_param_names],
+                               	scales=[(0,1), (0, 2), (0,1), (0, 2)], add_scale_bar=True,
+                               	cmap='jet', save_path=f"plots/{score_model.name}/real_data_mad_scales_{j}.png")
