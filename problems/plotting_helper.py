@@ -79,13 +79,13 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
 
         if add_scale_bar:
             # Define the pixel-to-micron ratio
-            microns_per_pixel = 0.1  # 0.1 µm per pixel ⇒ 10 µm = 100 pixels
+            microns_per_pixel = microns_per_pixel = 135./512
             scale_bar_length_um = 10
             scale_bar_length_px = int(scale_bar_length_um / microns_per_pixel)
 
             # Position the scale bar in the upper-right corner
-            x0 = img.shape[1] - scale_bar_length_px - 10  # 10 px from right edge
-            y0 = 40  # 40 px from upper edge
+            x0 = img.shape[1] - scale_bar_length_px - 20
+            y0 = 30
 
             # Add the scale bar
             ax.hlines(y=y0, xmin=x0, xmax=x0 + scale_bar_length_px, color='white', linewidth=2)
