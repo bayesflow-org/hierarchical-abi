@@ -12,12 +12,14 @@ class Simulator:
             self.noise = np.load('problems/FLI/noise_micro.npy')
             self.pIRF = np.load('problems/FLI/irf_micro.npy')
         except FileNotFoundError:
-            self.noise = np.load('noise_micro.npy')
+            try:
+                self.noise = np.load('noise_micro.npy')
+            except FileNotFoundError:
+                self.noise = None
             self.pIRF = np.load('irf_micro.npy')
 
         self.n_time_points = self.pIRF.shape[2]
         self.img_size_full = (self.pIRF.shape[0], self.pIRF.shape[1])
-        self.max_pIRF = np.max(self.pIRF)
 
     def __call__(self, params):
         # Convert parameters to numpy arrays.
@@ -31,10 +33,17 @@ class Simulator:
         F_dec_conv = np.stack(sims)
         return dict(observable=F_dec_conv)
 
-    def _sample_noise(self, scale=1):
-        i = np.random.choice(self.noise.shape[0])
-        j = np.random.choice(self.noise.shape[1])
-        return scale * self.noise[i, j]
+    def _sample_noise(self, data, scale=1):
+        if self.noise is None:
+            # sample intensity
+            img = np.random.randint(0, high=25)
+            noisy_data = np.round(np.random.poisson(data * img))
+        else:
+            # use recorded noise
+            i = np.random.choice(self.noise.shape[0])
+            j = np.random.choice(self.noise.shape[1])
+            noisy_data = data + scale * self.noise[i, j]
+        return noisy_data
 
     def decay_gen_single(self, tau_L, tau_L_2, A_L):
         cropped_pIRF = self._random_crop(self.pIRF, crop_size=(1, 1))
@@ -48,14 +57,12 @@ class Simulator:
         dec_conv = self._conv_dec(dec, irf_out)
 
         # add noise
-        #img = np.random.randint(0, high=25)
-        #dec_conv = np.round(np.random.poisson(dec_conv * img), 0)
-        dec_conv += self._sample_noise()
+        dec_conv = self._sample_noise(dec_conv)
 
         # truncated from below
         dec_conv = np.maximum(dec_conv, 0)
 
-        # scale output
+        # scale output to 1
         dec_conv = self._norm1D(dec_conv)
         return dec_conv
 
