@@ -14,8 +14,6 @@ class Simulator:
         except FileNotFoundError:
             self.noise = np.load('noise_micro.npy')
             self.pIRF = np.load('irf_micro.npy')
-            #self.noise = np.load('system_noise.npy')
-            #self.pIRF = np.load('IRF.npy')
 
         self.n_time_points = self.pIRF.shape[2]
         self.img_size_full = (self.pIRF.shape[0], self.pIRF.shape[1])
@@ -39,7 +37,6 @@ class Simulator:
         return scale * self.noise[i, j]
 
     def decay_gen_single(self, tau_L, tau_L_2, A_L):
-        #cropped_pIRF = self._random_crop(self.pIRF, crop_size=(1, 1)) / self.max_pIRF
         cropped_pIRF = self._random_crop(self.pIRF, crop_size=(1, 1))
         cropped_pIRF = cropped_pIRF / np.sum(cropped_pIRF)
         a1, b1, c1 = np.shape(cropped_pIRF)
@@ -47,8 +44,7 @@ class Simulator:
         A = A_L * np.exp(-t / tau_L)
         B = (1-A_L) * np.exp(-t / tau_L_2)
         dec = A + B
-        irf_out = cropped_pIRF[0,0] #self._norm1D(cropped_pIRF[0,0])
-        #dec_conv = self._conv_dec(self._norm1D(dec), irf_out)
+        irf_out = cropped_pIRF[0,0]
         dec_conv = self._conv_dec(dec, irf_out)
 
         # add noise
@@ -56,16 +52,11 @@ class Simulator:
         #dec_conv = np.round(np.random.poisson(dec_conv * img), 0)
         dec_conv += self._sample_noise()
 
-        # normalise output
-        #dec_conv = self._norm1D(dec_conv)
-
         # truncated from below
-        dec_conv = np.maximum(dec_conv, 0) #/ 3.5
+        dec_conv = np.maximum(dec_conv, 0)
 
         # scale output
         dec_conv = self._norm1D(dec_conv)
-        #dec_conv = dec_conv * np.random.randint(1, 8)
-        #dec_conv = np.round(dec_conv, 0)
         return dec_conv
 
     @staticmethod
@@ -114,9 +105,9 @@ class FLI_Prior:
 
         if self.parameterization == 'difference':
             self.tau1_mean_hyperprior_mean = np.log(0.7)
-            self.tau1_mean_hyperprior_std = 0.7  # 1
+            self.tau1_mean_hyperprior_std = 0.7
             self.tau1_std_hyperprior_mean = -1
-            self.tau1_std_hyperprior_std = 0.5  # 1
+            self.tau1_std_hyperprior_std = 0.5
 
             self.delta_tau_mean_hyperprior_mean = np.log(1.)
             self.delta_tau_mean_hyperprior_std = 0.5
@@ -366,33 +357,6 @@ class FLI_Prior:
         if not np.isfinite(local_params).all():
             raise ValueError('Non-finite local parameters')
         return dict(global_params=global_params, local_params=local_params, data=data)
-
-    # def sample_full(self, batch_size):
-    #     """
-    #     Sample a batch of data. The data is returned as a dictionary.
-    #     IRF and noise are NOT randomly sampled for each pixel, and image size if fixed for more realistic data.
-    #     """
-    #     n_local_samples = self.simulator.img_size_full.shape[0] * self.simulator.img_size_full.shape[1]
-    #
-    #     global_params = np.zeros((batch_size, self.n_params_global))
-    #     local_params = np.zeros((batch_size, n_local_samples, self.n_params_local))
-    #     data = np.zeros((batch_size, n_local_samples, self.n_time_points))
-    #
-    #     for i in range(batch_size):
-    #         global_sample = self._sample_global()
-    #         local_sample = self._sample_local(n_local_samples=n_local_samples)
-    #         sim = self.simulator.decay_gen_full(
-    #             tau_L=local_sample['tau_L'],
-    #             tau_L_2=local_sample['tau_L_2'],
-    #             A_L=local_sample['A_L']
-    #         )
-    #
-    #         global_params[i] = [global_sample['log_tau_G'], global_sample['log_sigma_tau_G'],
-    #                             global_sample['log_delta_tau_G'], global_sample['log_delta_sigma_tau_G'],
-    #                             global_sample['a_mean'], global_sample['a_log_std']]
-    #         local_params[i] = [local_sample['log_tau_L'], local_sample['log_delta_tau_L'], local_sample['a_l']]
-    #         data[i] = sim['observable'].reshape(n_local_samples, self.n_time_points)
-    #     return dict(global_params=global_params, local_params=local_params, data=data)
 
     def score_global_batch(self, theta_batch_norm, condition_norm=None):
         """ Computes the global score for a batch of parameters."""

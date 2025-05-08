@@ -1,6 +1,6 @@
 .idea
 experiments/problems/FLI-all/
-experiments/problems/grid/
+experiments/problems/FLI/**.npy
 experiments/problems/ar1/
 experiments/problems/ar1_grid
 /checkpoints/
