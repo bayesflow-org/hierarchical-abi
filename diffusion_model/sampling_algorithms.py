@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from scipy.integrate import solve_ivp
 from tqdm import tqdm
 
 from diffusion_model.helper_functions import generate_diffusion_time
@@ -416,8 +415,8 @@ def euler_step(model, x, score, t, dt):
         x_next = x - [f(x,t) - 0.5*g(t)^2 * score] * dt
     """
     f, g = model.sde.get_f_g(t=t, x=x)
-    drift = f - torch.square(g) * score
-    x_next = x - 0.5*drift * dt
+    drift = f - 0.5 * torch.square(g) * score
+    x_next = x - drift * dt
     return x_next
 
 

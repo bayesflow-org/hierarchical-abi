@@ -1,15 +1,10 @@
 .idea
-problems/FLI/
-problems/grid/
-/problems/gaussian_grid
-/problems/ar1/
-/problems/ar1_grid
+experiments/problems/FLI-all/
+experiments/problems/grid/
+experiments/problems/ar1/
+experiments/problems/ar1_grid
 /checkpoints/
 Vanilla FLI.ipynb
-/vanilla_fli_fit.png
-/vanilla_fli_median.png
-/vanilla_fli_mad.png
-/time-series-contour-plot.ipynb
 .venv
 
 # Ignore Python bytecode caches

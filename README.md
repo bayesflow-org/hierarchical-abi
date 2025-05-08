@@ -1,21 +1,82 @@
-# Hierarchical ABI with conditional score matching
+# Scalable and Stable Amortized Bayesian Inference for Hierarchical Models
 
-This repository contains the code for the paper __to be added__.
+This repository accompanies the paper:
+**"Scalable and Stable Amortized Bayesian Inference for Hierarchical Models"**.
 
-It is organized as follows:
+We propose a method based on **compositional diffusion models** for **efficient, amortized Bayesian inference** in *hierarchical models*. 
+In this work, we build on compositional score matching (CSM), a divide-and-conquer strategy for Bayesian updating using diffusion models. 
+To address existing stability issues of CSM, we propose adaptive solvers coupled with a novel, error-damping compositional estimator.
 
-The folder `diffusion_model` contains:
-- `diffusion_model.py` contains the implementation of the diffusion model based on the SDE interpretation of [Song et al. (2021)](https://arxiv.org/abs/2011.13456). A flat and hierarchical version of the model is implemented.
-- `diffusion_sampling.py` contains the implementation of the different sampling algorithms for the diffusion model. Each method allows for mini-batching by specifying the `n_scores_update` parameter.
-  - Euler-Maruyama
-  - Adaptive Euler-Maruyama with second order correction
-  - Annealed Langevin Dynamics
-  - ODE Probability Flow
-- `train_score_models.py` contains the training routines for the flat and hierarchical score models.
+## 📁 Repository Structure
 
-The folder `problems` contains two example problems:
-- `gaussian_flat.py` contains the implementation of a flat Gaussian problem.
-- `gaussian_grid.py` contains the implementation of a hierarchical Gaussian problem defined on a grid.
-Each problem has a corresponding notebook. All models plots are saved in the `models` or `plots` folder.
+### `diffusion_model/`
 
-Different noise schedules and weighting functions are visualized in the notebook `Visualize Schedules`.
+This folder contains the core components of the score-based diffusion model.
+
+* **`diffusion_model.py`**
+  Implements the flat and hierarchical diffusion models using the SDE interpretation from [Song et al. (2021)](https://arxiv.org/abs/2011.13456).
+
+* **`diffusion_sde.py`**
+  Defines the forward and reverse stochastic differential equations for the diffusion process.
+
+* **`sampling_algorithms.py`**
+  Implements multiple sampling algorithms for the generative diffusion model:
+
+  * Euler-Maruyama
+  * Adaptive Euler-Maruyama (with 2nd-order correction)
+  * Annealed Langevin Dynamics
+  * ODE-based probability flow (Euler discretization)
+
+  Each sampler supports a customizable `sampling_arg`, e.g.:
+
+  ```python
+  sampling_arg = {
+      'size': 5,
+      'damping_factor': lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * t),
+  }
+  ```
+
+* **`train_score_models.py`**
+  Training routines for the flat and hierarchical score networks.
+
+---
+
+### `experiments/`
+
+This folder organizes all experimental assets.
+
+* **`models/`**
+  Stores all trained diffusion models used in the paper.
+
+* **`plots/`**
+  Contains all figures generated for visualization and analysis.
+
+* **`problems/`**
+  For each experiment, this subdirectory includes:
+
+  * A simulation model definition.
+  * The training objective for the score model.
+  * A Jupyter notebook for reproducing results and visualizations.
+
+---
+
+### 📓 Notebooks
+
+* **`Visualize Schedules.ipynb`**
+  Interactive notebook to visualize and compare different noise schedules and weighting functions.
+
+---
+
+## 🚀 Reproducing Results
+
+We recommend creating a fresh Python environment (e.g., via `conda` or `venv`) and installing the dependencies listed in `requirements.txt`:
+
+```bash
+pip install -r requirements.txt
+```
+
+
+You can reproduce the experiments from the paper by running the problem-specific scripts (which include training and evaluation) and inspecting the generated plots in `experiments/plots`. 
+For each experiment, corresponding Jupyter notebooks are provided to ease evaluation and interpretation.
+
+---

@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 
-from diffusion_model.diffusion_sde_model import weighting_function
+from diffusion_model.diffusion_sde import weighting_function
 
 
 def clip_grad_norm_per_tensor(model, max_norm=1.5):

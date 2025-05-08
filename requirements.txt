@@ -1,11 +1,11 @@
 torch~=2.6.0
-bayesflow~=2.0.0
+bayesflow~=2.0.1
 prettytable
 brainpy~=2.6.0.post20241205
 cmdstanpy~=1.2.5
 Cython~=3.0.12
-optuna~=4.3.0
 numpy~=1.26.4
 matplotlib~=3.10.1
 scipy~=1.14.1
 tqdm~=4.67.1
+pandas~=2.2.3

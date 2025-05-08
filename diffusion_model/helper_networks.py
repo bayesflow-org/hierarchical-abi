@@ -1,9 +1,6 @@
-import math
-
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 # Helper: map activation strings to PyTorch modules.
@@ -121,62 +118,6 @@ class MLP(nn.Module):  # copied from the bayesflow 2.0 implementation
         return x
 
 
-class LSTM(nn.Module):
-    def __init__(self, input_size: int, hidden_dim: int, num_layers: int = 1, max_batch_size: int = 512):
-        super().__init__()
-        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_dim, num_layers=num_layers, batch_first=True)
-        self.hidden_dim = hidden_dim
-        self.num_layers = num_layers
-        self.max_batch_size = max_batch_size
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        outputs = []
-        total = x.size(0)
-
-        # Process in chunks if needed
-        for i in range(0, total, self.max_batch_size):
-            chunk = x[i:i + self.max_batch_size]
-
-            if chunk.ndim == 4:
-                # Rearrange: assume time is not the second dimension yet
-                chunk = chunk.permute(0, 2, 1, 3)
-                bs, n_time_steps, n_obs, n_features = chunk.size()
-                # Reshape into 3D tensor for LSTM: combine batch and observation dimensions
-                chunk = chunk.contiguous().view(bs * n_obs, n_time_steps, n_features)
-                out, (h_n, c_n) = self.lstm(chunk)
-                # Retrieve the last hidden state and reshape back
-                h_n = h_n.contiguous().view(bs, n_obs, self.hidden_dim * self.num_layers)
-            else:
-                # Assume chunk is already 3D: [batch, time, features]
-                out, (h_n, c_n) = self.lstm(chunk)
-                h_n = h_n.contiguous().view(chunk.size(0), self.hidden_dim * self.num_layers)
-
-            outputs.append(h_n)
-
-        # Concatenate along the batch dimension
-        return torch.cat(outputs, dim=0)
-
-
-class GRUEncoder(nn.Module):
-    def __init__(self, input_size, summary_dim=32, hidden_size=256, num_layers=2, dropout=0.05):
-        super().__init__()
-        self.hidden_size = hidden_size
-        self.rnn = nn.GRU(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers,
-                          bidirectional=True, batch_first=True,
-                          dropout=dropout)
-        self.projector = nn.Linear(hidden_size * 2, summary_dim)
-        self.name = "GRUEncoder"
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        _, h_n = self.rnn(x)
-
-        fwd = h_n[-2]
-        bwd = h_n[-1]
-
-        embedding = self.projector(torch.cat((fwd, bwd), dim=-1))
-
-        return embedding #, h_n
-
 
 class GaussianFourierProjection(nn.Module):
     """Gaussian random features for encoding time steps."""
@@ -191,109 +132,8 @@ class GaussianFourierProjection(nn.Module):
         x_proj = x * self.W * self.scale
         return torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
 
-
-class FiLMResidualBlock(nn.Module):
-    def __init__(self, in_dim, out_dim, cond_dim, dropout_rate, use_spectral_norm):
-        super().__init__()
-        self.fc = nn.Linear(in_dim, out_dim)
-        self.film_gamma = nn.Linear(cond_dim, out_dim)
-        self.film_beta = nn.Linear(cond_dim, out_dim)
-        self.activation = nn.Mish()
-        self.dropout = nn.Dropout(dropout_rate)
-        if in_dim != out_dim:
-            self.skip = nn.Linear(in_dim, out_dim)
-        else:
-            self.skip = nn.Identity()
-        self.norm = nn.LayerNorm(out_dim)
-
-        # Zero-initialize the fc and film_beta layers so that:
-        #   self.fc(h) -> 0, and self.film_beta(cond) -> 0.
-        nn.init.zeros_(self.fc.weight)
-        nn.init.zeros_(self.fc.bias)
-        nn.init.zeros_(self.film_beta.weight)
-        nn.init.zeros_(self.film_beta.bias)
-
-        # Apply spectral normalization if specified.
-        if use_spectral_norm:
-            self.fc = nn.utils.parametrizations.spectral_norm(self.fc)
-            if in_dim != out_dim:
-                self.skip = nn.utils.parametrizations.spectral_norm(self.skip)
-
-    def forward(self, h, cond):
-        # h: [batch, in_dim], cond: [batch, cond_dim]
-        x = self.fc(h)
-        # Compute modulation parameters
-        gamma = self.film_gamma(cond)
-        beta = self.film_beta(cond)
-        # Apply FiLM modulation
-        x = gamma * x + beta
-        x = self.activation(x)
-        x = self.dropout(x)
-        x = self.norm(x)
-        return self.activation(x + self.skip(h))
-
 #############
 # taken from: https://github.com/juho-lee/set_transformer/blob/master/
-
-class MAB(nn.Module):
-    def __init__(self, dim_Q, dim_K, dim_V, num_heads, ln=False):
-        super().__init__()
-        self.dim_V = dim_V
-        self.num_heads = num_heads
-        self.fc_q = nn.Linear(dim_Q, dim_V)
-        self.fc_k = nn.Linear(dim_K, dim_V)
-        self.fc_v = nn.Linear(dim_K, dim_V)
-        if ln:
-            self.ln0 = nn.LayerNorm(dim_V)
-            self.ln1 = nn.LayerNorm(dim_V)
-        self.fc_o = nn.Linear(dim_V, dim_V)
-
-    def forward(self, Q, K):
-        Q = self.fc_q(Q)
-        K, V = self.fc_k(K), self.fc_v(K)
-
-        dim_split = self.dim_V // self.num_heads
-        Q_ = torch.cat(Q.split(dim_split, 2), 0)
-        K_ = torch.cat(K.split(dim_split, 2), 0)
-        V_ = torch.cat(V.split(dim_split, 2), 0)
-
-        A = torch.softmax(Q_.bmm(K_.transpose(1,2))/math.sqrt(self.dim_V), 2)
-        O = torch.cat((Q_ + A.bmm(V_)).split(Q.size(0), 0), 2)
-        O = O if getattr(self, 'ln0', None) is None else self.ln0(O)
-        O = O + F.relu(self.fc_o(O))
-        O = O if getattr(self, 'ln1', None) is None else self.ln1(O)
-        return O
-
-class SAB(nn.Module):
-    def __init__(self, dim_in, dim_out, num_heads, ln=False):
-        super().__init__()
-        self.mab = MAB(dim_in, dim_in, dim_out, num_heads, ln=ln)
-
-    def forward(self, X):
-        return self.mab(X, X)
-
-class ISAB(nn.Module):
-    def __init__(self, dim_in, dim_out, num_heads, num_inds, ln=False):
-        super().__init__()
-        self.I = nn.Parameter(torch.Tensor(1, num_inds, dim_out))
-        nn.init.xavier_uniform_(self.I)
-        self.mab0 = MAB(dim_out, dim_in, dim_out, num_heads, ln=ln)
-        self.mab1 = MAB(dim_in, dim_out, dim_out, num_heads, ln=ln)
-
-    def forward(self, X):
-        H = self.mab0(self.I.repeat(X.size(0), 1, 1), X)
-        return self.mab1(X, H)
-
-class PMA(nn.Module):
-    def __init__(self, dim, num_heads, num_seeds, ln=False):
-        super().__init__()
-        self.S = nn.Parameter(torch.Tensor(1, num_seeds, dim))
-        nn.init.xavier_uniform_(self.S)
-        self.mab = MAB(dim, dim, dim, num_heads, ln=ln)
-
-    def forward(self, X):
-        return self.mab(self.S.repeat(X.size(0), 1, 1), X)
-
 
 class ShallowSet(nn.Module):
     def __init__(self, dim_input, dim_output, dim_hidden=128):
@@ -324,19 +164,178 @@ class ShallowSet(nn.Module):
         X = self.dec(X) #.reshape(-1, self.num_outputs, self.dim_output)
         return X
 
-class SetTransformer(nn.Module):
-    def __init__(self, dim_input, num_outputs, dim_output,
-            num_inds=32, dim_hidden=128, num_heads=4, ln=False):
-        super().__init__()
-        self.dim_output = dim_output
-        self.enc = nn.Sequential(
-                ISAB(dim_input, dim_hidden, num_heads, num_inds, ln=ln),
-                ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln))
-        self.dec = nn.Sequential(
-                PMA(dim_hidden, num_heads, num_outputs, ln=ln),
-                SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
-                SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
-                nn.Linear(dim_hidden, dim_output))
 
-    def forward(self, X):
-        return self.dec(self.enc(X)).reshape(-1, self.dim_output)
+### implementation taken from bayesflow 2.0
+class SkipRecurrentNet(nn.Module):
+    """
+    Skip‐recurrent layer:
+      - direct recurrent path
+      - skip‐conv + recurrent path
+      - concat their final outputs
+    """
+
+    def __init__(
+        self,
+        hidden_dim: int = 256,
+        recurrent_type: str = "gru",
+        bidirectional: bool = True,
+        input_channels: int = 64,
+        skip_steps: int = 4,
+        dropout: float = 0.05,
+    ):
+        super().__init__()
+
+        # 1) skip‐conv: in C→C*skip_steps, kernel/stride = skip_steps, same‐padding
+        self.skip_conv = nn.Conv1d(
+            in_channels=input_channels,
+            out_channels=input_channels * skip_steps,
+            kernel_size=skip_steps,
+            stride=skip_steps,
+            padding=skip_steps // 2,
+        )
+
+        # choose GRU or LSTM
+        Rec = nn.GRU if recurrent_type.lower() == "gru" else nn.LSTM
+        r_hid = hidden_dim // 2 if bidirectional else hidden_dim
+
+        # 2) direct and skip recurrent modules
+        self.recurrent = Rec(
+            input_size=input_channels,
+            hidden_size=r_hid,
+            num_layers=1,
+            dropout=dropout,
+            bidirectional=bidirectional,
+            batch_first=True,
+        )
+        self.skip_recurrent = Rec(
+            input_size=input_channels * skip_steps,
+            hidden_size=r_hid,
+            num_layers=1,
+            dropout=dropout,
+            bidirectional=bidirectional,
+            batch_first=True,
+        )
+
+        self.hidden_dim = hidden_dim
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        x: (batch, seq_len, input_channels)
+        returns: (batch, hidden_dim*2)   # concat of direct & skip summaries
+        """
+        # --- direct path ---
+        # out_direct: (batch, seq_len, r_out)
+        out_direct, _ = self.recurrent(x)
+        # take last time‐step
+        direct_summary = out_direct[:, -1, :]  # → (batch, hidden_dim)
+
+        # --- skip path ---
+        # to (batch, C, L) for conv1d
+        skip = x.transpose(1, 2)
+        skip = self.skip_conv(skip)            # → (batch, C*skip_steps, L//skip_steps)
+        skip = skip.transpose(1, 2)            # → (batch, L//skip_steps, C*skip_steps)
+        out_skip, _ = self.skip_recurrent(skip)
+        skip_summary = out_skip[:, -1, :]      # → (batch, hidden_dim)
+
+        # --- concat ---
+        return torch.cat([direct_summary, skip_summary], dim=-1)  # (batch, hidden_dim*2)
+
+
+class TimeSeriesNetwork(nn.Module):
+    """
+    Hybrid conv + SkipRecurrentNet → final summary_dim
+    """
+
+    def __init__(
+        self,
+        input_dim: int,
+        summary_dim: int = 16,
+        filters: int | list[int] = 32,
+        kernel_sizes: int | list[int] = 3,
+        strides: int | list[int] = 1,
+        activation: str = "mish",
+        kernel_initializer: str = "glorot_uniform",
+        groups: int = None,
+        recurrent_type: str = "gru",
+        recurrent_dim: int = 128,
+        bidirectional: bool = True,
+        dropout: float = 0.,
+        skip_steps: int = 4,
+    ):
+        super().__init__()
+        self.name = "TimeSeriesNetwork"
+
+        # ensure tuples
+        if not isinstance(filters, (list, tuple)):
+            filters = (filters,)
+        if not isinstance(kernel_sizes, (list, tuple)):
+            kernel_sizes = (kernel_sizes,)
+        if not isinstance(strides, (list, tuple)):
+            strides = (strides,)
+
+        # build conv‐blocks as ModuleList
+        self.conv_blocks = nn.ModuleList()
+        in_channels = input_dim
+        for f, k, s in zip(filters, kernel_sizes, strides):
+            conv = nn.Conv1d(
+                in_channels=in_channels,
+                out_channels=f,
+                kernel_size=k,
+                stride=s,
+                padding=k // 2,
+                groups=1 if groups is None else groups
+            )
+            # we'll lazy-initialize in forward since in_channels is dynamic
+            self.conv_blocks.append(conv)
+
+            if groups is not None:
+                self.conv_blocks.append(nn.GroupNorm(num_groups=groups, num_channels=f))
+
+            self.conv_blocks.append(get_activation(activation))
+
+            # Update in_channels for the next layer
+            in_channels = f
+
+        # skip‐recurrent backbone
+        self.recurrent = SkipRecurrentNet(
+            hidden_dim=recurrent_dim,
+            recurrent_type=recurrent_type,
+            bidirectional=bidirectional,
+            input_channels=filters[-1],
+            skip_steps=skip_steps,
+            dropout=dropout,
+        )
+
+        # final linear projector
+        # note: SkipRecurrentNet returns size hidden_dim * 2
+        self.output_projector = nn.Linear(recurrent_dim * 2, summary_dim)
+
+        # optionally apply Glorot init
+        if kernel_initializer == "glorot_uniform":
+            for m in self.modules():
+                if isinstance(m, nn.Conv1d):
+                    nn.init.xavier_uniform_(m.weight)
+                    if m.bias is not None:
+                        nn.init.zeros_(m.bias)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        x: (batch, seq_len, channels_in)
+        returns: (batch, summary_dim)
+        """
+        # conv1d wants (B, C, L)
+        x = x.transpose(1, 2)
+
+        # apply conv_blocks
+        for layer in self.conv_blocks:
+            x = layer(x)
+
+        # back to (B, L, C)
+        x = x.transpose(1, 2)
+
+        # skip‐recurrent summary
+        summary = self.recurrent(x)         # → (batch, recurrent_dim*2)
+
+        # final projection
+        out = self.output_projector(summary)  # → (batch, summary_dim)
+        return out
