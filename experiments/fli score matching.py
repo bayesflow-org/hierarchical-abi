@@ -55,7 +55,7 @@ dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, shuffle=Fals
 # Define diffusion model
 n_blocks = [5, 6]
 hidden_dim = [256, 512]
-hidden_dim_summary = [10, 14, 18, 22, 32]
+hidden_dim_summary = [10, 14, 18, 22]
 split_summary_vector = [True] #, False]
 n_blocks, hidden_dim, hidden_dim_summary, split_summary_vector = list(itertools.product(n_blocks, hidden_dim, hidden_dim_summary, split_summary_vector))[experiment_id]
 summary_net = TimeSeriesNetwork(input_dim=1, recurrent_dim=256, summary_dim=hidden_dim_summary)
