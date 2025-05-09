@@ -57,8 +57,8 @@ elif problem_id == 3:
 else:
     raise ValueError('Unknown problem_id')
 
-if not os.path.exists('../plots/'+score_model_name):
-    os.makedirs('../plots/'+score_model_name)
+if not os.path.exists('plots/'+score_model_name):
+    os.makedirs('plots/'+score_model_name)
 
 fig, axis_full = plt.subplots(nrows=2, ncols=5, sharex=True, sharey='col', figsize=(12, 1.9*2), constrained_layout=True)
 for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
@@ -73,7 +73,7 @@ for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
 
     results_list = []
     for m_id in m_ids:
-        file_name = f'../plots/{score_model_names(m_id, n_obs)}/df_results_{variable_of_interest}.csv'
+        file_name = f'plots/{score_model_names(m_id, n_obs)}/df_results_{variable_of_interest}.csv'
         results_list.append(pd.read_csv(file_name, index_col=0))
     df_results = pd.concat(results_list)
 
@@ -261,5 +261,5 @@ for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
 fig.legend(handles=handles_all, labels=labels_all, ncols=len(labels_all), frameon=False,
             loc='center', bbox_to_anchor=(0.5, -0.03))
 if save_plots:
-    fig.savefig(f'../plots/{score_model_name}/paper_figure.pdf', bbox_inches='tight', transparent=True)
+    fig.savefig(f'plots/{score_model_name}/paper_figure.pdf', bbox_inches='tight', transparent=True)
 plt.close()
