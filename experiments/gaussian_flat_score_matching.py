@@ -26,7 +26,8 @@ max_number_of_obs = int(sys.argv[1])
 experiment_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
 noise_schedule = ['cosine', 'linear', 'edm-training', 'edm-sampling'][0]
 
-variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t']
+variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t',
+                         'damping_factor_t_linear', 'damping_factor_t_cosine']
 if max_number_of_obs > 1:
     variables_of_interest = ['n_conditions']
 model_ids = np.arange(10)  # train 10 models
@@ -161,12 +162,29 @@ elif variable_of_interest == 'cosine_shift':
 
 elif variable_of_interest == 'damping_factor_t':
     #d_factors = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.5, 0.75, 0.9, 1]
-    d_factors = [1e-05, 0.01, 0.1, 1.0]
+    d_factors = np.square([1e-05, 0.01, 0.1, 1.0])  # we used a factor of 2 before
+    second_variable_of_interest = 'data_size'
+elif variable_of_interest == 'damping_factor_t_cosine':
+    #d_factors = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.5, 0.75, 0.9, 1]
+    d_factors = np.square([1e-05, 0.01, 0.1, 1.0])  # we used a factor of 2 before
+    second_variable_of_interest = 'data_size'
+elif variable_of_interest == 'damping_factor_t_linear':
+    #d_factors = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.5, 0.75, 0.9, 1]
+    d_factors = np.square([1e-05, 0.01, 0.1, 1.0])  # we used a factor of 2 before
     second_variable_of_interest = 'data_size'
 else:
     raise ValueError('Unknown variable_of_interest')
 
 df_path = f'experiments/plots/{score_model.name}/df_results_{variable_of_interest}.csv'
+
+def exponential_decay(t, d0, d1):
+    return d0 * torch.exp(-np.log(d0 / d1) * t)
+
+def linear_decay(t, d0, d1):
+    return d0 - (d0 - d1) * t
+
+def cosine_decay(t, d0, d1):
+    return d1 + 0.5 * (d0 - d1) * (1 + torch.cos(torch.pi * t))
 
 #%%
 # List to store results.
@@ -231,17 +249,27 @@ for n in data_sizes:
         if variable_of_interest == 'damping_factor_t':
             t0_value = 1
             t1_value = d_factor
-            damping_factor = lambda t: t0_value * torch.exp(-np.log(t0_value / t1_value) * 2*t)
+            damping_factor = lambda t: exponential_decay(t=t, d0=t0_value, d1=t1_value)
             if mb is None:
                 mini_batch_arg = {'damping_factor': damping_factor}
             else:
                 mini_batch_arg = {'size': mb, 'damping_factor': damping_factor}
-        elif variable_of_interest == 'damping_factor_prior':
-            damping_factor = lambda t: torch.ones_like(t) * d_factor
+        elif variable_of_interest == 'damping_factor_t_cosine':
+            t0_value = 1
+            t1_value = d_factor
+            damping_factor = lambda t: cosine_decay(t=t, d0=t0_value, d1=t1_value)
             if mb is None:
-                mini_batch_arg = {'damping_factor_prior': damping_factor}
+                mini_batch_arg = {'damping_factor': damping_factor}
             else:
-                mini_batch_arg = {'size': mb, 'damping_factor_prior': damping_factor}
+                mini_batch_arg = {'size': mb, 'damping_factor': damping_factor}
+        elif variable_of_interest == 'damping_factor_t_linear':
+            t0_value = 1
+            t1_value = d_factor
+            damping_factor = lambda t: linear_decay(t=t, d0=t0_value, d1=t1_value)
+            if mb is None:
+                mini_batch_arg = {'damping_factor': damping_factor}
+            else:
+                mini_batch_arg = {'size': mb, 'damping_factor': damping_factor}
         else:
             damping_factor = lambda t: torch.ones_like(t) * d_factor
             if mb is None:

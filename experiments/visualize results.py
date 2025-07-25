@@ -63,7 +63,8 @@ if not os.path.exists('plots/'+score_model_name):
 fig, axis_full = plt.subplots(nrows=2, ncols=5, sharex=True, sharey='col', figsize=(12, 1.9*2), constrained_layout=True)
 for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
     colors = colors_all[c*3+1:]
-    variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t']
+    variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t',
+                             'damping_factor_t_linear', 'damping_factor_t_cosine']
     variables_of_interest.append('n_conditions')
     variable_of_interest = variables_of_interest[var_index]
     print(variable_of_interest)
@@ -186,7 +187,7 @@ for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
         if variable_of_interest == 'cosine_shift':
             labels.append(f'$s={mb}$')
         elif variable_of_interest == 'damping_factor_t':
-            labels.append(f'$d_1={np.round(np.sqrt(mb), 3)}$')  # we used a factor 2 in the damping function
+            labels.append(f'$d_1={np.round(np.square(mb), 3)}$')  # we used a factor 2 in the damping function
         else:
             labels.append(f'{mb}')
         handles.append(h)

@@ -16,3 +16,6 @@ __pycache__/
 # Ignore macOS metadata files
 .DS_Store
 ._.DS_Store
+/Vanilla FLI Mouse Data.ipynb
+/experiments/problems/meso/
+/experiments/problems/fli_mouse.py
