@@ -15,6 +15,7 @@ os.environ['KERAS_BACKEND'] = 'torch'
 from bayesflow import diagnostics
 from torch.utils.data import DataLoader
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from diffusion_model import ScoreModel, SDE, GaussianFourierProjection, ShallowSet, train_score_model, adaptive_sampling
 from experiments.problems.gaussian_flat import GaussianProblem, Prior, generate_synthetic_data, sample_posterior, kl_divergence, posterior_contraction
 #%%
@@ -26,7 +27,7 @@ max_number_of_obs = int(sys.argv[1])
 experiment_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
 noise_schedule = ['cosine', 'linear', 'edm-training', 'edm-sampling'][0]
 
-variables_of_interest = ['mini_batch', 'cosine_shift', 'damping_factor_t',
+variables_of_interest = [#'mini_batch', 'cosine_shift', 'damping_factor_t',
                          'damping_factor_t_linear', 'damping_factor_t_cosine']
 if max_number_of_obs > 1:
     variables_of_interest = ['n_conditions']
@@ -161,15 +162,12 @@ elif variable_of_interest == 'cosine_shift':
     second_variable_of_interest = 'data_size'
 
 elif variable_of_interest == 'damping_factor_t':
-    #d_factors = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.5, 0.75, 0.9, 1]
     d_factors = np.square([1e-05, 0.01, 0.1, 1.0])  # we used a factor of 2 before
     second_variable_of_interest = 'data_size'
 elif variable_of_interest == 'damping_factor_t_cosine':
-    #d_factors = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.5, 0.75, 0.9, 1]
     d_factors = np.square([1e-05, 0.01, 0.1, 1.0])  # we used a factor of 2 before
     second_variable_of_interest = 'data_size'
 elif variable_of_interest == 'damping_factor_t_linear':
-    #d_factors = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.5, 0.75, 0.9, 1]
     d_factors = np.square([1e-05, 0.01, 0.1, 1.0])  # we used a factor of 2 before
     second_variable_of_interest = 'data_size'
 else:
@@ -181,6 +179,10 @@ def exponential_decay(t, d0, d1):
     return d0 * torch.exp(-np.log(d0 / d1) * t)
 
 def linear_decay(t, d0, d1):
+    if not torch.is_tensor(d0):
+        d0 = torch.tensor(d0, dtype=t.dtype, device=t.device)
+    if not torch.is_tensor(d1):
+        d1 = torch.tensor(d1, dtype=t.dtype, device=t.device)
     return d0 - (d0 - d1) * t
 
 def cosine_decay(t, d0, d1):

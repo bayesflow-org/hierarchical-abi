@@ -96,7 +96,15 @@ for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
         second_variable_of_interest = 'data_size'
     elif variable_of_interest == 'damping_factor_t':
         show_values = df_results.damping_factor_t.unique()
-        show_values = [1e-5, 0.01, 1.0]
+        show_values = [1e-5, 0.01, 1.0]  # w# we used a factor 2 in the damping function
+        second_variable_of_interest = 'data_size'
+    elif variable_of_interest == 'damping_factor_t_linear':
+        show_values = df_results.damping_factor_t.unique()
+        show_values = np.square([1e-5, 0.01, 1.0])  # we used the correct damping factor
+        second_variable_of_interest = 'data_size'
+    elif variable_of_interest == 'damping_factor_t_cosine':
+        show_values = df_results.damping_factor_t.unique()
+        show_values = np.square([1e-5, 0.01, 1.0])  # we used the correct damping factor
         second_variable_of_interest = 'data_size'
     else:
         raise ValueError('Unknown variable_of_interest')
@@ -139,6 +147,8 @@ for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
 
     experiment_names = {
         'damping_factor_t': 'Damping Factor',
+        'damping_factor_t_linear': 'Linear Damping Factor',
+        'damping_factor_t_cosine': 'Cosine Damping Factor',
         'n_conditions': 'Number of Conditions',
         'cosine_shift': 'Cosine Shift',
         'data_size': 'Data Size',
@@ -188,6 +198,10 @@ for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
             labels.append(f'$s={mb}$')
         elif variable_of_interest == 'damping_factor_t':
             labels.append(f'$d_1={np.round(np.square(mb), 3)}$')  # we used a factor 2 in the damping function
+        elif variable_of_interest == 'damping_factor_t_linear':
+            labels.append(f'$d_1={np.round(mb, 3)}$')
+        elif variable_of_interest == 'damping_factor_t_cosine':
+            labels.append(f'$d_1={np.round(mb, 3)}$')
         else:
             labels.append(f'{mb}')
         handles.append(h)
@@ -248,8 +262,14 @@ for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
                 ax[j].text(1, 1.05, "Optimal", fontsize=8, color='k')
             elif variable_of_interest == 'damping_factor_t':
                 ax[j].text(0.1, 1.05, "Optimal", fontsize=8, color='k')
+            elif variable_of_interest == 'damping_factor_t_linear':
+                ax[j].text(0.1, 1.05, "Optimal", fontsize=8, color='k')
+            elif variable_of_interest == 'damping_factor_t_cosine':
+                ax[j].text(0.1, 1.05, "Optimal", fontsize=8, color='k')
 
-        if variable_of_interest == 'mini_batch' or variable_of_interest == 'damping_factor_t' or variable_of_interest == 'data_size':
+        if (variable_of_interest == 'mini_batch' or variable_of_interest == 'damping_factor_t'
+                or variable_of_interest == 'data_size' or variable_of_interest == 'damping_factor_t_linear'
+                or variable_of_interest == 'damping_factor_t_cosine'):
             ax[j].set_xscale('log')
         if metric == 'kl':
             ax[j].set_yscale('log')
