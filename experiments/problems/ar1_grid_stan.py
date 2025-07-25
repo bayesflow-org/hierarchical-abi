@@ -3,7 +3,7 @@ import os
 import numpy as np
 from cmdstanpy import CmdStanModel
 
-stan_file = os.path.join('problems', 'ar1_grid.stan')
+stan_file = os.path.join('experiments', 'problems', 'ar1_grid.stan')
 stan_model = CmdStanModel(stan_file=stan_file)
 def get_stan_posterior(sim_test, sigma_noise, chains=4):
     N, T = sim_test.shape
