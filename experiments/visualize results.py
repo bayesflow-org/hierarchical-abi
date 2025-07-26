@@ -22,9 +22,10 @@ from scipy.stats import median_abs_deviation as mad
 #%%
 # load results
 problem_id = 0  # 0: Gaussian, 1: AR(1), 2: Gaussian with linear schedule, 3: Gaussian with EDM
-#var_index = 0  # 0: mini_batch, 1: cosine_shift, 2: damping_factor_t, 3: n_conditions
+#var_index = 0  # 0: mini_batch, 1: cosine_shift, 2: damping_factor_t, 3: damping_factor_t_linear,
+# 4: damping_factor_t_cosine, 5: n_conditions
 var_indices = [2, 1]
-save_plots = True
+save_plots = False
 
 colors_all = ['#a6cee3', '#1f77b4', '#b2df8a', '#33a02c', '#fb9a99', '#e31a1c', '#fdbf6f', '#ff7f00', '#cab2d6', '#6a3d9a']
 handles_all = []
@@ -96,7 +97,7 @@ for c, (axis, var_index) in enumerate(zip(axis_full, var_indices)):
         second_variable_of_interest = 'data_size'
     elif variable_of_interest == 'damping_factor_t':
         show_values = df_results.damping_factor_t.unique()
-        show_values = [1e-5, 0.01, 1.0]  # w# we used a factor 2 in the damping function
+        show_values = [1e-5, 0.01, 1.0]  # we used a factor 2 in the damping function
         second_variable_of_interest = 'data_size'
     elif variable_of_interest == 'damping_factor_t_linear':
         show_values = df_results.damping_factor_t.unique()

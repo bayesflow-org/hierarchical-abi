@@ -179,11 +179,9 @@ def exponential_decay(t, d0, d1):
     return d0 * torch.exp(-np.log(d0 / d1) * t)
 
 def linear_decay(t, d0, d1):
-    if not torch.is_tensor(d0):
-        d0 = torch.tensor(d0, dtype=t.dtype, device=t.device)
-    if not torch.is_tensor(d1):
-        d1 = torch.tensor(d1, dtype=t.dtype, device=t.device)
-    return d0 - (d0 - d1) * t
+    start = torch.as_tensor(d0, dtype=t.dtype, device=t.device)
+    end = torch.as_tensor(d1, dtype=t.dtype, device=t.device)
+    return torch.lerp(input=start, end=end, weight=t)
 
 def cosine_decay(t, d0, d1):
     return d1 + 0.5 * (d0 - d1) * (1 + torch.cos(torch.pi * t))
