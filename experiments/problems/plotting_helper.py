@@ -55,7 +55,7 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
             img[~mask] = np.nan
             cmap.set_bad(color="black")
         if scales is not None:
-            # Use provided scales
+            # Use provided scales‚
             vmin, vmax = scales[i]
             cmap.set_under(color='black')
             im = ax.imshow(img, cmap=cmap, vmin=vmin, vmax=vmax)
@@ -78,7 +78,7 @@ def visualize_simulation_output(sim_output, title_prefix="Time", cmap="viridis",
 
         if add_scale_bar:
             # Define the pixel-to-micron ratio
-            microns_per_pixel = microns_per_pixel = 135./512
+            microns_per_pixel = 135./512
             scale_bar_length_um = 10
             scale_bar_length_px = int(scale_bar_length_um / microns_per_pixel)
 
