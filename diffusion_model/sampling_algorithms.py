@@ -422,7 +422,7 @@ def euler_step(model, x, score, t, dt):
 
 def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
                             diffusion_steps=1000, t_end=0, sampling_arg=None,
-                            random_seed=None, device=None, verbose=False):
+                            random_seed=None, device=None, verbose=False, return_time=False):
     """
     Generate posterior samples using Euler-Maruyama sampling. Expects un-normalized observations.
 
@@ -470,6 +470,9 @@ def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
         else:
             theta = model.prior.denormalize_theta(theta, global_params=False)
             theta = theta.detach().cpu().numpy().reshape(batch_size, n_post_samples, n_obs, model.prior.n_params_local)
+    if return_time:
+        if np.isnan(theta).any():
+            return diffusion_time[t]
     return theta
 
 

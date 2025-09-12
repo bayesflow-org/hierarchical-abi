@@ -17,6 +17,7 @@ from bayesflow import diagnostics
 
 from torch.utils.data import DataLoader
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from diffusion_model import HierarchicalScoreModel, SDE, ShallowSet, euler_maruyama_sampling, adaptive_sampling, train_score_model
 from experiments.problems.ar1_grid import AR1GridProblem, Prior
 

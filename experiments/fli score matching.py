@@ -3,6 +3,7 @@
 # 
 #%%
 import os
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,6 +16,7 @@ from bayesflow import diagnostics
 
 from torch.utils.data import DataLoader
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from diffusion_model import HierarchicalScoreModel, SDE, euler_maruyama_sampling, train_score_model, ShallowSet, TimeSeriesNetwork
 from experiments.problems.fli import FLIProblem, FLI_Prior, generate_synthetic_data
 from experiments.problems import visualize_simulation_output
@@ -169,6 +171,14 @@ data = np.load('experiments/problems/FLI/final_Data.npy')[:, :grid_data, :grid_d
 data = data.reshape(1, grid_data * grid_data, 256, 1)
 cut_off = 17
 binary_mask = (np.sum(data, axis=2, keepdims=True) > cut_off)
+
+# load MLE binary map
+mle_parameters = np.load("experiments/problems/FLI/mle_parameters.npy")
+tau_mean = mle_parameters[:, :, 2] * mle_parameters[:, :, 0] + (1 - mle_parameters[:, :, 2]) * mle_parameters[:, :, 1]
+mle_estimates = np.concatenate((mle_parameters[:, :, :3], tau_mean[..., np.newaxis]), axis=-1)
+# binary mask sets estimates to 0
+binary_mask = binary_mask.flatten() & (mle_estimates[:, :, 0] != 0).flatten() & (mle_estimates[:, :, 1] != 0).flatten()
+binary_mask = binary_mask.reshape(1, binned_data.shape[1], 1, 1)
 
 for j, real_data in enumerate([binned_data, data]):
 

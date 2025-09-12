@@ -1,6 +1,10 @@
+import os
+import sys
+
 import numpy as np
 import torch
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from scipy.special import expit, logit
 from torch.utils.data import Dataset
 from diffusion_model.helper_functions import generate_diffusion_time
@@ -9,8 +13,8 @@ class Simulator:
     def __init__(self):
         self.gw = 12500/256  # gate width in ps
         try:
-            self.noise = np.load('experiments/problems/FLI/noise_micro.npy')
-            self.pIRF = np.load('experiments/problems/FLI/irf_micro.npy')
+            self.noise = np.load('problems/FLI/noise_micro.npy')
+            self.pIRF = np.load('problems/FLI/irf_micro.npy')
         except FileNotFoundError:
             try:
                 self.noise = np.load('noise_micro.npy')
