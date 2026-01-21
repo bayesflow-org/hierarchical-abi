@@ -45,9 +45,6 @@ This folder contains the core components of the score-based diffusion model.
 
 This folder organizes all experimental assets.
 
-* **`models/`**
-  Stores all trained diffusion models used in the paper.
-
 * **`plots/`**
   Contains all figures generated for visualization and analysis.
 
