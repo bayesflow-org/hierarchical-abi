@@ -13,6 +13,7 @@ experiments/bf_checkpoints/
 experiments/models/
 experiments/problems/meso/
 experiments/plots/ar1/old
+experiments/plots/gaussian/old
 
 # Ignore Python bytecode caches
 __pycache__/
