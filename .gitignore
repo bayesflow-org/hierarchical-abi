@@ -1,11 +1,13 @@
 .idea
 experiments/problems/FLI-all/
-experiments/problems/FLI/**.npy
-experiments/problems/ar1/
+**.npy
 experiments/problems/ar1_grid
 /checkpoints/
-Vanilla FLI.ipynb
 .venv
+experiments/sbi-logs
+experiments/bf_checkpoints
+**.pt
+**.keras
 
 # Ignore Python bytecode caches
 __pycache__/
@@ -18,4 +20,3 @@ __pycache__/
 ._.DS_Store
 /Vanilla FLI Mouse Data.ipynb
 /experiments/problems/meso/
-/experiments/problems/fli_mouse.py
