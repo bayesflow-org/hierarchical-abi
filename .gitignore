@@ -8,8 +8,9 @@ uv.lock
 /Vanilla FLI Mouse Data.ipynb
 experiments/problems/FLI-all/
 experiments/problems/ar1/ar1_grid
-experiments/sbi-logs
-experiments/bf_checkpoints
+experiments/sbi-logs/
+experiments/bf_checkpoints/
+experiments/models/
 experiments/problems/meso/
 
 # Ignore Python bytecode caches

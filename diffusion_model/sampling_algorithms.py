@@ -479,9 +479,9 @@ def euler_maruyama_sampling(model, x_obs, n_post_samples=1, conditions=None,
 def adaptive_sampling(model, x_obs,
                       n_post_samples=1,
                       conditions=None,
-                      e_abs: float = None,  # abs error tolerance should grow with the dimension
-                      e_rel: float = 0.5,
-                      h_init: float = 0.5,
+                      e_abs: float = 0.02576,  # 1% of normalized range
+                      e_rel: float = 0.1,
+                      h_init: float = None,
                       r: float = 0.9,
                       adapt_safety: float = 0.9,
                       max_evals: int = 10000,
@@ -537,19 +537,18 @@ def adaptive_sampling(model, x_obs,
     )
     batch_size_full = batch_size * n_post_samples
 
+    if h_init is None:
+        h = torch.tensor((t_start - t_end) / 50, dtype=torch.float32, device=device)
+    else:
+        h = torch.tensor(h_init, dtype=torch.float32, device=device)
+    minimal_h = torch.tensor((t_start - t_end) / (max_evals // 2), dtype=torch.float32, device=device)
     current_t = torch.tensor(t_start, dtype=torch.float32, device=device)
     if isinstance(t_end, float):
         t_end = torch.tensor(t_end, dtype=torch.float32, device=device)
-    h = torch.tensor(h_init, dtype=torch.float32, device=device)
-    if e_abs is None:
-        # abs error tolerance grows with the dimension
-        e_abs = 0.01 * np.sqrt(theta.shape[-1])
-    e_abs_tensor = torch.full((batch_size_full, 1), e_abs, dtype=torch.float32, device=device)
-    if conditions is not None:
-        e_abs_tensor = e_abs_tensor[:, None]
+    e_abs = torch.tensor(e_abs, dtype=torch.float32, device=device)
     theta_prev = theta
 
-    error_scale = 1 / np.sqrt(theta[0].numel()).item()  # 1 / sqrt(n_params)
+    error_scale = 1
     list_accepted_steps = []
     with torch.no_grad():
         if sampling_arg_dict['MC-dropout']:
@@ -583,29 +582,29 @@ def adaptive_sampling(model, x_obs,
                                               n_post_samples=n_post_samples,
                                               sampling_arg_dict=sampling_arg_dict)
             if conditions is None:
-                theta_eul_mid = euler_maruyama_step(model, theta_eul, score=scores_mid, t=t_mid, dt=h, noise=z)
+                f, g = model.sde.get_f_g(t=t_mid, x=theta_eul)
             else:
-                theta_eul_mid = euler_maruyama_step(model, theta_eul, score=scores_mid, t=t_mid[:, None], dt=h, noise=z)
+                f, g = model.sde.get_f_g(t=t_mid[:, None], x=theta_eul)
+            drift = f - torch.square(g) * scores_mid
+            theta_eul_mid = theta - drift * h + torch.sqrt(h) * g * z
 
             # Average the two steps.
             theta_eul_sec = 0.5 * (theta_eul + theta_eul_mid)
 
             # Error estimation.
-            delta = torch.maximum(e_abs_tensor,
+            delta = torch.maximum(e_abs,
                                   e_rel * torch.maximum(torch.abs(theta_eul), torch.abs(theta_prev)))
-            sample_error = torch.max(torch.abs((theta_eul - theta_eul_sec) / delta), dim=1)[0]
-            error_norm = sample_error.max()  # max of posterior samples
-
-            E2 = error_scale * error_norm.item() #/ (1.0 + model.sde.kernel(log_snr=model.sde.get_snr(t=current_t))[1])
+            error_norm = torch.max(torch.abs(theta_eul - theta_eul_sec) / (delta + 1e-10))
+            E2 = error_scale * error_norm.item()
 
             # Accept/reject step.
-            if E2 <= 1.0+10*model.sde.kernel(log_snr=model.sde.get_snr(t=current_t))[1]:
+            if E2 <= 1.0 or h <= minimal_h:
                 theta = theta_eul_sec
                 current_t = current_t - h
                 theta_prev = theta_eul
                 list_accepted_steps.append(h.cpu().numpy())
             elif np.isnan(E2):
-                print('delta', delta, 'error_scale', error_scale, 'sample_error', sample_error)
+                print('delta', delta, 'error_scale', error_scale)
                 print("NaNs in E2")
                 break
             elif torch.isnan(theta).any():
@@ -615,9 +614,10 @@ def adaptive_sampling(model, x_obs,
             else:
                 list_accepted_steps.append(np.nan)
 
-            if E2 == 0:
+            if E2 < 1e-10:
                 E2 = 1e-10
-            h = torch.minimum(current_t - t_end, h * adapt_safety * (E2 ** (-r)))
+            h_new = torch.maximum(h * adapt_safety * (E2 ** (-r)), minimal_h)
+            h = torch.minimum(current_t - t_end, h_new)
             if current_t <= t_end:
                 break
 
