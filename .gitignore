@@ -8,6 +8,7 @@ experiments/sbi-logs
 experiments/bf_checkpoints
 **.pt
 **.keras
+**.csv
 
 # Ignore Python bytecode caches
 __pycache__/
