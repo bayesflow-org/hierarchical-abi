@@ -1,7 +1,7 @@
-# Scalable and Stable Amortized Bayesian Inference for Hierarchical Models
+# Compositional Amortized Inference for Large-Scale Hierarchical Bayesian Models
 
-This repository accompanies the paper:
-**"Scalable and Stable Amortized Bayesian Inference for Hierarchical Models"**.
+This repository accompanies the [paper](https://arxiv.org/abs/2505.14429):
+**"Compositional Amortized Inference for Large-Scale Hierarchical Bayesian Models"**.
 
 We propose a method based on **compositional diffusion models** for **efficient, amortized Bayesian inference** in *hierarchical models*. 
 In this work, we build on compositional score matching (CSM), a divide-and-conquer strategy for Bayesian updating using diffusion models. 
