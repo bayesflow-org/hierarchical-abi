@@ -66,12 +66,18 @@ This folder organizes all experimental assets.
 
 ## 🚀 Reproducing Results
 
-We recommend creating a fresh Python environment (e.g., via `conda` or `venv`) and installing the dependencies listed in `requirements.txt`:
+We recommend creating a fresh Python environment (e.g., via `uv`) and installing the dependencies listed in `pyproject.toml`:
 
 ```bash
-pip install -r requirements.txt
+uv venv --python 3.11
+uv sync
 ```
 
+For some experiments, you also need to install `stan` via `cmdstanpy`:
+```python
+import cmdstanpy
+cmdstanpy.install_cmdstan()
+```
 
 You can reproduce the experiments from the paper by running the problem-specific scripts (which include training and evaluation) and inspecting the generated plots in `experiments/plots`. 
 For each experiment, corresponding Jupyter notebooks are provided to ease evaluation and interpretation.

@@ -54,9 +54,9 @@ class Prior:
         self.alpha_mean = 0
         self.alpha_std = 1
         self.beta_mean = 0
-        self.beta_std = 1 #0.1
-        self.log_sigma_mean = 0 #np.log(0.1)
-        self.log_sigma_std = 1 #0.5
+        self.beta_std = 1
+        self.log_sigma_mean = 0
+        self.log_sigma_std = 1
         self.n_params_global = 3
         self.n_params_local = 1
         self.global_param_names = [r'$\alpha$', r'$\beta$', r'$\log \sigma$']

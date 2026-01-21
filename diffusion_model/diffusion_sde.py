@@ -92,7 +92,7 @@ class SDE:
         if self.noise_schedule == 'edm-training':
             # training
             dist = torch.distributions.Normal(loc=-2*self.p_mean, scale=2*self.p_std)
-            snr = dist.icdf(t_trunc)
+            snr = dist.icdf(1 - t_trunc)
             snr = snr.clamp(min=self._log_snr_min.to(snr.device), max=self._log_snr_max.to(snr.device))
             return snr
         if self.noise_schedule == 'edm-sampling':

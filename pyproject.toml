@@ -1,0 +1,16 @@
+[project]
+name = "hierarchical-abi"
+version = "0.1.0"
+description = "Compositional Amortized Inference for Large-Scale Hierarchical Bayesian Models"
+requires-python = ">=3.11.0, <3.12"
+dependencies = [
+    "bayesflow==2.0.7",
+    "cmdstanpy>=1.3.0",
+    "ipykernel>=7.1.0",
+    "jax>=0.7.1",
+    "joblib>=1.5.3",
+    "keras==3.12",
+    "optuna>=4.7.0",
+    "prettytable>=3.17.0",
+    "torch>=2.9.1",
+]
